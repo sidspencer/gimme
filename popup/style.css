@@ -1,0 +1,50 @@
+body {
+    color: rgba(0,255,0,1);
+    background-color: rgba(0,0,0,1);
+    font-family: monospace;
+    font-size: 12px;
+    height: 300px;
+    width: 300px;
+}
+
+h1 {
+    font-size: 16px;
+}
+
+p {
+    text-indent: 5px;
+}
+
+input,checkbox,textarea,button {
+    background-color: rgba(0,0,0,1);
+    color: rgba(0,255,0,1);
+    border: 2px solid rgba(0,255,0,1);
+    border-radius: 2px;
+}
+
+li.found {
+    color: rgba(0,255,0,0.3);
+    font-variant: normal;
+    list-style: '~';
+}
+
+li.dug {
+    color: rgba(0,255,0,0.5);
+    font-variant: unset;
+    list-style: '-';
+}
+
+li.downloading {
+    color: rgba(0,255,0,1);
+    font-variant: small-caps;
+    list-style: '$';
+}
+
+div.buttonColumn {
+    display: inline-block;
+    margin: 10px;
+}
+
+div.buttonColumn > button {
+    display: block;
+}
