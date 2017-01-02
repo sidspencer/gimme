@@ -1,0 +1,57 @@
+{
+  "manifest_version": 2,
+
+  "name": "GimmeGimmeGimme",
+  "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
+  "version": "0.0.6",
+  "offline_enabled": true,
+
+  "icons": {
+    "16": "media/icon16.png",
+    "24": "media/icon24.png",
+    "32": "media/icon32.png",
+    "64": "media/icon64.png"
+  },
+
+  "background": {
+    "persistent": true,
+    "scripts": [
+      "background/Utils.js",
+      "background/Logicker.js",
+      "background/Digger.js",
+      "background/Output.js",
+      "background/App.js",
+      "background/EventPage.js"
+    ]
+  },
+
+  "content_scripts" : [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content/LocationGrabber.js"
+      ],
+      "all_frames": false
+    }
+  ],
+  "browser_action": {
+    "default_icon": {
+      "16": "media/icon16.png",
+      "24": "media/icon24.png",
+      "32": "media/icon32.png",
+      "64": "media/icon64.png"
+    },
+    "default_popup": "popup/popup.html"
+  },
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "downloads",
+    "http://*/*",
+    "https://*/*",
+    "file:///*/*"
+  ],
+  "content_security_policy": "script-src 'self' https://ajax.googleapis.com; object-src 'self'"
+}
