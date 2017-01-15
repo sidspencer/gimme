@@ -20,6 +20,7 @@ var App = (function App(Output, Digger, Logicker, Utils) {
 
     var _alreadyDone = false;
     var _alreadyDownloaded = [];
+    var _fileOptions = [];
 
     var GGGIMME_ID = 'gimmegimmegimme';
 
@@ -49,10 +50,6 @@ var App = (function App(Output, Digger, Logicker, Utils) {
                 }
                 else {
                     console.log('Error starting download: ' + chrome.runtime.lastError);
-                }
-
-                if (/^blob\:/.test(uri)) {
-                    URL.revokeObjectURL(uri);
                 }
             }
         );
@@ -211,6 +208,104 @@ var App = (function App(Output, Digger, Logicker, Utils) {
     
 
 
+    /**
+     * 
+     */
+    me.presentFileOptions = function presentFileOptions(files) {
+        var fileList = [];
+        var fileList = mergeDownloadUris(files, me.zoomLinkUris);
+
+        if (!fileList || !fileList.length) {
+            console.log('[PresentFileOpts] no files');
+
+            Output.toOut('No URLs to download.');
+            
+            return;
+        }
+        console.log('[PresentFileOpts] fileList count: ' + fileList.length);
+
+        Output.toOut('click on the files in the list to download them.');
+        Output.clearFilesDug();
+
+        // Create each new filename, add the file to the UI list, and kick off the
+        // download.
+        fileList.forEach(function processFileSrc(fileSrc, idx) {
+            if (!fileSrc || !fileSrc.replace) {
+                console.log('Bad fileSrc.... ' + JSON.stringify(fileSrc));
+                return;
+            }
+
+            // //
+            // // ---------- DON'T DO THIS. ------- 
+            // //
+            // // Skip the thumbs.
+            // if (/(thumb|\/t-|\/tn|_tb\.)/.test(fileSrc)) {
+            //     return;
+            // }
+
+            // take the querystring off just to make the destSrc. We need it when downloading, however.
+            var fSrc = fileSrc.replace(/\?(.+?)$/, '');
+            var destName = fSrc.replace(/^.+\//, '');
+
+            // Hack just to get filenames right.
+            if (destName.indexOf('.') === -1) {
+                destName = destName + '.jpg';
+            }
+
+            var destSrc = me.downloadsDir + '/' + destName;
+
+            if (!!fSrc && !!destSrc) {
+                console.log(fSrc + ' -> ' + destSrc);
+            }
+            
+            var optIdx = _fileOptions.push(destSrc);
+
+            var fileOption = {
+                id: optIdx,
+                uri: fileSrc,
+                filePath: destSrc,
+                onSelect: downloadFile,
+            };
+
+            Output.addFileOption(fileOption);
+        });
+
+        Output.toOut('Please select which files you would like to download.');
+        Output.showActionButtons();
+    };
+
+
+    /**
+     * 
+     */
+    function fetchMeDoc(uri, onEnd) {
+        var xhr = new XMLHttpRequest();
+
+        xhr.onreadystatechange = function onXhrRSC() {
+            if (this.readyState == XMLHttpRequest.DONE) 
+            {
+                if (this.status == 200) {
+                    console.log('[FetchMeDoc] Got it.');
+                    me.doc = this.response;
+                }
+                else {
+                    console.log('[FetchMeDoc] Error Status on done ' + this.status + ' fetching me.doc');
+                    me.doc = undefined;
+                }
+
+                onEnd();
+            }
+        };
+        
+        xhr.onerror = function onXhrError() {
+
+        };
+
+        xhr.open('GET', uri, true);
+        xhr.responseType = 'document';
+        xhr.send();
+    }
+
   
   
     /**
@@ -265,37 +360,36 @@ var App = (function App(Output, Digger, Logicker, Utils) {
                     me.zoomLinkUris = [].concat(resp.zoomLinkUris);
                     me.thumbUris = [].concat(resp.thumbUris);
 
-                    // Create the html document.
-                    me.doc = document.implementation.createHTMLDocument();
-                    me.doc.documentElement.innerHTML = resp.docHtml;
+                    // Fetch the HTML document.
+                    fetchMeDoc(me.loc.href, function afterFetchingDoc() {
+                        // If we know special things about the site, such as thumb -> zoomedImg mappings
+                        // or whatnot, we do it here. It also returns a descriptor of options for scraping
+                        // and digging.
+                        var dataDescriptor = Logicker.postProcessResponseData(me.thumbUris, me.loc.href);
+                        me.zoomLinkUris = dataDescriptor.zoomLinkUris;
+                        me.digOpts.doDig = dataDescriptor.doDig;
+                        me.digOpts.doScrape = dataDescriptor.doScrape;
 
-                    // If we know special things about the site, such as thumb -> zoomedImg mappings
-                    // or whatnot, we do it here. It also returns a descriptor of options for scraping
-                    // and digging.
-                    var dataDescriptor = Logicker.postProcessResponseData(me.thumbUris, me.loc.href);
-                    me.zoomLinkUris = dataDescriptor.zoomLinkUris;
-                    me.digOpts.doDig = dataDescriptor.doDig;
-                    me.digOpts.doScrape = dataDescriptor.doScrape;
+                        // log the linkHrefs from LocationGrabber.
+                        // Then, log the thumbSrcs from LocationGrabber.
+                        if (me.zoomLinkUris && (me.zoomLinkUris.length > 0)) {
+                            console.log('Got some zoomLinkUris, count: ' + me.zoomLinkUris.length);
+                        }
+                        else {
+                            console.log('No zoomLinkUris received.');
+                            me.zoomLinkUris = [];
+                        }
+                        if (me.thumbUris && (me.thumbUris.length > 0)) {
+                            console.log('Got some thumbUris, count: ' + me.thumbUris.length);
+                        }
+                        else {
+                            console.log('No thumbUris received.');
+                            me.thumbUris = [];
+                        }
 
-                    // log the linkHrefs from LocationGrabber.
-                    // Then, log the thumbSrcs from LocationGrabber.
-                    if (me.zoomLinkUris && (me.zoomLinkUris.length > 0)) {
-                        console.log('Got some zoomLinkUris, count: ' + me.zoomLinkUris.length);
-                    }
-                    else {
-                        console.log('No zoomLinkUris received.');
-                        me.zoomLinkUris = [];
-                    }
-                    if (me.thumbUris && (me.thumbUris.length > 0)) {
-                        console.log('Got some thumbUris, count: ' + me.thumbUris.length);
-                    }
-                    else {
-                        console.log('No thumbUris received.');
-                        me.thumbUris = [];
-                    }
-
-                    // Call the callback.
-                    onResponse();
+                        // Call the callback.
+                        onResponse();
+                    });
                 }
             );
         });
@@ -353,7 +447,7 @@ var App = (function App(Output, Digger, Logicker, Utils) {
             Digger.overrideUrisToDig(me.thumbUris, me.zoomLinkUris);
             Digger.setDigOpts(me.digOpts);
             Digger.scrape(me.doc, me.loc, me.startDownloading);
-        }, true);
+        }, false);
     };
 
 
@@ -401,7 +495,82 @@ var App = (function App(Output, Digger, Logicker, Utils) {
             Digger.setDigOpts(me.digOpts);
             Digger.digGallery(me.doc, me.loc, me.startDownloading);
         }, true);
-    }
+    };
+
+
+   /**  
+     * MAIN ENTRY POINT OF THE APP. (0)
+     */
+    me.digFileOptions = function digFileOptions() {
+        _alreadyDownloaded = [];
+        me.filesDug = [];
+        me.loc = {};
+        me.doc = {};
+        me.zoomLinkUris = [];
+        me.thumbUris = [];
+        
+        Output.toOut('initializing: collecting URLs from the page...');
+        Output.clearFilesDug();
+
+        // get the doc of the tab to dig though. Then let the digger find the gallery. 
+        sendDocRequest(function onUrisReceived() {
+            if (!me.doc) {
+                console.log('Aborting. Received null document.');
+                Output.toOut('Could not dig. Would you try refreshing the page, please?');
+                return;
+            }
+
+            me.digOpts = {
+                doScrape: true,
+                doDig: true,
+            };
+
+            // If we got matching pairs of hrefs and srcs back, set them as the override.
+            Digger.overrideUrisToDig(me.thumbUris, me.zoomLinkUris);
+            Digger.setDigOpts(me.digOpts);
+            Digger.digGallery(me.doc, me.loc, me.presentFileOptions);
+        }, true);
+    };
+
+
+    /**
+     * MAIN ENTRY POINT OF THE APP (-1).
+     * Scrape, but do not download automatically. Give the user a list of choices.
+     */
+    me.scrapeFileOptions = function scrapeFileOptions() {
+        _alreadyDownloaded = [];
+        me.filesDug = [];
+        me.loc = undefined;
+        me.doc = undefined;
+        me.zoomLinkUris = [];
+        me.thumbUris = [];
+        
+        Output.toOut('initializing: collecting urls from page...');
+        Output.clearFilesDug();
+
+        // get the doc of the tab to dig though. Then let the digger find the gallery. 
+        sendDocRequest(function docRequestDone() {
+            if (!me.doc || !me.loc) {
+                console.log('Aborting. Received null document.');
+                Output.toOut('Could not dig. Would you try refreshing the page, please?');
+                return;
+            }
+            else {
+                console.log('[ScrapeFileOpts] me.doc: ' + JSON.stringify(me.doc));
+                console.log('[ScrapeFileOpts] me.loc: ' + JSON.stringify(me.loc));
+            }
+
+            me.digOpts = {
+                doScrape: true,
+                doDig: false,
+            };
+
+            // If we got matching pairs of hrefs and srcs back, set them as the override.
+            Digger.setDigOpts(me.digOpts);
+            Digger.scrape(me.doc, me.loc, me.presentFileOptions);
+        }, true);
+    };
+
 
 
     /**
