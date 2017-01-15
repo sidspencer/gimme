@@ -44,10 +44,10 @@ var Logicker = (function Logicker(Utils) {
         // Pick out the basic filenames of the src and dest. No file extensions.
         var sname = thumbUrl.pathname.replace(/\/$/, '')
             .substring(thumbUrl.pathname.lastIndexOf('/') + 1)
-            .substring(0, thumbUrl.lastIndexOf('.'));
+            .substring(0, thumbUrl.pathname.lastIndexOf('.'));
         var zname = zoomUrl.pathname.replace(/\/$/, '')
             .substring(zoomUrl.pathname.lastIndexOf('/') + 1)
-            .substring(0, zoomUrl.lastIndexOf('.'));
+            .substring(0, zoomUrl.pathname.lastIndexOf('.'));
         
         var sval = '';
         var zval = '';
@@ -128,6 +128,71 @@ var Logicker = (function Logicker(Utils) {
 
 
 
+    /**
+     * Find the largest image in a document.
+     */
+    me.findUrlOfLargestImage = function findUrlOfLargestImage(doc) {
+        var largestImg = null;
+        var largestImgSrc = '';
+        var largestDims = {
+            height: 0,
+            width: 0,
+        };
+
+        if (doc && doc.querySelectorAll) {
+            // Find the largest of the image nodes, comparing via the client rects.
+            var imgNodes = doc.querySelectorAll('img');
+            imgNodes.forEach(function findBiggestImg(imgNode) {
+                var rect = imgNode.getBoundingClientRect();
+                var dims = {
+                    height: (rect.bottom - rect.top),
+                    width: (rect.right - rect.left),
+                };
+
+                if (dims.height > largestDims.height && dims.width > largestDims.width) {
+                    largestImg = imgNode;
+                    largestImgSrc = !!largestImg.src ? largestImg.src : largestImg.currentSrc
+                    largestDims = dims;
+                }
+            });
+
+            // Now look for large divs or spans with background images.
+            var blockNodes = doc.querySelectorAll('div,span');
+            blockNodes.forEach(function findBiggestBlockNodeWithBg(blockNode) {
+                var bgImage = blockNode.style.backgroundImage;
+
+                if (!bgImage) {
+                    return;
+                }
+
+                var rect = blockNode.getBoundingClientRect();
+                var dims = {
+                    height: (rect.bottom - rect.top),
+                    width: (rect.right - rect.left),
+                };
+
+                if (dims.height > largestDims.height && dims.width > largestDims.width) {
+                    largestImg = blockNode;
+                    largestImgSrc = backgroundImage.style.backgroundImage.replace('url(', '')
+                                                                         .replace(/'/g, '')
+                                                                         .replace(/"/g, '') 
+                                                                         .replace(')', '');
+                    largestDims = dims;
+                }
+            });
+
+            if (!!largestImgSrc) {
+                return (
+                    new URL(largestImgSrc)
+                );
+            }
+        }
+         
+        // Fallthrough.
+        return null;
+    };
+
+
 
 
     /**
@@ -171,27 +236,28 @@ var Logicker = (function Logicker(Utils) {
      * Often, you can munge your thumbSrc and linkHref values into place 
      * enough that you can just call the downloader. 
      */
-    me.postProcessResponseData = function postProcessResponseData(thumbUris, pageUri) {
+    me.postProcessResponseData = function postProcessResponseData(thumbUris, pageHref) {
         var instructions = {
             doScrape: true,
             doDig: true,
             zoomLinkUris: [],
         };
 
-        var url = pageUri;
-        var thumbUri0 = thumbUris[0];
+        var pageUri = '';
+        var thumbUri0 = '';
 
-        if (!u.exists(url)) {
-            url = '';
+        if (Array.isArray(thumbUris) && thumbUris.length > 0 && !!pageHref) {
+            pageUri = pageHref + '';
+            thumbUri0 = thumbUris[0] + '';
         }
-        if (!u.exists(thumbUri0)) {
-            thumbUri0 = '';
+        else {
+            return instructions;
         }
 
-        console.log('[PostProcess] url: ' + url + ', thumb0: ' + thumbUri0);
+        console.log('[PostProcess] url: ' + pageUri + ', thumb0: ' + thumbUri0);
 
         // Facebook. Sigh.
-        if (/facebook\.com\//.test(url)) {
+        if (/facebook\.com\//.test(pageUri)) {
             instructions.zoomLinkUris.forEach(function extractUriFromCss(href, idx, hrefs) {
                 href = href.replace(/^url\(('|")?/, '')
                            .replace(/('|")?\)$/, '');
