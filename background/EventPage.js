@@ -24,6 +24,28 @@ function goDig(parentDocument) {
 
 
 /**
+ * Fire up the app, dig for all known media in the parameters that we can scrape outta that mutha. 
+ *  - Image galleries (Thumb, Zoom)
+ *  - CSS background-images
+ *  - mucks through javascript (musta been green programmers)
+ */
+function goDigFileOptions(parentDocument) {
+    var options = {
+        imgs: true,
+        cssBgs: true,
+        videos: true,
+        js: true,
+    };
+
+    var output = Output(parentDocument);
+    var digger = Digger(output, Logicker, Utils, options);
+    var app = App(output, digger, Logicker, Utils);
+
+    app.digFileOptions();
+}
+
+
+/**
  * Fire up the app, dig only for image galleries.
  * This includes css Background Images for bastards like FB.
  */
@@ -83,6 +105,28 @@ function goScrape(parentDocument) {
 
 
 /**
+ * Scrape the current page for all included <img>s, style.background-images, 
+ * videos, and any urls inside of the <script> tags.
+ */
+function goScrapeFileOptions(parentDocument) {
+    var options = {
+        imgs: true,
+        cssBgs: true,
+        videos: true,
+        audios: true,
+        js: true,
+        qs: true,
+    };
+
+    var output = Output(parentDocument);
+    var digger = Digger(output, Logicker, Utils, options);
+    var app = App(output, digger, Logicker, Utils);
+
+    app.scrapeFileOptions();
+}
+
+
+/**
  * Scrape the current page for <img>s.
  */
 function goScrapeImages(parentDocument) {
@@ -90,7 +134,8 @@ function goScrapeImages(parentDocument) {
         imgs: true,
         cssBgs: true,
         videos: false,
-        js: true
+        audios,
+        js: true,
     };
 
     var output = Output(parentDocument);
