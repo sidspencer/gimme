@@ -141,6 +141,8 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
             ptns = inOpts;
         }
 
+        console.log('[GetEleUrls] ptns: ' + JSON.stringify(ptns));
+
         // Grab whatever the selector told us to on the document we were told to.
         var tagUrls = [];
         var tags = ptns.doc.querySelectorAll(ptns.selector);
@@ -422,25 +424,22 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
      */
     function scrapeAllImgUris() {
         var imgUrls = getElementUrls({
-            selector: 'img',
-            propName: 'currentSrc',
-            altPropName: 'attributes',
-            altSubPropName: 'src',
-            altSubSubPropName: 'textContent',
+            doc: me.localDoc,
+            selector: 'img[src]',
+            propName: 'src',
+            altPropName: 'currentSrc',
         });
 
         var imgUris = [];
 
         // Make URL objects for all the audio srcs, to get the pathing right.
         // pop out all the uris that have an unknown file extension.
-        for (var i=0; i < imgUrls.length; i++) {
-            var uri = imgUrls[i].href;
-            
-            if (isAllowedImageFile(uri)) {
-                imgUris.push(uri);
+        imgUrls.forEach(function getImageUri(imgUrl) {
+            if (imgUrl && !!imgUrl.href) {
+                imgUris.push(imgUrl.href);
             }
-        }
-
+        });
+    
         return imgUris;
     }
 
@@ -457,9 +456,9 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
         });
         var cssBgUris = [];
 
-        cssBgUrls.forEach(function extractUri(uri, idx, uris) {
+        cssBgUrls.forEach(function extractUri(url, idx, urls) {
             cssBgUris.push(
-                uri.replace(/^url\(('|")?/, '').replace(/('|")?\)$/, '')
+                url.href.replace(/^url\(('|")?/, '').replace(/('|")?\)$/, '')
             );
         });
 
@@ -509,7 +508,15 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
      */
     function scrapeAllQsUris() {
         var uris = [];
-        var qsVars = me.loc.search.split('&');
+        var qsVars = '';
+
+        if (!!me.location && !!me.location.search) {
+            qsVars = me.location.search.split('&');        
+        }
+        else {
+            console.log('[ScrapeQs] skipping...');
+            return uris;
+        }
 
         // Try to get any variables out of the qs that we can. 
         for (var i=0; i < qsVars.length; i++) {
@@ -537,7 +544,7 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
     function scrapeAllAudioUris() {
         var audioUrls = getElementUrls({
             selector: 'audio[src],audio > source[src],param[value]',
-            propName: 'src',
+            propName: 'currentSrc',
             altPropName: 'value',
         });
         var audioUris = [];
@@ -574,7 +581,10 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
         var audioUris = [];
         var qsUris = [];
 
-        if (me.options.img === true) {
+        console.log('[Scrape] options: ' + JSON.stringify(me.options));
+        console.log('[Scrape] me.doc: ' + JSON.stringify(me.doc));
+
+        if (me.options.imgs === true) {
             imgUris = scrapeAllImgUris();   
         }
 
@@ -598,9 +608,18 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
             qsUris = scrapeAllQsUris();
         }
 
+        console.log('[Scrape] imgUris: ' + JSON.stringify(imgUris));
+        console.log('[Scrape] cssBgUris: ' + JSON.stringify(cssBgUris));
+        console.log('[Scrape] jsUris: ' + JSON.stringify(jsUris));
+        console.log('[Scrape] videoUris: ' + JSON.stringify(videoUris));
+        console.log('[Scrape] audioUris: ' + JSON.stringify(audioUris));
+        console.log('[Scrape] qsUris: ' + JSON.stringify(qsUris));
+
+
         me.response (
-            [].concat(imgUris)
+            imgUris
             .concat(cssBgUris)
+            .concat(jsUris)
             .concat(videoUris)
             .concat(audioUris)
             .concat(qsUris)
@@ -922,16 +941,11 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
      */
     var completedXhrCount = 0;
     function completeXhr(thumbUri, zoomedImgUri) {
-        thumbUri = thumbUri ? thumbUri : ''
-        zoomedImgUri = zoomedImgUri ? zoomedImgUri : '';
-
-        var loggedZoomUri = /^blob\:/.test(zoomedImgUri) ? '(A Blob)' : zoomedImgUri;
-
         console.log('[CompleteXhr] Zoomed image reported. thumbUri: "' + thumbUri 
-            + '"\n      zoomedImgUri: "' + loggedZoomUri +'"');
+            + '"\n      zoomedImgUri: "' + zoomedImgUri +'"');
 
         // If we can, now remove this thumbUri from the inflight array.
-        if (thumbUri) {
+        if (!!thumbUri) {
             Output.toOut('Completed ' + (++completedXhrCount) + ' media fetches...')
             var fetchIndex = me.inflightThumbUris.indexOf(thumbUri);
             
@@ -966,8 +980,11 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
          if (!u.exists(src)) { 
             return ''; 
         };
+
         var loc = (u.exists(loc) ? loc : me.locator);
         var cleanSrc = '';
+
+        console.log('[SrcToUrl] loc: ' +    JSON.stringify(loc));
 
         if (src.indexOf("url(") === 0) {
             src.replace(/^url\(('|")?/, '').replace(/('|")?\)$/, '');
@@ -1051,18 +1068,20 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
             {
                 var zoomedImgUri = false;
 
-                // It might be a direct link to media. Check the mime type.
-                if (isAllowedMediaMimeType(this.response.type)) {
-                    console.log("Pushing blob url for direct media link: " + zoomPageUri);
-                    
-                    //zoomedImgUri = URL.createObjectURL(this.response);
+                var contentType = this.getResponseHeader('Content-Type');
+
+                console.log('[DigDeep] content-type: --' + contentType + '--,\n zpageuri: ' + zoomPageUri);
+
+                // scrape any documents. Otherwise, just push it.
+                if (contentType == 'text/html') {
+                    scrapeZoomPage(thumbUrl, zoomPageUri);
+                    return;
+                } 
+                else {                    
                     zoomedImgUri = zoomPageUri;
                     pushNewFullSizeImgUri(zoomedImgUri);
                     completeXhr(thumbUri, zoomedImgUri);
                     return;
-                }
-                else {
-                    scrapeZoomPage(thumbUri, zoomPageUri);
                 }
             }
         };
@@ -1083,9 +1102,11 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
 
 
 
-    function scrapeZoomPage(thumbUri, zoomPageUri) {
+    function scrapeZoomPage(thumbUrl, zoomPageUri) {
         // Do an xh-request to get a valid document to scrape. 
         var xh = new XMLHttpRequest();
+
+        console.log('[ScrapeZoomPage] t: ' + thumbUrl.href + ', z: ' + zoomPageUri);
 
         xh.onreadystatechange = function xhRsc() {
             if (this.readyState == XMLHttpRequest.DONE) 
@@ -1093,42 +1114,47 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
                 var zoomedImgUri = false;
 
                 // It might be a direct link to media. Check the mime type.
-                if (this.status !== 200 || isAllowedMediaMimeType(this.response.type)) {                    
+                if (this.status != 200 || !this.response) {  
+                    console.log('[ScrapeZoomPage] bad status or no response.');
+
                     zoomedImgUri = zoomPageUri;
                     pushNewFullSizeImgUri(zoomedImgUri);
-                    completeXhr(thumbUri, zoomedImgUri);
+                    completeXhr(thumbUrl.href, zoomedImgUri);
                     return;
                 }
                 else {            
-                    if (u.exists(this.response) && /^text\//.test(this.response.type)) {                    
+                    if (u.exists(this.response)) {
+                        console.log('[ScrapeZoomPage] got document response.');
+
+                        var doc = this.response;
+
                         // First look in the special rules for a strategy that's already 
                         // been figured out by me. See if we can just get the Uri from there.
-                        var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUri);
+                        var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);
                         
                         // We can safely exit if we found the blessed uri.
                         if (u.exists(blessedZoomUri)) {
-                            console.log('Found blessed uri: ' + blessedZoomUri);
+                            console.log('[ScrapeZoomPage] Found blessed uri: ' + blessedZoomUri);
 
                             zoomedImgUri = blessedZoomUri;
                             me.dugUpUris.push(blessedZoomUri);
                             pushNewFullSizeImgUri(zoomedImgUri);
-                            completeXhr(thumbUri, zoomedImgUri);
+                            completeXhr(thumbUrl.href, zoomedImgUri);
                             return;
                         }
-                        else {
-                            // reset the options have it keep serching.
-                            me.options = {
-                                imgs: isAllowedImageFile(thumbUri),
-                                cssBgs: isAllowedImageFile(thumbUri),
-                                videos: isAllowedVideoFile(thumbUri),
-                                js: false,
-                                audios: isAllowedAudioFile,
-                                qs: false,
-                            }     
-                        }
+
+                        console.log('[ScrapeZoomPage] me.options: ' + JSON.stringify(me.options) + '');
 
                         // Look at all the <img>s on the page for a possible zoom version of the thumb.
                         if (!zoomedImgUri && u.exists(me.options) && me.options.imgs === true) {
+                            var urlOfLargestImage = Logicker.findUrlOfLargestImage(doc);                            
+                            if (urlOfLargestImage) {
+                                zoomedImgUri = urlOfLargestImage.href;
+                                pushNewFullSizeImgUri(zoomedImgUri);
+                                completeXhr(thumbUrl.href, zoomedImgUri);
+                                return;
+                            }
+
                             var imgUrls = getElementUrls({
                                 doc: doc,
                                 selector: 'img',
@@ -1136,18 +1162,26 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
                                 altPropName: 'currentSrc',
                             });
 
-                            imgUrls.forEach(function putImgUriInZoomSrcs(iUrl) {
-                                if (u.exists(iUrl) && iUrl.pathname) {
-                                    var imgFilename = iUrl.pathname.substring(iUrl.pathname.lastIndexOf('/')+1);
+                            // Only 1 image on the page? It's ours.
+                            if (imgUrls.length == 1) {
+                                zoomedImgUri = imgUrls[0].href;
+                                pushNewFullSizeImgUri(zoomedImgUri);
+                                completeXhr(thumbUrl.href, zoomedImgUri);
+                            }
+                            else {
+                                imgUrls.forEach(function putImgUriInZoomSrcs(iUrl) {
+                                    if (u.exists(iUrl) && iUrl.pathname) {
+                                        var imgFilename = iUrl.pathname.substring(iUrl.pathname.lastIndexOf('/')+1);
 
-                                    // If it could match a thumbnail, add it to the list, and complete the xhr.
-                                    if (Logicker.isPossiblyZoomedFile(thumbUrl, iUrl)) {
-                                        zoomedImgUri = iUrl.href;
-                                        pushNewFullSizeImgUri(zoomedImgUri);
-                                        completeXhr(thumbUri, zoomedImageUri);
+                                        // If it could match a thumbnail, add it to the list, and complete the xhr.
+                                        if (Logicker.isPossiblyZoomedFile(thumbUrl, iUrl)) {
+                                            zoomedImgUri = iUrl.href;
+                                            pushNewFullSizeImgUri(zoomedImgUri);
+                                            completeXhr(thumbUrl.href, zoomedImgUri);
+                                        }
                                     }
-                                }
-                            });
+                                });
+                            }
 
                             if (zoomedImgUri) {
                                 return;
@@ -1171,7 +1205,7 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
                                     if (Logicker.isPossiblyZoomedFile(thumbUrl, bgImgUrl)) {
                                         zoomedImgUri = bgImgUrl.href;
                                         pushNewFullSizeImgUri(zoomedImgUri);
-                                        completeXhr(thumbUri, zoomedImgUri);
+                                        completeXhr(thumbUrl.href, zoomedImgUri);
                                     }
                                 }
                             });
@@ -1193,7 +1227,7 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
                                     if (vUri && Logicker.isPossiblyZoomedFile(thumbUrl, vUrl)) {
                                         zoomedImgUri = vUrl.href;
                                         pushNewFullSizeImgUri(zoomedImgUri);
-                                        completeXhr(thumbUri, zoomedImgUri);
+                                        completeXhr(thumbUrl.href, zoomedImgUri);
                                     }
                                 }
                             });
@@ -1215,7 +1249,7 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
                                     if (Logicker.isPossiblyZoomedFile(thumbUrl, jsUrl)) {
                                         zoomedImgUri = jsUrl.href;
                                         pushNewFullSizeImgUri(zoomedImgUri);
-                                        completeXhr(thumbUri, zoomedImgUri);
+                                        completeXhr(thumbUrl.href, zoomedImgUri);
                                     }
                                 }
                             });
@@ -1232,7 +1266,7 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
                     }
 
                     // Complete the main XHR. 
-                    completeXhr(thumbUri, zoomedImgUri);
+                    completeXhr(thumbUrl.href, zoomedImgUri);
                     return;    
                 }
             }
@@ -1240,7 +1274,7 @@ var Digger = (function Digger(Output, Logicker, Utils, Options) {
 
         xh.onerror = function xhError(error) {
             console.log('[scrapeZoomPage] xh error: ' + JSON.stringify(error));
-            completeXhr(thumbUri, '');
+            completeXhr(thumbUrl.href, '');
         };
 
         xh.open('GET', zoomPageUri, true);
