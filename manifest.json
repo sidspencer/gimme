@@ -3,7 +3,7 @@
 
   "name": "GimmeGimmeGimme",
   "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
-  "version": "0.0.6",
+  "version": "0.0.9",
   "offline_enabled": true,
 
   "icons": {
@@ -14,7 +14,7 @@
   },
 
   "background": {
-    "persistent": true,
+    "persistent": false,
     "scripts": [
       "background/Utils.js",
       "background/Logicker.js",
