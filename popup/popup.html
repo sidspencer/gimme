@@ -8,6 +8,11 @@
         <h1>gimme gimme gimme. need summore...</h1>
 
         <div id="buttonHolder">
+            <div class="doublewide">
+                <button id="digFileOptionsButton">dig file list</button>
+                <button id="scrapeFileOptionsButton">scrape file list</button>
+            </div>
+
             <div class="buttonColumn">
                 <button id="scrapeImagesButton">scrape page images</button>
                 <button id="scrapeVideosButton">scrape page videos</button>
@@ -25,9 +30,11 @@
             <span id="output">Hit a button to begin.</span>
         </div>
         
+        <div id="actionHolder" style="display: none;">
+            <button id="getAllFileOptsButton">get all</button>
+        </div>
+
         <ul id="filesDug">
         </ul>
-
-        <div style="margin-top: 100px;"><button id="greenTextOnBlackButton">?</button></div>
     </body>
 </html>
