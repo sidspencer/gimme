@@ -4,96 +4,177 @@
  * Set up event handlers for the UI. All actual work is done in the background scripts.
  */
 document.addEventListener("DOMContentLoaded", function init() {
-    /**
-     * Scrape and dig, but don't automatically download. Instead, present the user with checkbox options
-     * as to what files to download.
-     */
-    document.getElementById('digFileOptionsButton').addEventListener('click', function onDigFileOptions() {
-        chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
-            bgWindow.goDigFileOptions(window.document);
-        });
-    });
-
+    connectEventHandlers();    
+    setFileOptionList();
+    
 
     /**
-     * This button is in the "action buttons" group. They act upon the list of file download options. This
-     * fires all the checkboxes' click events, causing them all the download.
+     * If there are still un-downloaded things from last time, show them. 
+     * Note: clicking one of the "download all [ |jpgs]" button will clear them.
      */
-    document.getElementById('getAllFileOptsButton').addEventListener('click', function onDigFileOptions() {
-        document.querySelectorAll('input[type="checkbox"]').forEach(function makeDescriptors(cbEl) {
-           var evt = new MouseEvent('click');
-           cbEl.dispatchEvent(evt);
-        });
-    });
+    function setFileOptionList() {
+        chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {            
+            var uris = bgWindow.Digger.previouslyHarvestedUris || [];
 
+            // If there were non-downloaded files from last time, show that list.
+            if (uris.length) {
+                console.log("[Popup] Got persisted uris:")
+                console.log(JSON.stringify(uris));
 
-    /**
-     * 
-     */
-    document.getElementById('scrapeFileOptionsButton').addEventListener('click', function onDigFileOptions() {
-        chrome.runtime.getBackgroundPage(function doScrapingForOptions(bgWindow) {
-            bgWindow.goScrapeFileOptions(window.document);
-        });
-    });
+                var out = new bgWindow.Output(window.document);
+                var dir = bgWindow.App.getSaltedDirectoryName();
 
-    /**
-     * Scrape a page, picking up all the included images.
-     */
-    document.getElementById("scrapeImagesButton").addEventListener("click", function onDigButton() {
-        chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-            bgWindow.goScrapeImages(window.document);
+                for (var i = 0; i < uris.length; i++) {               
+                    out.addFileOption({ 
+                        id: i, 
+                        uri: uris[i], 
+                        filePath: dir + '/' + uris[i].substring(uris[i].lastIndexOf('/')),
+                        onSelect: bgWindow.App.downloadFile, 
+                    });
+                }
+
+                out.hideDigScrapeButtons();
+                out.showActionButtons();
+
+                bgWindow.Digger.previouslyHarvestedUris = [];
+            }
         });
-    });
+    }
 
 
     /**
-     * Scrape a page, picking up all the included images.
+     * Connect up all the event handlers.
      */
-    document.getElementById("scrapeVideosButton").addEventListener("click", function onDigButton() {
-        chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-            bgWindow.goScrapeVideos(window.document);
+    function connectEventHandlers () {
+        /**
+         * Scrape and dig, but don't automatically download. Instead, present the user with checkbox options
+         * as to what files to download.
+         */
+        document.getElementById('digFileOptionsButton').addEventListener('click', function onDigFileOptions() {
+            chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
+                bgWindow.goDigFileOptions(window.document);
+            });
         });
-    });
 
 
-    /**
-     * Scrape a page, picking up all the included images.
-     */
-    document.getElementById("scrapeButton").addEventListener("click", function onDigButton() {
-        chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-            bgWindow.goScrape(window.document);
+        /**
+         * This button is in the "action buttons" group. They act upon the list of file download options. This
+         * fires all the checkboxes' click events, causing them all the download.
+         * Note: Also clears the persistentDugUris.
+         */
+        document.getElementById('getAllFileOptsButton').addEventListener('click', function getAllFileOpts() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(function initiateDownload(cbEl) {
+                var evt = new MouseEvent('click');
+                cbEl.dispatchEvent(evt);
+            });
+
+            chrome.runtime.getBackgroundPage(function clearPersistentDugUris(bgWindow) {
+                bgWindow.Digger.persistentDugUris = [];                
+            });
         });
-    });
 
 
-    /**
-     * Dig an image gallery.
-     */
-    document.getElementById("digImageGalleryButton").addEventListener("click", function onDigButton() {
-        chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-            bgWindow.goDigImageGallery(window.document);
+        /**
+         * This button is in the "action buttons" group. They act upon the list of file download options. This
+         * fires the checkboxes' click events for all jpg files only.
+         * Note: Also clears the persistentDugUris.
+         */
+        document.getElementById('getAllJpgOptsButton').addEventListener('click', function getAllJpgOpts() {
+            document.querySelectorAll('input[type="checkbox"]').forEach(function initiateJpgDownload(cbEl) {
+                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg)$/, 'i'))) {
+                    var evt = new MouseEvent('click');
+                    cbEl.dispatchEvent(evt);
+                }
+
+                chrome.runtime.getBackgroundPage(function clearPersistentDugUris(bgWindow) {
+                    bgWindow.Digger.persistentDugUris = [];                
+                });
+            });
         });
-    });
 
 
-    /**
-     * Dig a video gallery.
-     */
-    document.getElementById("digVideoGalleryButton").addEventListener("click", function onDigButton() {
-        chrome.runtime.getBackgroundPage(function doVideoGalleryDig(bgWindow) {
-            bgWindow.goDigVideoGallery(window.document);
+        /**
+         * This button is in the "action buttons" group. It clears the download list, clears the 
+         * persistentDownloadUris, shows the scrape/dig buttons, and hides the "action buttons".
+         */
+        document.getElementById('clearFileListButton').addEventListener('click', function clearFileList() {
+            chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
+                bgWindow.Digger.persistentDugUris = [];
+                
+                var out = new bgWindow.Output(window.document);
+                out.clearFilesDug();
+                out.showDigScrapeButtons();
+            });
         });
-    });
 
 
-   /**
-     * The big one, digging everything that could be from a gallery.
-     */
-    document.getElementById("digButton").addEventListener("click", function onDigButton() {
-        chrome.runtime.getBackgroundPage(function doDigging(bgWindow) {
-            bgWindow.goDig(window.document);
+        /**
+         * Scrape for all known types of media on a page.
+         */
+        document.getElementById('scrapeFileOptionsButton').addEventListener('click', function onDigFileOptions() {
+            chrome.runtime.getBackgroundPage(function doScrapingForOptions(bgWindow) {
+                bgWindow.goScrapeFileOptions(window.document);
+            });
         });
-    });
 
 
+        /**
+         * Scrape a page, picking up all the included images.
+         */
+        document.getElementById("scrapeImagesButton").addEventListener("click", function onDigButton() {
+            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+                bgWindow.goScrapeImages(window.document);
+            });
+        });
+
+
+        /**
+         * Scrape a page, picking up all the included videos.
+         */
+        document.getElementById("scrapeVideosButton").addEventListener("click", function onDigButton() {
+            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+                bgWindow.goScrapeVideos(window.document);
+            });
+        });
+
+
+        /**
+         * A big one, scrape a page for *any* media.
+         */
+        document.getElementById("scrapeButton").addEventListener("click", function onDigButton() {
+            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+                bgWindow.goScrape(window.document);
+            });
+        });
+
+
+        /**
+         * Dig an image gallery.
+         */
+        document.getElementById("digImageGalleryButton").addEventListener("click", function onDigButton() {
+            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+                bgWindow.goDigImageGallery(window.document);
+            });
+        });
+
+
+        /**
+         * Dig a video gallery.
+         */
+        document.getElementById("digVideoGalleryButton").addEventListener("click", function onDigButton() {
+            chrome.runtime.getBackgroundPage(function doVideoGalleryDig(bgWindow) {
+                bgWindow.goDigVideoGallery(window.document);
+            });
+        });
+
+
+        /**
+         * The big one, digging *everything* that could be from a gallery.
+         */
+        document.getElementById("digButton").addEventListener("click", function onDigButton() {
+            chrome.runtime.getBackgroundPage(function doDigging(bgWindow) {
+                bgWindow.goDig(window.document);
+            });
+        });
+    }
 });

@@ -1,30 +1,42 @@
 'use strict'
 
+/**
+ * Logicker service/singleton for stateless rules about how to 
+ * find things on pages in general, and for specific sites.
+ */
 var Logicker = (function Logicker(Utils) {
-    var me = {
-    
-    };
+    // service object
+    var me = {};
+
+    // aliases
     var u = Utils;
 
 
     /**
-     * Find the right uri for the zoomImage.
+     * Find the right uri for the zoomed media item pointed to by the gallery thumb.
      * (this applies the scraped rules I view-sourced to see.)
      */
     me.findBlessedZoomUri = function findBlessedZoomUri(doc, thumbUri) {
         var zoomImgUri = '';
 
-        // TODO: put stuff here.
+        // Put special rules for particular sites here.
+        if (false) {
+        
+        }
+        else {
+            var holderDiv = doc.querySelector('div.photo > div');
+            if (!!holderDiv && !!holderDiv.style.backgroundImage) {
+                var bg = holderDiv.style.backgroundImage;
+                zoomImgUri = bg.replace('url(', '').replace(/"/g, '').replace(/'/g, '').replace(')', '');
+            }
+        }
 
         // Returns empty string when there's no special rules.
         return zoomImgUri;
     };
 
 
-
-
-
-       /**
+    /**
      * Algorithms to figure out if the zoomPage's image matches the thumbnail src. Since
      * we are used in a variety of contexts, this could mean any kind of file mapping from 
      * src to dest. It will always start with an image or element with background-image on the
@@ -125,13 +137,12 @@ var Logicker = (function Logicker(Utils) {
     };
 
 
-
-
-
     /**
-     * Find the largest image in a document.
+     * Find the largest image in a document. It can't be by dimensions, because the documents returned
+     * by the XHRs are not "live", and no elements have dimensions because there was no rendering. SO,
+     * we create Image objects and get the dimensions from those. 
      */
-    me.findUrlOfLargestImage = function findUrlOfLargestImage(doc) {
+    me.findUrlOfLargestImage = function findUrlOfLargestImage(doc, onFound) {
         var largestImg = null;
         var largestImgSrc = '';
         var largestDims = {
@@ -140,59 +151,88 @@ var Logicker = (function Logicker(Utils) {
         };
 
         if (doc && doc.querySelectorAll) {
-            // Find the largest of the image nodes, comparing via the client rects.
+            // Get all the imageNodes from the doc we are to search.
+            //
+            // NOTE: Since it is not a *rendered* document, just one returned from the XHR, there are no client rects.
+            //       So we have to create image objects.
             var imgNodes = doc.querySelectorAll('img');
+            var imgsToCheck = imgNodes.length;
+
+            if (imgsToCheck < 1) {
+                onFound(null);
+                return;
+            }
+
             imgNodes.forEach(function findBiggestImg(imgNode) {
-                var rect = imgNode.getBoundingClientRect();
-                var dims = {
-                    height: (rect.bottom - rect.top),
-                    width: (rect.right - rect.left),
-                };
-
-                if (dims.height > largestDims.height && dims.width > largestDims.width) {
-                    largestImg = imgNode;
-                    largestImgSrc = !!largestImg.src ? largestImg.src : largestImg.currentSrc
-                    largestDims = dims;
-                }
-            });
-
-            // Now look for large divs or spans with background images.
-            var blockNodes = doc.querySelectorAll('div,span');
-            blockNodes.forEach(function findBiggestBlockNodeWithBg(blockNode) {
-                var bgImage = blockNode.style.backgroundImage;
-
-                if (!bgImage) {
+                // Put things that you know are red herrings here.
+                if (/logo-funky\.png/.test(imgNode.src)) {
                     return;
                 }
 
-                var rect = blockNode.getBoundingClientRect();
-                var dims = {
-                    height: (rect.bottom - rect.top),
-                    width: (rect.right - rect.left),
+                // Construct a temporary image object so we can get the natural dimensions. 
+                var imageObj = new Image();
+
+                imageObj.onload = function compareDimensions(evt) {
+                    // This means we found a 403 one.
+                    if (imgsToCheck < 0) {
+                        return;
+                    }
+
+                    var dims = {
+                        height: (!!this.height ? this.height : this.naturalHeight),
+                        width: (!!this.width ? this.width : this.naturalWidth)
+                    };
+
+                    if (dims.height > largestDims.height && dims.width > largestDims.width) {
+                        largestImg = this;
+                        largestImgSrc = this.src;
+                        largestDims = dims;
+                    }
+
+                    // If we've reached the last image, call the callback.
+                    imgsToCheck--;
+                    if (imgsToCheck === 0) {
+                        if (!!largestImgSrc) {
+                            onFound(new URL(largestImgSrc));
+                        }
+                        else {
+                            onFound(null);
+                        }
+                    }
                 };
 
-                if (dims.height > largestDims.height && dims.width > largestDims.width) {
-                    largestImg = blockNode;
-                    largestImgSrc = backgroundImage.style.backgroundImage.replace('url(', '')
-                                                                         .replace(/'/g, '')
-                                                                         .replace(/"/g, '') 
-                                                                         .replace(')', '');
-                    largestDims = dims;
-                }
+                // Oddly enough, if we get a 403, that's often a sign that it's *the right* SRC, because
+                // it's having restricted access. Give this ridiculous dimensions.
+                imageObj.onerror = function handleImageLoadError(evt) {
+                    console.log('[Logicker] Error creating image object to get dimensions. evt: ' + JSON.stringify(evt));
+
+                    largestImg = this;
+                    largestImgSrc = this.src;
+                    largestDims = {
+                        height: 1000,
+                        width: 1000
+                    }
+
+                    // Block 
+                    imgsToCheck = -1;
+                    if (!!largestImgSrc) {
+                        onFound(new URL(largestImgSrc));
+                    }
+                    else {
+                        onFound(null);
+                    }
+                };
+
+                imageObj.src = !!imgNode.src ? imgNode.src : imgNode.currentSrc;
             });
-
-            if (!!largestImgSrc) {
-                return (
-                    new URL(largestImgSrc)
-                );
-            }
         }
-         
-        // Fallthrough.
-        return null;
+        else {
+            console.log('[Logicker] Invalid doc object passed to findUrlOfLargestImage().');
+            console.log(JSON.stringify(doc));
+            onFound(null);
+            return;
+        }
     };
-
-
 
 
     /**
@@ -204,6 +244,7 @@ var Logicker = (function Logicker(Utils) {
             selector: 'a[href]',
             linkHrefProp: 'href',
             thumbSrcProp: 'firstElementChild.src',
+            useRawValues: false,
         };
 
         // Force popup-side dom processing.
@@ -212,74 +253,50 @@ var Logicker = (function Logicker(Utils) {
             return d;
         }
 
-        // Change d to be all the
-        // special rules for the site.
+        // Add all the special rules for particular sites here.
         if (/facebook\.com\//.test(url)) {
             d.selector = '.uiMediaThumbImg';
             d.linkHrefProp = 'style.backgroundImage';
-            d.thumbSrcProp = 'firstElementChild.src'
+            d.thumbSrcProp = 'firstElementChild.src';
         }
-        else {
-            d = {
-                selector: 'a[href]',
-                linkHrefProp: 'href',
-                thumbSrcProp: 'querySelector("img[src]").src'
-            };
-        }
+        
 
         return d;
     };
 
 
-  /**
+    /**
      * For any processing that should be done before calling the Digger.
      * Often, you can munge your thumbSrc and linkHref values into place 
-     * enough that you can just call the downloader. 
+     * enough that you can just call the downloader in App directly. 
      */
-    me.postProcessResponseData = function postProcessResponseData(thumbUris, pageHref) {
+    me.postProcessResponseData = function postProcessResponseData(galleryMap, pageUri) {
         var instructions = {
             doScrape: true,
             doDig: true,
-            zoomLinkUris: [],
+            processedMap: {},
         };
-
-        var pageUri = '';
-        var thumbUri0 = '';
-
-        if (Array.isArray(thumbUris) && thumbUris.length > 0 && !!pageHref) {
-            pageUri = pageHref + '';
-            thumbUri0 = thumbUris[0] + '';
-        }
-        else {
-            return instructions;
-        }
-
-        console.log('[PostProcess] url: ' + pageUri + ', thumb0: ' + thumbUri0);
-
-        // Facebook. Sigh.
+        var thumbUris = Object.getOwnPropertyNames(galleryMap);
+        
+        // Put your special processing rules for particular sites here.
         if (/facebook\.com\//.test(pageUri)) {
-            instructions.zoomLinkUris.forEach(function extractUriFromCss(href, idx, hrefs) {
-                href = href.replace(/^url\(('|")?/, '')
-                           .replace(/('|")?\)$/, '');
-
-                hrefs[idx] = href;
+            thumbUris.forEach(function extractUriFromCss(href) {
+                instructions.processedMap[href] = href.replace(/^url\(('|")?/, '').replace(/('|")?\)$/, '');
             });
 
             instructions.doScrape = false;
             instructions.doDig = true;
         }
-
-        console.log('[PostProcess] thumbUris: ' + JSON.stringify(thumbUris));
-        console.log('[PostProcess] zoomLinkUris: ' + JSON.stringify(instructions.zoomLinkUris));
+        else {
+            instructions.processedMap = Object.assign({}, galleryMap);
+            instructions.doScrape = true;
+            instructions.doDig = true;            
+        }
 
         return instructions;
     };
 
 
-
-
-
-
-
+    // return the singleton
     return me;
-}(Utils));
+})(Utils);
