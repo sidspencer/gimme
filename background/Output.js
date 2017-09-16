@@ -65,15 +65,18 @@ var Output = (function Output(dokken) {
     /**
      * Create a new <li> for the entry, name it with the id, and append it to the filesDug <ul>.
      */
-    me.addNewEntry = function addNewEntry(id, entry) {        
-        var newLi = me.doc.createElement('li');
-        
-        var newContent = document.createTextNode(entry);
-        newLi.id = 'fileEntry' + id;
-        newLi.className = 'found';
-        newLi.appendChild(newContent);
-        
-        me.filesDug.appendChild(newLi);
+    me.addNewEntry = function addNewEntry(id, uri) {
+        setTimeout(function asyncAddNewEntry() {        
+            var newLi = me.doc.createElement('li');
+
+            var newContent = document.createTextNode(uri);
+            newLi.id = 'fileEntry' + id;
+            newLi.className = 'found';
+            newLi.dataset.initialUri = uri;
+            newLi.appendChild(newContent);
+            
+            me.filesDug.appendChild(newLi);
+        }, 1);
     };
 
 
@@ -99,18 +102,26 @@ var Output = (function Output(dokken) {
         checkbox.name = 'cbFile' + fileOpt.id;
         checkbox.id = checkbox.name;
         checkbox.value = fileOpt.uri;
-        checkbox.dataset.filePath = fileOpt.filePath;       
+        checkbox.dataset.filePath = fileOpt.filePath;
+        
+        var thumbHolder = me.doc.createElement('div');
+
+        var thumbImg = me.doc.createElement('img');
+        thumbImg.src = fileOpt.thumbUri;
+        thumbHolder.appendChild(thumbImg);
 
         var nameLabel = me.doc.createElement('label');
         nameLabel.setAttribute('for', checkbox.name);
-        var nameContent = document.createTextNode(fileOpt.filePath);
+        var fileName = fileOpt.filePath.substring(fileOpt.filePath.lastIndexOf('/') + 1);
+        var nameContent = document.createTextNode(fileName);
         nameLabel.appendChild(nameContent);
 
         var newLi = me.doc.createElement('li');
         newLi.appendChild(checkbox);
+        newLi.appendChild(thumbHolder);
         newLi.appendChild(nameLabel);
         newLi.id = 'fileEntry' + fileOpt.id;
-        newLi.className = 'found';
+        newLi.className = 'opt';
         
         me.filesDug.appendChild(newLi);
 
