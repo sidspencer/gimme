@@ -22,10 +22,40 @@ input,checkbox,textarea,button {
     border-radius: 2px;
 }
 
-li.found {
+li.found, li.opt {
     color: rgba(0,255,0,0.3);
-    font-variant: normal;
-    list-style: '~';
+}
+
+li.opt {
+    color: rgba(0,255,0,1);    
+    height: 60px;    
+}
+
+li.opt > div {
+    display: inline-block;
+    height: 50px;
+    width: 50px;
+    margin: 10px;
+    vertical-align: middle;
+    text-align: center;
+}
+
+li.opt > div > img {
+    position: relative;
+    top: 50%;
+    left: 50%;
+    display: block;
+    max-height: 50px;
+    max-width: 50px;
+    transform: translate(-50%,-50%)
+}
+
+li.opt > checkbox {
+    vertical-align: middle;
+}
+
+li.opt > label {
+    vertical-align: middle;
 }
 
 li.dug {
@@ -37,7 +67,6 @@ li.dug {
 li.downloading {
     color: rgba(0,255,0,1);
     font-variant: small-caps;
-    list-style: '$';
 }
 
 div.buttonColumn {
