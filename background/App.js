@@ -80,7 +80,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      */
     function getSaltedDirectoryName(loc) {
         // Stash loc for later
-        if (!loc.hostname || !loc.hostname) {
+        if (!loc || !loc.hostname) {
             loc = App.LAST_LOC;
         }
         else {
@@ -114,18 +114,23 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     /**
      * Once we have the dug uris from the response, this callback downloads them.
      */
-    me.startDownloading = function startDownloading(zoomUris) {
-        if (!zoomUris || !zoomUris.length) {
+    me.startDownloading = function startDownloading(map) {
+        var length = Object.keys(map).length;
+
+        if (!map || length < 1) {
             console.log('[App] No files to download.');
             Output.toOut('No URLs to download.');
             return;
         }
 
-        Output.toOut('' + zoomUris.length + ' Downloading!');
+        Output.toOut('' + length + ' Downloading!');
 
         // Create each new filename, add the file to the UI list, and kick off the
         // download.
-        zoomUris.forEach(function startDownloadForUri(uri, idx) {
+        var idx = 0;
+        for (var thumbUri in map) {
+            var uri = map[thumbUri];
+
             if (!uri || !uri.replace) {
                 console.log('[App] URI not a string: ' + JSON.stringify(uri));
                 return;
@@ -137,8 +142,10 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             
             // Update the UI, download the file.
             Output.setEntryAsDownloading(idx);
-            downloadFile(uri, destFilePath);        
-        });
+            downloadFile(uri, destFilePath);   
+            
+            idx++;            
+        }
 
         Digger.persistentDugUris = [];
         Output.toOut('-Done Downloading-');
@@ -195,24 +202,27 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * Give the user a list of media that was found. Download based upon their preference
      * and interaction.
      */
-    me.presentFileOptions = function presentFileOptions(zoomUris) {
-        var uriList = [].concat(zoomUris);
+    me.presentFileOptions = function presentFileOptions(map) {
+        var length = Object.keys(map).length;
 
-        if (!uriList || !uriList.length) {
+        if (!map || length < 1) {
             console.log('[App] No files to download.');
             Output.toOut('No URLs to download.');
             
             return;
         }
         
-        console.log('[App] Count of files to download: ' + uriList.length);
+        console.log('[App] Count of files to download: ' + length);
         Output.toOut('click on the files in the list to download them.');
         Output.clearFilesDug();
 
         // Set up the download options for each of the uris returned.
-        uriList.forEach(function addFileOption(uri, idx) {
+        var idx = 0;
+        for (var thumbUri in map) {
+            var uri = map[thumbUri];
+
             if (!uri || !uri.replace || uri.indexOf('.') === 0) {
-                console.log('[App] Bad file object for download: ' + JSON.stringify(uri));
+                console.log('[App] Bad uri string for download: ' + JSON.stringify(uri));
                 return;
             }
 
@@ -226,12 +236,14 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             var fileOption = {
                 id: optIdx,
                 uri: uri,
+                thumbUri: thumbUri,
                 filePath: destFilePath,
                 onSelect: downloadFile,
             };
 
             Output.addFileOption(fileOption);
-        });
+            idx++;            
+        }
 
         Output.toOut('Please select which files you would like to download.');
         Output.showActionButtons();
