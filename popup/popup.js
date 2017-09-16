@@ -14,29 +14,32 @@ document.addEventListener("DOMContentLoaded", function init() {
      */
     function setFileOptionList() {
         chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {            
-            var uris = bgWindow.Digger.previouslyHarvestedUris || [];
+            var uriMap = bgWindow.Digger.previouslyHarvestedUriMap || {};
 
             // If there were non-downloaded files from last time, show that list.
-            if (uris.length) {
+            var length = Object.values(uriMap).length;
+            if (length) {
                 console.log("[Popup] Got persisted uris:")
-                console.log(JSON.stringify(uris));
+                console.log(JSON.stringify(uriMap));
 
                 var out = new bgWindow.Output(window.document);
                 var dir = bgWindow.App.getSaltedDirectoryName();
 
-                for (var i = 0; i < uris.length; i++) {               
+                var idx = 0;
+                for (var thumbUri in uriMap) { 
+                    var uri = uriMap[thumbUri];
+                                  
                     out.addFileOption({ 
-                        id: i, 
-                        uri: uris[i], 
-                        filePath: dir + '/' + uris[i].substring(uris[i].lastIndexOf('/')),
+                        id: idx, 
+                        uri: uri, 
+                        thumbUri: thumbUri,
+                        filePath: dir + '/' + uri.substring(uri.lastIndexOf('/')),
                         onSelect: bgWindow.App.downloadFile, 
                     });
                 }
 
                 out.hideDigScrapeButtons();
                 out.showActionButtons();
-
-                bgWindow.Digger.previouslyHarvestedUris = [];
             }
         });
     }
