@@ -114,7 +114,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             });
             
             Object.keys(me.startingGalleryMap).forEach(function digOneUri(thumbSrc) {
-                me.digDeep(thumbSrc, me.startingGalleryMap[thumbSrc]);
+                setTimeout(function asyncDigDeep() {
+                    me.digDeep(thumbSrc, me.startingGalleryMap[thumbSrc]);
+                }, 1);
             });
         }
         else {
@@ -290,7 +292,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                     var zoomPageUri = galleryMap[thumbUri];
 
                     if (u.exists(zoomPageUri)) {
-                        me.digDeep(thumbUri, zoomPageUri);
+                        setTimeout(function asyncDigDeep() {
+                            me.digDeep(thumbUri, zoomPageUri);
+                        }, 1);
                     }
                     else {
                         console.log('[Digger] No zoomPageUri found for thumbUri: ' + thumbUri);
@@ -425,7 +429,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 // Report anything other than HTML documents as found media.
                 var contentType = this.getResponseHeader('Content-Type');
                 if (contentType && contentType.indexOf('text/html') !== -1) {
-                    processZoomPage(new URL(thumbUri), new URL(zoomPageUri));
+                    return processZoomPage(new URL(thumbUri), new URL(zoomPageUri));
                 } 
                 else {                    
                     return reportDigSuccess(thumbUri, zoomPageUri);
