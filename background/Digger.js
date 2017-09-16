@@ -16,7 +16,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         digOpts: { doScrape: true, doDig: true },
 
         inflightThumbUris: [],        
-        harvestedUris: [],
+        harvestedUriMap: {},
         outputIdMap: {},
         
         completedXhrCount: 0,
@@ -92,7 +92,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * the <a> -- this is queried for any <img> with a similar filename to the supposed "thumbnail".
      */
     me.digGallery = function digGallery(doc, loc) {
-        me.harvestedUris = [];
+        me.harvestedUriMap = {};
         me.inflightThumbUris = [];
         me.outputIdMap = {};
 
@@ -100,8 +100,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         //  no scrape & no dig -- just call the callback. 
         //  yes scrape -- do it all normally through the default digDeep() behavior.
         if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-            me.harvestedUris = [];
-            me.response(me.harvestedUris);
+            me.harvestedUriMap = {};
+            me.response(me.harvestedUriMap);
         }
         if (me.digOpts.doScrape) {
             discoverGallery(doc, loc);
@@ -129,7 +129,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * Perform a scrape and dig of only the me.startingGalleryMap thumb src -> zoom uri map..
      */
     me.digStarterMap = function digStarterMap(doc, loc) {
-        me.harvestedUris = [];
+        me.harvestedUriMap = {};
         me.inflightThumbUris = [];
         me.outputIdMap = {};        
 
@@ -329,18 +329,20 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * Wrapper for adding to the harvested/found "full-size" media uris, so we don't double-add.
      */
     function pushNewFullSizeImgUri(thumbUri, newUri) {
+        var values = Object.values(me.harvestedUriMap);
+
         // Don't add nulls, don't double-add.
-        if (!u.exists(newUri) || (me.harvestedUris.indexOf(newUri) !== -1)) {
+        if (!u.exists(newUri) || (values.indexOf(newUri) !== -1)) {
             return;
         }
         
-        me.harvestedUris.push(newUri);
+        me.harvestedUriMap[thumbUri] = newUri;
 
         // Get the id of the uri, used to communicate with the UI,
         // And use it to update the UI.
         var id = me.outputIdMap[thumbUri];
         Output.setEntryAsDug(id, newUri);
-        Output.toOut('Adding dug URLs to download list. Length: ' + me.harvestedUris.length);
+        Output.toOut('Adding dug URLs to download list. Length: ' + (values.length + 1));
     }
 
 
@@ -369,8 +371,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             console.log('[Digger] All XHRs Complete. Calling me.response().' );
             chrome.alarms.clear(DIG_SAVE);
 
-            Digger.previouslyHarvestedUris = me.harvestedUris;
-            me.response(me.harvestedUris);
+            Digger.previouslyHarvestedUriMap = me.harvestedUriMap;
+            me.response(me.harvestedUriMap);
             return;
         }
         
@@ -591,8 +593,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 });
 
                 chrome.alarms.clear(DIG_SAVE);  
-                Digger.previouslyHarvestedUris = me.harvestedUris;                
-                me.response(me.harvestedUris);
+                Digger.previouslyHarvestedUriMap = me.harvestedUriMap;                
+                me.response(me.harvestedUriMap);
             }            
         }
     });
