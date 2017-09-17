@@ -107,7 +107,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
 
             // Make the destination file path.
             var destFilePath = me.downloadsDir + '/' + uri.replace(/^.+\//, '').replace(/\?(.+?)$/, '');
-            console.log(uri + ' -> ' + destFilePath);
             
             // Update the UI, download the file. Note the downloadPromise *always* resolves.
             // In an immediately-invoked function expression because of the closure on idx.
@@ -143,18 +142,11 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      */
     me.presentFileOptions = function presentFileOptions(harvestedMap) {
         if (!harvestedMap) {
-            console.log('[App] called with null harvestedMap...');
+            console.log('[App] called with null harvestedMap.');
             return Promise.resolve([]);
         }
-
+        
         var thumbUris = Object.keys(harvestedMap);
-
-        // We may have something wrong going on if this is the case.
-        if (!/\:/.test(thumbUris[0])) {
-            console.log('[App] Looks like harvestedMap may be a string... aborting presenting file options.');
-            return Promise.resolve([]);
-        }
-
         var length = thumbUris.length;
 
         if (length < 1) {
@@ -163,7 +155,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         }
         
         console.log('[App] Count of files to download: ' + length);
-        Output.toOut('click on the files in the list to download them.');
+        Output.toOut('Click on the files in the list to download them.');
         Output.clearFilesDug();
 
         // Set up the download options for each of the uris returned.
@@ -192,19 +184,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
 
         return Promise.resolve(me.fileOptions);
     };
-
-
-    /**
-     * Fetch the document on which we are scraping/digging.
-     */
-    function getLocDoc(loc) {
-        return (
-            u.getXhrResponse('GET', loc.href, 'document')
-            .then(function processXhrResponse(xhrResponse) {
-                return Promise.resolve(u.createLocDoc(loc, xhrResponse));
-            })
-        );
-    }
 
 
     /** 
@@ -244,6 +223,19 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         return Promise.resolve(loc);
     }
       
+
+    /**
+     * Fetch the document on which we are scraping/digging.
+     */
+    function getLocDoc(loc) {
+        return (
+            u.getXhrResponse('GET', loc.href, 'document')
+            .then(function processXhrResponse(xhrResponse) {
+                return Promise.resolve(u.createLocDoc(loc, xhrResponse));
+            })
+        );
+    }
+
 
     /**
      * 
@@ -292,142 +284,49 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
 
 
     /**
+     * Clear the file tracking data in preparation for a new scrape or dig operation.
+     */
+    function clearGalleryData(contentScriptSelection) {        
+        me.alreadyDownloaded = {};
+        me.filesDug = [];
+        me.galleryMap = {};
+        me.contentScriptSelection = contentScriptSelection;
+        Output.clearFilesDug();                
+    }
+
+
+    /**
      * Main entry point of the app for scraping media from the immediate page, and not having
      * any choice over which media gets downloaded. 
      */
     me.scrape = function scrape(options) {
-        me.alreadyDownloaded = [];
-        me.filesDug = [];
-        me.galleryMap = {};
-        me.contentScriptSelection = false;
-        
-        Output.toOut('initializing: collecting urls from page...');
-        Output.clearFilesDug();
+        Output.toOut('Initializing: Collecting uris from page.');        
+        clearGalleryData(false);        
 
-        // Send the document request, then call the scraper. 
+        // Begin by communicating with the ContentPeeper for information 
+        // about the target page. Then either use the ContentPeeper's processed
+        // galleryMap or the one from the Scraper in order to download immediately.
+        // No user choice on what to download.
         return (
             processContentPage()
-            .then(function doDigging(locDoc) {
-                // Just start downloading if we don't want to actually scrape.
-                // it means the post-processing found exactly what it needed already.
+            .then(function doScraping(locDoc) {
+                // Based upon the Logicker's special rules for sites, either just
+                // resolve with the ContentPeeper's processed uri info, or do a scrape.
                 if (me.digOpts.doScrape === false) {                    
-                    // Only end if we finished. Otherwise, fall back to still scraping.
-                    if (me.startDownloading(me.galleryMap)) {
-                        console.log('[App] Downloading ContentHelper uris');
-                        return Promise.resolve(me.galleryMap);
-                    }
+                    console.log('[App] Downloading ContentPeeper uris, not scraping.');
+                    return Promise.resolve(me.galleryMap);
                 }
-                
-                // Do the scraping.
-                return (
-                    Scraper.scrape({
-                        node: locDoc.doc, 
-                        loc: locDoc.loc, 
-                        opts: options,
-                    })            
-                    .then(me.startDownloading)
-                );
-            })
-            .catch(function onDocRequestError(errorMessage) {
-                console.log(errorMessage);
-                return Promise.reject(errorMessage);
-            })
-        );
-    };
-
-
-    /**  
-     * Main entry point of the app if the user wants to accept any media found by the Digger's
-     * gallery-searching logic without choosing from any options.
-     */
-    me.digGallery = function digGallery() {
-        me.alreadyDownloaded = [];
-        me.filesDug = [];
-        me.galleryMap = {};
-        me.contentScriptSelection = true;
-        
-        Output.toOut('initializing: collecting URLs from the page...');
-        Output.clearFilesDug();
-
-        // get the doc of the tab to dig though. Then let the digger find the gallery. 
-        return (
-            processContentPage()
-            .then(function goDig(locDoc) {
-                // Just download from here if all of our linkHrefs should already point directly
-                // at a valid imgUrl.
-                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
-                    if (me.startDownloading(me.galleryMap)) {
-                        console.log('[App] Downloading ContentHelper uris');
-                        return Promise.resolve(me.galleryMap);
-                    }
-                    // Scrape and dig anyway if it failed to dl the me.linkHrefs.
-                    else {
-                        me.digOpts = {
-                            doDig: true,
-                            doScrape: true
-                        };
-                    }
+                else {
+                    console.log('[App] Performing scrape.')
+                    return (Scraper.scrape({
+                            node: locDoc.doc, 
+                            loc: locDoc.loc, 
+                            opts: options
+                        })
+                    );
                 }
-
-                // If we got matching pairs of hrefs and srcs back, set them as the override.
-                return Digger.digGallery({
-                    doc: locDoc.doc,
-                    loc: locDoc.loc,
-                    digOpts: me.digOpts,
-                    galleryMap: me.galleryMap,
-                });
             })
-            .then(me.startDownloading)
-            .catch(function onDocRequestError(errorMessage) {
-                console.log(errorMessage);
-                return Promise.reject(errorMessage);
-            })
-        );
-    };
-
-
-   /**  
-     * The main entry point of the app if you want to harvest media items pointed to from
-     * galleries, and have them be shown to the user so the user can choose which ones they
-     * want. 
-     */
-    me.digFileOptions = function digFileOptions() {
-        me.alreadyDownloaded = [];
-        me.filesDug = [];
-        me.galleryMap = {};
-        me.contentScriptSelection = true;
-        
-        Output.toOut('initializing: collecting URLs from the page...');
-        Output.clearFilesDug();
-
-        // get the doc of the tab to dig though. Then let the digger find the gallery.
-        return ( 
-            processContentPage()
-            .then(function goDig(locDoc) {
-                // Just download from here if all of our linkHrefs should already point directly at a valid imgUrl.
-                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
-                    if (me.startDownloading(me.galleryMap)) {
-                        console.log('[App] Downloading ContentHelper uris')                        
-                        return Promise.resolve(me.galleryMap);
-                    }
-                    // Scrape and dig anyway if it failed to dl the me.linkHrefs.                    
-                    else {
-                        me.digOpts = {
-                            doDig: true,
-                            doScrape: true
-                        };
-                    }
-                }
-
-                // If we got matching pairs of hrefs and srcs back, set them as the override.
-                return Digger.digGallery({
-                    doc: locDoc.doc,
-                    loc: locDoc.loc,
-                    digOpts: me.digOpts,
-                    galleryMap: me.galleryMap,
-                });
-            })
-            .then(me.presentFileOptions)
+            .then(me.startDownloading)            
             .catch(function onDocRequestError(errorMessage) {
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
@@ -441,28 +340,108 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * Scrape, but do not download automatically. Give the user a list of choices.
      */
     me.scrapeFileOptions = function scrapeFileOptions(options) {
-        me.alreadyDownloaded = [];
-        me.filesDug = [];
-        me.galleryMap = {};
-        me.contentScriptSelection = true;
-        
-        Output.toOut('initializing: collecting urls from page...');
-        Output.clearFilesDug();
+        Output.toOut('Initializing: Collecting uris from page.');        
+        clearGalleryData(true);  
 
-        // get the doc of the tab to dig though. Then let the digger find the gallery. 
+        // Begin by communicating with the ContentPeeper for information 
+        // about the target page. Then use the Scraper to form a galleryMap
+        // of its findings, and present the user with options of what to download.
         return (
             processContentPage()
-            .then(function goScrape(locDoc) {
-                return (
-                    Scraper.scrape({
+            .then(function doScraping(locDoc) {
+                if (digOpts.doScrape === false) {
+                    console.log('[App] Downloading ContentPeeper uris, not scraping.');
+                    return Promise.resolve(me.galleryMap);
+                }
+                else {
+                    console.log('[App] Scraping with the Scraper.')
+                    return Scraper.scrape({
                         node: locDoc.doc, 
                         loc: locDoc.loc, 
                         opts: options,
-                    })
-                    .then(me.presentFileOptions)
-                );
+                    });
+                }
             })
-            .catch(function onDocRequestError(errorMessage) {
+            .then(me.presentFileOptions)            
+            .catch(function handleError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
+    };
+
+
+    /**  
+     * Main entry point of the app if the user wants to accept any media found by the Digger's
+     * gallery-searching logic without choosing from any options.
+     */
+    me.digGallery = function digGallery() {
+        Output.toOut('Initializing: Collecting uris from page.');        
+        clearGalleryData(true);     
+        
+        // Begin by communicating with the ContentPeeper for information 
+        // about the target page. Then immediately start downloading
+        // with either the galleryMap from the ContentPeeper, or from the Digger.
+        // No user choice in what to download.         
+        return (
+            processContentPage()
+            .then(function goDig(locDoc) {
+                // Based upon the Logicker's special rules for sites, either just
+                // resolve with the ContentPeeper's processed uri info, or do the dig.
+                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                    console.log('[App] Downloading ContentPeeper uris');
+                    return Promise.resolve(me.galleryMap);
+                }
+                else {
+                    console.log('[App] Performing gallery dig.')               
+                    return Digger.digGallery({
+                        doc: locDoc.doc,
+                        loc: locDoc.loc,
+                        digOpts: me.digOpts,
+                        galleryMap: me.galleryMap,
+                    })
+                }
+            })
+            .then(me.startDownloading)
+            .catch(function handleError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
+    };
+
+
+   /**  
+     * The main entry point of the app if you want to harvest media items pointed to from
+     * galleries, and have them be shown to the user so the user can choose which ones they
+     * want. 
+     */
+    me.digFileOptions = function digFileOptions() {
+        Output.toOut('Initializing: Collecting uris from page.');        
+        clearGalleryData(true);     
+ 
+        // Begin by communicating with the ContentPeeper for information 
+        // about the target page. Then present the user with choices on what to download,
+        // with either the galleryMap from the ContentPeeper, or from the Digger.
+        return ( 
+            processContentPage()
+            .then(function goDig(locDoc) {
+                // Just download from here if all of our linkHrefs should already point directly at a valid imgUrl.
+                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                    console.log('[App] Downloading ContentHelper uris')                        
+                    return Promise.resolve(me.galleryMap);
+                }
+                else {
+                    return Digger.digGallery({
+                        doc: locDoc.doc,
+                        loc: locDoc.loc,
+                        digOpts: me.digOpts,
+                        galleryMap: me.galleryMap,
+                    });
+                }
+            })
+            .then(me.presentFileOptions)
+            .catch(function handleError(errorMessage) {
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
