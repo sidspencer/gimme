@@ -23,7 +23,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
 
 
     /**
-     * Use the Chrome downloads system to download a file.
+     * Download a single uri to the filename (well, path) provided.
      */
     function downloadFile(uri, destFilename) {
         if (me.alreadyDownloaded[uri]) {
@@ -320,7 +320,11 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 
                 // Do the scraping.
                 return (
-                    Scraper.scrape(locDoc.doc, locDoc.loc, options)
+                    Scraper.scrape({
+                        node: locDoc.doc, 
+                        loc: locDoc.loc, 
+                        opts: options,
+                    })            
                     .then(me.startDownloading)
                 );
             })
@@ -366,11 +370,12 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 }
 
                 // If we got matching pairs of hrefs and srcs back, set them as the override.
-                Digger.init({
+                return Digger.digGallery({
+                    doc: locDoc.doc,
+                    loc: locDoc.loc,
                     digOpts: me.digOpts,
                     galleryMap: me.galleryMap,
                 });
-                return Digger.digGallery(locDoc.doc, locDoc.loc);
             })
             .then(me.startDownloading)
             .catch(function onDocRequestError(errorMessage) {
@@ -415,11 +420,12 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 }
 
                 // If we got matching pairs of hrefs and srcs back, set them as the override.
-                Digger.init({
+                return Digger.digGallery({
+                    doc: locDoc.doc,
+                    loc: locDoc.loc,
                     digOpts: me.digOpts,
                     galleryMap: me.galleryMap,
                 });
-                return Digger.digGallery(locDoc.doc, locDoc.loc);
             })
             .then(me.presentFileOptions)
             .catch(function onDocRequestError(errorMessage) {
@@ -448,7 +454,11 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             processContentPage()
             .then(function goScrape(locDoc) {
                 return (
-                    Scraper.scrape(locDoc.doc, locDoc.loc, options)
+                    Scraper.scrape({
+                        node: locDoc.doc, 
+                        loc: locDoc.loc, 
+                        opts: options,
+                    })
                     .then(me.presentFileOptions)
                 );
             })
