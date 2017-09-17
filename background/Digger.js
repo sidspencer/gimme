@@ -257,7 +257,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function discoverGallery(doc, loc) {
         // Make a map of all the <img> srcs contained in <a> tags. Sort it as thumbUri -> linkUri.
-        // If the LocationGrabber got us stuff, there will already be some entries. Merge them in.
+        // If the ContentPeeper got us stuff, there will already be some entries. Merge them in.
         var galleryMap = {};
         me.inflightThumbUris = [];
         me.outputIdMap = {};
