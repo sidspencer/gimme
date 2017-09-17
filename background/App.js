@@ -6,71 +6,39 @@
 var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     var me = {
         galleryMap: {},
+        grabberMap: {},
         downloadsDir: 'Gimme-site_pagename-tmp',
         digOpts: {
             doScrape: true,
             doDig: true,
         },
+        alreadyDone: false,
+        alreadyDownloaded: {},
+        fileOptions: [],
+        downloadCount: 0,
     };
 
+    // Aliases
     var u = Utils;
 
-    var _alreadyDone = false;
-    var _alreadyDownloaded = [];
-    var _fileOptions = [];
-
-    var GIMME_ID = 'gimme';
 
     /**
      * Use the Chrome downloads system to download a file.
      */
-    var downloadCount = 0;
     function downloadFile(uri, destFilename) {
-        if (_alreadyDownloaded.indexOf(uri) != -1) {
-            return;
+        if (me.alreadyDownloaded[uri]) {
+            return getDownloadItems(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename));
         }
-        _alreadyDownloaded.push(uri);
-        Output.toOut('Downloading file ' + (++downloadCount));
-
-        chrome.downloads.download(
-            {
-                url: uri,
-                filename: destFilename,
-                conflictAction: 'uniquify',
-                saveAs: false,
-                method: 'GET'
-            },
-            function downloadCallback(downloadId) {
-                if (downloadId) {
-                    console.log('[App] Downloading as id: ' + downloadId + '\n URI: ' + uri);
-
-                    // Search for the download. We will check some things.
-                    chrome.downloads.search(
-                        {
-                            id: downloadId,
-                        }, 
-                        function searchCallback(downloadItems) {
-                            // Check the mime type. if it's 'text/'-anything, it's not media.
-                            downloadItems.forEach(function cancelTextMimeTypes(dlItem) {
-                                if (dlItem.mime.indexOf('text') === 0) {
-                                    chrome.downloads.cancel(dlItem.id, function logDlCancel() {
-                                        console.log(
-                                            '[App] download.id = ' + dlItem.id 
-                                            + ' was cancelled. Mime type was not media type. Was: ' + dlItem.mime
-                                        );
-
-                                        //TODO: Figure what to Output.
-                                    });
-                                }
-                            });
-                        }
-                    );
-                }
-                else {
-                    console.log('[App] Error starting download: ' + chrome.runtime.lastError);
-                }
-            }
-        );
+        else {
+            return (
+                u.download(uri, destFilename)
+                .then(function reportSuccess(downloadSig) {
+                    Output.toOut('Downloading file ' + (++me.downloadCount));
+                    return Promise.resolve(downloadSig);                    
+                })
+                .then(u.searchDownloads)
+            );
+        }
     }
     App.downloadFile = downloadFile;
 
@@ -114,102 +82,84 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     /**
      * Once we have the dug uris from the response, this callback downloads them.
      */
-    me.startDownloading = function startDownloading(map) {
-        var length = Object.keys(map).length;
+    me.startDownloading = function startDownloading(harvestedMap) {
+        var length = Object.keys(harvestedMap).length;
+        var downloadPromises = [];        
 
-        if (!map || length < 1) {
+        if (!harvestedMap || length < 1) {
             console.log('[App] No files to download.');
             Output.toOut('No URLs to download.');
-            return;
         }
-
-        Output.toOut('' + length + ' Downloading!');
+        else {
+            console.log('[App] Downloading ' + length + ' files.')
+            Output.toOut('' + length + ' Downloading!');
+        }
 
         // Create each new filename, add the file to the UI list, and kick off the
         // download.
-        var idx = 0;
-        for (var thumbUri in map) {
-            var uri = map[thumbUri];
+        for (var thumbUri in harvestedMap) {
+            var uri = harvestedMap[thumbUri];
 
             if (!uri || !uri.replace) {
                 console.log('[App] URI not a string: ' + JSON.stringify(uri));
-                return;
+                continue;
             }
 
             // Make the destination file path.
             var destFilePath = me.downloadsDir + '/' + uri.replace(/^.+\//, '').replace(/\?(.+?)$/, '');
             console.log(uri + ' -> ' + destFilePath);
             
-            // Update the UI, download the file.
-            Output.setEntryAsDownloading(idx);
-            downloadFile(uri, destFilePath);   
-            
-            idx++;            
+            // Update the UI, download the file. Note the downloadPromise *always* resolves.
+            // In an immediately-invoked function expression because of the closure on idx.
+            (function createDownloadPromise(theUri, theFilePath, dlPromises) {
+                var idx = dlPromises.push(
+                    downloadFile(theUri, theFilePath)
+                    .then(function setItemAsDownloading(downloadItems) {
+                        Output.setEntryAsDownloading(idx);
+                        return Promise.resolve(downloadItems);              
+                    })
+                    .catch(function catchDownloadingErrors(errorString) {
+                        console.log(errorString);
+                        return Promise.resolve([]);
+                    })
+                );
+            })(uri, destFilePath, downloadPromises);               
         }
 
-        Digger.persistentDugUris = [];
-        Output.toOut('-Done Downloading-');
-    };
-
-    
-    /**
-     * Take all the crap out of the above function, and just make it
-     * immediately download everything in me.linkHrefs.
-     */
-    me.justDownloadLinkHrefs = function justDownloadLinkHrefs() {        
-        var linkUris = Object.getOwnPropertyNames(me.galleryMap).map(function getZoom(t) {
-            return me.galleryMap[t];
-        });
-
-        if (Array.isArray(linkUris)) {
-            console.log('[App] Downloading grabbed URIs. Count: ' + linkUris.length);            
-
-            var count = 0;
-            linkUris.forEach(function downloadEachUri(zoomUri) {
-                // check input.
-                if (!u.exists(zoomUri)) {
-                    console.log('[App] Uri did not exist.');
-                    return;
-                }
-
-                // take the querystring off just to make the destSrc. 
-                //We need it when downloading, however.
-                var destName = zoomUri.replace(/^.+\//, '').replace(/\?(.+?)$/, '');
-
-                // make the full dest
-                var destFullPath = me.downloadsDir + '/' + destName;
-                console.log('[App] Queing DL: ' + zoomUri + '\n  -> ' + destFullPath);
-                
-                // Update the UI, download the file.
-                downloadFile(zoomUri, destFullPath);
-                count++;
-            });
-            
-            Output.toOut('Queued all ' + count + ' pic URIs.' );
-            Digger.persistentDugUris = [];
-            
-            return true;
-        }
-        else {
-            console.log('[App] Malformed download link array.');
-            Output.toOut('Could not automatically download.');
-        }
+        return (
+            Promise.all(downloadPromises)
+            .then(function onAllDoneDownloading(allDownloadItems) {
+                Output.toOut('-Done Downloading-');
+                console.log('[App] -Done Downloading-\n\n')
+                return Promise.resolve(allDownloadItems);
+            })
+        );
     };
     
-
 
     /**
      * Give the user a list of media that was found. Download based upon their preference
      * and interaction.
      */
-    me.presentFileOptions = function presentFileOptions(map) {
-        var length = Object.keys(map).length;
+    me.presentFileOptions = function presentFileOptions(harvestedMap) {
+        if (!harvestedMap) {
+            console.log('[App] called with null harvestedMap...');
+            return Promise.resolve([]);
+        }
 
-        if (!map || length < 1) {
+        var thumbUris = Object.keys(harvestedMap);
+
+        // We may have something wrong going on if this is the case.
+        if (!/\:/.test(thumbUris[0])) {
+            console.log('[App] Looks like harvestedMap may be a string... aborting presenting file options.');
+            return Promise.resolve([]);
+        }
+
+        var length = thumbUris.length;
+
+        if (length < 1) {
             console.log('[App] No files to download.');
-            Output.toOut('No URLs to download.');
-            
-            return;
+            Output.toOut('No URLs to download.');            
         }
         
         console.log('[App] Count of files to download: ' + length);
@@ -217,13 +167,12 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         Output.clearFilesDug();
 
         // Set up the download options for each of the uris returned.
-        var idx = 0;
-        for (var thumbUri in map) {
-            var uri = map[thumbUri];
+        for (var thumbUri in harvestedMap) {
+            var uri = harvestedMap[thumbUri];
 
             if (!uri || !uri.replace || uri.indexOf('.') === 0) {
                 console.log('[App] Bad uri string for download: ' + JSON.stringify(uri));
-                return;
+                continue;
             }
 
             // take the querystring off just to make the destSrc. We need it when downloading, however.
@@ -231,127 +180,115 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             var destFileName = uriWithoutQs.replace(/^.+\//, '');
 
             var destFilePath = me.downloadsDir + '/' + destFileName;
-            var optIdx = _fileOptions.push(destFilePath);
-
-            var fileOption = {
-                id: optIdx,
-                uri: uri,
-                thumbUri: thumbUri,
-                filePath: destFilePath,
-                onSelect: downloadFile,
-            };
+            var optIdx = me.fileOptions.push(destFilePath);
+            var fileOption = u.createFileOption(optIdx, uri, thumbUri, destFilePath, downloadFile);
 
             Output.addFileOption(fileOption);
-            idx++;            
         }
 
+        console.log('[App] Presented ' + me.fileOptions.length + ' file options.');
         Output.toOut('Please select which files you would like to download.');
         Output.showActionButtons();
+
+        return Promise.resolve(me.fileOptions);
     };
 
 
     /**
      * Fetch the document on which we are scraping/digging.
      */
-    function fetchMeDoc(uri, onEnd) {
-        var xhr = new XMLHttpRequest();
-
-        xhr.onreadystatechange = function onXhrRSC() {
-            if (this.readyState == XMLHttpRequest.DONE) 
-            {
-                if (this.status == 200) {
-                    console.log('[App] Got document for URI: ' + uri);
-                    onEnd(this.responseXML);
-                }
-                else {
-                    console.log('[App] Error status ' + this.status + ' while fetching URI: ' + uri);
-                    onEnd(undefined);
-                }
-            }
-        };
-        
-        xhr.onerror = function onXhrError() {
-            console.log('[App] XHR error while fetching URI: ' + uri);
-            onEnd(undefined);
-        };
-
-        xhr.open('GET', uri, true);
-        xhr.responseType = 'document';
-        xhr.send();
+    function getLocDoc(loc) {
+        return (
+            u.getXhrResponse('GET', loc.href, 'document')
+            .then(function processXhrResponse(xhrResponse) {
+                return Promise.resolve(u.createLocDoc(loc, xhrResponse));
+            })
+        );
     }
 
-  
+
+    /** 
+     * Ask the client-script for the active tab's location object, as well as
+     * an array of values corresponding to the selector and propName for that tag. 
+     * Typically, these selectors and propNames will be some combination of 
+     * "img", "a", "src", and "href".
+     */ 
+    function buildTabMessage(tab) {
+        var message = {};
+
+        if (me.contentScriptSelection) {
+            var d = Logicker.getMessageDescriptorForUrl(tab.url);
+            message.selector = d.selector;
+            message.linkHrefProp = d.linkHrefProp;
+            message.thumbSrcProp = d.thumbSrcProp;
+            message.useRawValues = d.useRawValues;
+        }    
+        
+        var tabMessage = u.createTabMessage(tab, message); 
+        return Promise.resolve(tabMessage);
+    }
+
+
+    /** 
+     * Do some things with the tab response, resolve with the location.
+     */
+    function processTabMessageResponse(resp) {
+        // Get the locator from the response. Create the downloads directory name.
+        var loc = resp.locator;
+        me.downloadsDir = getSaltedDirectoryName(loc);
+
+        // Get the Uris. The LocationGrabber makes sure they are *full* uris.
+        me.grabberMap = Object.assign({}, resp.galleryMap);
+
+        // Just resolve with the location
+        return Promise.resolve(loc);
+    }
+      
+
+    /**
+     * 
+     * If we know special things about the site, such as thumb -> zoomedImg mappings
+     * or whatnot, we do it here. It also returns a descriptor of options for scraping
+     * and digging. 
+     */
+    function processLocDoc(locDoc) {        
+        // If we know special things about the site, such as thumb -> zoomedImg mappings
+        // or whatnot, we do it here. It also returns a descriptor of options for scraping
+        // and digging.
+        var dataDescriptor = Logicker.postProcessResponseData(me.grabberMap, locDoc.loc.href);
+        me.galleryMap = dataDescriptor.processedMap;
+        me.digOpts.doDig = dataDescriptor.doDig;
+        me.digOpts.doScrape = dataDescriptor.doScrape;
+
+        // log the linkHrefs from LocationGrabber.
+        // Then, log the thumbSrcs from LocationGrabber.
+        var mapSize = Object.getOwnPropertyNames(me.galleryMap).length;
+        console.log('[App] Initial processed response has ' + mapSize + ' thumb uris -> zoom link uris.');
+
+        if (locDoc) {
+            return Promise.resolve(locDoc);
+        }
+        else {
+            Output.toOut('Could not scrape. Would you try refreshing the page, please?');
+            return Promise.reject('[App] Aborting. Received null document object.');
+        }       
+    }
+
+
     /**
      * Retrieve the current tab, ask our client-script for the location object, then
      * call the callback with the XHR'd document object for the tab's url.
      */
-    function sendDocRequest(onResponse, contentScriptSelection) {
-        // Query to get the current tab.
-        chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        },
-        function(tabs) {
-            var message = {
-                senderId: GIMME_ID
-            };
-
-            // No response callback means to greentextonblackify.
-            if (!onResponse) {
-                message.thegreening = {};    
-            }
-            else if (contentScriptSelection) {
-                var d = Logicker.getMessageDescriptorForUrl(tabs[0].url);
-                message.selector = d.selector;
-                message.linkHrefProp = d.linkHrefProp;
-                message.thumbSrcProp = d.thumbSrcProp;
-                message.useRawValues = d.useRawValues;
-            }
-
-            // Ask the client-script for the active tab's location object, as well as
-            // an array of values corresponding to the selector and propName for that tag. 
-            // Typically, these selectors and propNames will be some combination of 
-            // "img", "a", "src", and "href".
-            chrome.tabs.sendMessage(
-                tabs[0].id,
-                message,
-                function processMessageResponse(resp) {
-                    // Just bail if the response is messed up.
-                    if (!resp) {
-                        console.log('[App] Aborting, got an undefined response.');
-                        return; 
-                    }
-                    
-                    // Get the locator from the response. Create the downloads directory name.
-                    var loc = resp.locator;
-                    me.downloadsDir = getSaltedDirectoryName(loc);
-
-                    // Get the Uris. The LocationGrabber makes sure they are *full* uris.
-                    var initialMap = Object.assign({}, resp.galleryMap);
-
-                    // Fetch the HTML document.
-                    fetchMeDoc(loc.href, function afterFetchingDoc(doc) {
-                        // If we know special things about the site, such as thumb -> zoomedImg mappings
-                        // or whatnot, we do it here. It also returns a descriptor of options for scraping
-                        // and digging.
-                        var dataDescriptor = Logicker.postProcessResponseData(initialMap, loc.href);
-                        
-                        me.galleryMap = dataDescriptor.processedMap;
-                        me.digOpts.doDig = dataDescriptor.doDig;
-                        me.digOpts.doScrape = dataDescriptor.doScrape;
-
-                        // log the linkHrefs from LocationGrabber.
-                        // Then, log the thumbSrcs from LocationGrabber.
-                        var mapSize = Object.getOwnPropertyNames(me.galleryMap).length;
-                        console.log('[App] Initial processed response has ' + mapSize + ' thumb uris -> zoom link uris.');
-                        
-                        // Call the callback.
-                        onResponse(doc, loc);
-                    });
-                }
-            );
-        });
-    };
+    function processContentPage() {
+        return (
+            u.queryActiveTab()
+            .then(buildTabMessage)
+            .then(u.sendTabMessage)
+            .then(processTabMessageResponse)
+            .then(getLocDoc)
+            .then(processLocDoc)
+        );        
+    }
 
 
     /**
@@ -359,35 +296,39 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * any choice over which media gets downloaded. 
      */
     me.scrape = function scrape(options) {
-        _alreadyDownloaded = [];
+        me.alreadyDownloaded = [];
         me.filesDug = [];
         me.galleryMap = {};
+        me.contentScriptSelection = false;
         
         Output.toOut('initializing: collecting urls from page...');
         Output.clearFilesDug();
 
-        // Get the doc we are to scrape. 
-        sendDocRequest(function onDocReceived(doc, loc) {
-            if (doc) {
-                console.log('[App] Aborting. Received null document.');
-                Output.toOut('Could not scrape. Would you try refreshing the page, please?');
-                return;
-            }
-
-            // Just start downloading if we don't want to actually scrape.
-            // it means the post-processing found exactly what it needed already.
-            if (me.digOpts.doScrape === false) {
-                var success = me.justDownloadLinkHrefs();
-                
-                // Only end if we finished. Otherwise, fall back 
-                // to still scraping and digging.
-                if (success) {
-                    return;
+        // Send the document request, then call the scraper. 
+        return (
+            processContentPage()
+            .then(function doDigging(locDoc) {
+                // Just start downloading if we don't want to actually scrape.
+                // it means the post-processing found exactly what it needed already.
+                if (me.digOpts.doScrape === false) {                    
+                    // Only end if we finished. Otherwise, fall back to still scraping.
+                    if (me.startDownloading(me.galleryMap)) {
+                        console.log('[App] Downloading ContentHelper uris');
+                        return Promise.resolve(me.galleryMap);
+                    }
                 }
-            }
-
-            Scraper.scrape(doc, loc, options, me.startDownloading);
-        }, false);
+                
+                // Do the scraping.
+                return (
+                    Scraper.scrape(locDoc.doc, locDoc.loc, options)
+                    .then(me.startDownloading)
+                );
+            })
+            .catch(function onDocRequestError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
     };
 
 
@@ -396,46 +337,47 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * gallery-searching logic without choosing from any options.
      */
     me.digGallery = function digGallery() {
-        _alreadyDownloaded = [];
+        me.alreadyDownloaded = [];
         me.filesDug = [];
         me.galleryMap = {};
+        me.contentScriptSelection = true;
         
         Output.toOut('initializing: collecting URLs from the page...');
         Output.clearFilesDug();
 
         // get the doc of the tab to dig though. Then let the digger find the gallery. 
-        sendDocRequest(function onDocReceived(doc, loc) {
-            if (!doc) {
-                console.log('[App] Aborting. Received null document.');
-                Output.toOut('Could not dig. Would you try refreshing the page, please?');
-                return;
-            }
-
-            // Just download from here if all of our linkHrefs should already point directly
-            // at a valid imgUrl.
-            if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
-                var wasAbleTo = me.justDownloadLinkHrefs();
-
-                // Scrape and dig anyway if it failed to dl the me.linkHrefs.
-                if (wasAbleTo) {
-                    return;
+        return (
+            processContentPage()
+            .then(function goDig(locDoc) {
+                // Just download from here if all of our linkHrefs should already point directly
+                // at a valid imgUrl.
+                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                    if (me.startDownloading(me.galleryMap)) {
+                        console.log('[App] Downloading ContentHelper uris');
+                        return Promise.resolve(me.galleryMap);
+                    }
+                    // Scrape and dig anyway if it failed to dl the me.linkHrefs.
+                    else {
+                        me.digOpts = {
+                            doDig: true,
+                            doScrape: true
+                        };
+                    }
                 }
-                else {
-                    me.digOpts = {
-                        doDig: true,
-                        doScrape: true
-                    };
-                }
-            }
 
-            // If we got matching pairs of hrefs and srcs back, set them as the override.
-            Digger.init({
-                digOpts: me.digOpts,
-                response: me.startDownloading,                
-                galleryMap: me.galleryMap,
-            });
-            Digger.digGallery(doc, loc);
-        }, true);
+                // If we got matching pairs of hrefs and srcs back, set them as the override.
+                Digger.init({
+                    digOpts: me.digOpts,
+                    galleryMap: me.galleryMap,
+                });
+                return Digger.digGallery(locDoc.doc, locDoc.loc);
+            })
+            .then(me.startDownloading)
+            .catch(function onDocRequestError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
     };
 
 
@@ -445,46 +387,46 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * want. 
      */
     me.digFileOptions = function digFileOptions() {
-        _alreadyDownloaded = [];
+        me.alreadyDownloaded = [];
         me.filesDug = [];
         me.galleryMap = {};
+        me.contentScriptSelection = true;
         
         Output.toOut('initializing: collecting URLs from the page...');
         Output.clearFilesDug();
 
-        // get the doc of the tab to dig though. Then let the digger find the gallery. 
-        sendDocRequest(function onDocReceived(doc, loc) {
-            if (!doc) {
-                console.log('[App] Aborting. Received null document.');
-                Output.toOut('Could not dig. Would you try refreshing the page, please?');
-                return;
-            }
-
-           // Just download from here if all of our linkHrefs should already point directly
-            // at a valid imgUrl.
-            if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
-                var wasAbleTo = me.justDownloadLinkHrefs();
-
-                // Scrape and dig anyway if it failed to dl the me.linkHrefs.
-                if (wasAbleTo) {
-                    return;
+        // get the doc of the tab to dig though. Then let the digger find the gallery.
+        return ( 
+            processContentPage()
+            .then(function goDig(locDoc) {
+                // Just download from here if all of our linkHrefs should already point directly at a valid imgUrl.
+                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                    if (me.startDownloading(me.galleryMap)) {
+                        console.log('[App] Downloading ContentHelper uris')                        
+                        return Promise.resolve(me.galleryMap);
+                    }
+                    // Scrape and dig anyway if it failed to dl the me.linkHrefs.                    
+                    else {
+                        me.digOpts = {
+                            doDig: true,
+                            doScrape: true
+                        };
+                    }
                 }
-                else {
-                    me.digOpts = {
-                        doDig: true,
-                        doScrape: true
-                    };
-                }
-            }
 
-            // If we got matching pairs of hrefs and srcs back, set them as the override.
-            Digger.init({
-                digOpts: me.digOpts,
-                response: me.presentFileOptions,                
-                galleryMap: me.galleryMap,
-            });
-            Digger.digGallery(doc, loc);
-        }, true);
+                // If we got matching pairs of hrefs and srcs back, set them as the override.
+                Digger.init({
+                    digOpts: me.digOpts,
+                    galleryMap: me.galleryMap,
+                });
+                return Digger.digGallery(locDoc.doc, locDoc.loc);
+            })
+            .then(me.presentFileOptions)
+            .catch(function onDocRequestError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
     };
 
 
@@ -493,23 +435,28 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * Scrape, but do not download automatically. Give the user a list of choices.
      */
     me.scrapeFileOptions = function scrapeFileOptions(options) {
-        _alreadyDownloaded = [];
+        me.alreadyDownloaded = [];
         me.filesDug = [];
         me.galleryMap = {};
+        me.contentScriptSelection = true;
         
         Output.toOut('initializing: collecting urls from page...');
         Output.clearFilesDug();
 
         // get the doc of the tab to dig though. Then let the digger find the gallery. 
-        sendDocRequest(function docRequestDone(doc, loc) {
-            if (!doc) {
-                console.log('[App] Aborting. Received null document.');
-                Output.toOut('Could not scrape. Would you try refreshing the page, please?');
-                return;
-            }
-
-            Scraper.scrape(doc, loc, options, me.presentFileOptions);
-        }, true);
+        return (
+            processContentPage()
+            .then(function goScrape(locDoc) {
+                return (
+                    Scraper.scrape(locDoc.doc, locDoc.loc, options)
+                    .then(me.presentFileOptions)
+                );
+            })
+            .catch(function onDocRequestError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
     };
 
 
