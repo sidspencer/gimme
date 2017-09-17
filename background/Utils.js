@@ -137,6 +137,17 @@ var Utils = (function Utils() {
 
 
     /**
+     * Pull out the filename from a uri, or fallback to the whole thing.
+     */
+    me.extractFilename = function extractFilename(uri) {
+        var lsi = uri.lastIndexOf('/');
+        var filename = uri.substring((lsi === -1) ? 0 : (lsi + 1));
+
+        return filename;
+    }
+
+
+    /**
      * factory function for a LocDoc
      */
     me.createLocDoc = function createLocDoc(loc, doc) {
@@ -253,13 +264,17 @@ var Utils = (function Utils() {
     /**
      * Wrapper for chrome.tabs.query.
      */
-    me.queryActiveTab = function queryActiveTab() {
+    me.queryActiveTab = function queryActiveTab(opts) {
+        if (!opts) {
+            opts = {
+                active: true,
+                currentWindow: true,
+            }
+        }
+        
         return new Promise(function doQueryTabs(resolve, reject) {
             chrome.tabs.query(
-                {
-                    active: true,
-                    currentWindow: true
-                },
+                opts,
                 function(tabs) {
                     if (tabs && tabs.length > 0) {
                         resolve(tabs[0]);             
