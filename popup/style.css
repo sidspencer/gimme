@@ -22,16 +22,20 @@ input,checkbox,textarea,button {
     border-radius: 2px;
 }
 
-li.found, li.opt {
+li.found {
     color: rgba(0,255,0,0.3);
 }
 
-li.opt {
+li.downloading {
+    font-variant: small-caps;
+}
+
+li.opt, li.downloading {
     color: rgba(0,255,0,1);    
     height: 60px;    
 }
 
-li.opt > div {
+li.opt > div, li.downloading > div {
     display: inline-block;
     height: 50px;
     width: 50px;
@@ -40,7 +44,7 @@ li.opt > div {
     text-align: center;
 }
 
-li.opt > div > img {
+li.opt img, li.downloading img {
     position: relative;
     top: 50%;
     left: 50%;
@@ -50,11 +54,11 @@ li.opt > div > img {
     transform: translate(-50%,-50%)
 }
 
-li.opt > checkbox {
+li.opt > checkbox, li.downloading > checkbox {
     vertical-align: middle;
 }
 
-li.opt > label {
+li.opt > label, li.downloading > label {
     vertical-align: middle;
 }
 
@@ -62,11 +66,6 @@ li.dug {
     color: rgba(0,255,0,0.5);
     font-variant: unset;
     list-style: '-';
-}
-
-li.downloading {
-    color: rgba(0,255,0,1);
-    font-variant: small-caps;
 }
 
 div.buttonColumn {
