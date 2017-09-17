@@ -23,7 +23,7 @@
         "<all_urls>"
       ],
       "js": [
-        "content/LocationGrabber.js"
+        "content/ContentPeeper.js"
       ],
       "all_frames": false
     }
