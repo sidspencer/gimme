@@ -13,6 +13,8 @@
      * Also do a simple page scrape for whatever is asked.
      */
     function onGetLocation(req, sender, res) {
+        var response = undefined;
+
         // Do not respond at all if not from Gimme.
         if (req.senderId == GIMME_ID) {
             if (!loc || !doc) {
@@ -77,7 +79,7 @@
                 }
 
                 // Respond with our results, the window.location, an identifier, and our inputs.
-                return res({
+                response = {
                     'contentScriptId': LOCATIONGRABBER_ID,
 
                     'locator': loc,
@@ -90,12 +92,12 @@
                         'thumbSrcProp': srcProp,
                         'useRawValues': useRawValues,
                     },
-                });
+                };
             }
             else {
                 // Send the result, identifying us, the inputs we received, the window.location, and
                 // an empty array for propValues, as we weren't asked for any.
-                return res({
+                response = {
                     'contentScriptId': LOCATIONGRABBER_ID,
 
                     'locator': loc,
@@ -104,9 +106,11 @@
                     'inputs': {
                         'senderId': GIMME_ID,
                     },
-                });
+                };
             }
         }
+
+        return res(response);
     }
 
     // hook up the event listener.
