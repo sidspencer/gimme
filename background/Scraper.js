@@ -495,7 +495,11 @@ var Scraper = (function Scraper(Utils) {
     /**
      * Find all the image/movie media that is directly inside a node.
      */
-    me.scrape = function scrape(node, loc, opts) {
+    me.scrape = function scrape(config) {
+        var opts = config.opts;
+        var node = config.node;
+        var loc = config.loc;
+
         var imgUris = [];
         var cssBgUris = [];
         var jsUris = [];
