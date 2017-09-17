@@ -48,17 +48,32 @@ var Output = (function Output(dokken) {
 
 
     /**
-     * Find an entry by it's id. Update its text
+     * Find an entry, update its text and classname. 
      */
-    me.setEntryAsDug = function setEntryAsDug(id, entry) {        
+    function setEntryToState(id, entry, state) {
         var fEntry = me.doc.getElementById('fileEntry' + id);
         
         if (fEntry) {
             if (entry) { 
                 fEntry.innerHTML = entry;
             }
-            fEntry.className = 'dug';
+            fEntry.className = state;
         }
+    }
+
+    /**
+     * Find an entry by it's id. Update its text to the found zoomUri
+     */
+    me.setEntryAsDug = function setEntryAsDug(id, entry) {        
+       setEntryToState(id, entry, 'dug');
+    };
+
+
+    /**
+     * Find an entry by it's id. Update its text, generally to '[failed]'
+     */
+    me.setEntryAsFailed = function setEntryAsFailed(id, entry) {        
+        setEntryToState('failed');
     };
 
 
