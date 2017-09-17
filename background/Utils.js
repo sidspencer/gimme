@@ -7,6 +7,10 @@
 var Utils = (function Utils() {
     var me = {};
 
+     // Constants
+     var GIMME_ID = 'gimme';
+
+
     /**
      * Check if a variable really exists.
      */
@@ -129,6 +133,225 @@ var Utils = (function Utils() {
         return (
             /^(http|https|data|blob|chrome|chrome-extension)\:/.test(uri)
         );
+    };
+
+
+    /**
+     * factory function for a LocDoc
+     */
+    me.createLocDoc = function createLocDoc(loc, doc) {
+        return {
+            loc: loc,
+            doc: doc,
+        };
+    };
+
+
+    /**
+     * factory for a TabMessage
+     */
+    me.createTabMessage = function createTabMessage(tab, message) {
+        return {
+            tab: tab,
+            message: {
+                selector: message.selector,
+                linkHrefProp: message.linkHrefProp,
+                thumbSrcProp: message.thumbSrcProp,
+                useRawValues: !!message.useRawValues,
+            },
+        };
+    };
+
+    /**
+     * factory for a DownloadSig
+     */
+    me.createDownloadSig = function createDownloadSig(id, uri, fileName) {
+        return {
+            id: id,
+            uri: uri,
+            fileName: fileName,
+        };
+    };
+
+
+    /**
+     * factory for FileOption
+     */
+    me.createFileOption = function createFileOption(id, uri, thumbUri, filePath, onSelect) {
+        return {
+            id: id,
+            uri: uri,
+            thumbUri: thumbUri,
+            filePath: filePath,
+            onSelect: onSelect,
+        };
+    };
+
+
+    /**
+     * Promise-wrapper for doing an XHR
+     */
+    me.getXhrResponse = function getXhrResponse(method, uri, responseType) {
+        var prop = (responseType === 'document') ? 'responseXML' : 'response';
+        return me.sendXhr(method, uri, [prop], responseType);
+    }
+
+    /**
+     * Promise-wrapper for doing an XHR
+     */
+    me.sendXhr = function sendXhr(method, uri, props, responseType) {
+        return new Promise(function buildXhr(resolve, reject) {
+            var errorHandler = function errorHandler(theStatus, theUri) {
+                console.log('[Utils] XHR Error status ' + theStatus + ' while fetching URI: ' + theUri);
+                reject(theStatus);
+            };
+
+            var xhr = new XMLHttpRequest();
+
+            xhr.onreadystatechange = function onXhrRSC() {
+                if (this.readyState == XMLHttpRequest.DONE) 
+                {
+                    if (this.status == 200) {
+                        console.log('[Utils] XHR Got good response for URI: ' + uri);
+                        
+                        if (props && props.length > 1) {
+                            var propMap = {};
+                            var thisXhr = this;
+
+                            props.forEach(function addPropToResult(prop) {
+                                propMap[prop] = thisXhr[prop];
+                            });
+
+                            resolve(propMap);                            
+                        }
+                        else if (props && props.length === 1) {
+                            resolve(this[props[0]]);
+                        }
+                        else {
+                             resolve(this);
+                        }
+                    }
+                    else {
+                        errorHandler(this.status, uri);
+                    }
+                }
+            };
+            
+            xhr.onerror = function onXhrError() {
+                errorHandler(this.status, uri);
+            };
+
+            xhr.open(method, uri, true);
+            if (responseType) {
+                xhr.responseType = responseType;
+            }
+            xhr.send();
+        });
+    }
+
+
+    /**
+     * Wrapper for chrome.tabs.query.
+     */
+    me.queryActiveTab = function queryActiveTab() {
+        return new Promise(function doQueryTabs(resolve, reject) {
+            chrome.tabs.query(
+                {
+                    active: true,
+                    currentWindow: true
+                },
+                function(tabs) {
+                    if (tabs && tabs.length > 0) {
+                        resolve(tabs[0]);             
+                    }
+                    else {
+                        reject('[Utils] no active tabs in the current window.');
+                    }       
+                }
+            );
+        });
+    };
+
+
+    /**
+     * Wrapper for sending a message to a tab.
+     */
+    me.sendTabMessage = function sendTabMessage(tabMessage) {
+        return new Promise(function messageSend(resolve, reject) {
+            tabMessage.message.senderId = GIMME_ID;
+            
+            chrome.tabs.sendMessage(
+                tabMessage.tab.id,
+                tabMessage.message,
+                {},
+                function getMessageResponse(resp) {
+                    if (resp) {
+                        resolve(resp);                    
+                    }
+                    else {
+                        reject(
+                            '[Utils] Aborting, got an undefined response. May need to refresh the page.\n' +
+                            '        lastError: ' + JSON.stringify(chrome.runtime.lastError)
+                        ); 
+                    }
+                }
+            );
+        });
+    };
+
+
+    /**
+     * Start the download. Wrapper around chrome.downloads.download.
+     */
+    me.download = function download(uri, destFilename) {
+        return new Promise(function doDownload(resolve, reject) {
+            chrome.downloads.download(
+            {
+                url: uri,
+                filename: destFilename,
+                conflictAction: 'uniquify',
+                saveAs: false,
+                method: 'GET'
+            },
+            function downloadCallback(downloadId) {
+                if (downloadId) {
+                    resolve(me.createDownloadSig(downloadId, uri, destFilename));
+                }
+                else {
+                    console.log('[Utils] No downloadId for uri ' + uri);
+                    reject('[Utils] No downloadId for uri ' + uri);
+                }
+            });
+        });
+    };
+
+
+    /**
+     * Get the newly created download items. Wrapper around chrome.downloads.search.
+     */
+    me.searchDownloads = function searchDownloads(downloadSig) {
+        return new Promise(function doSearching(resolve, reject) {
+            chrome.downloads.search(
+                {
+                    id: downloadSig.id,
+                }, 
+                function searchCallback(downloadItems) {
+                    if (downloadItems && downloadItems.length > 0) {
+                        console.log(
+                            '[Utils] Successfully downloading the following...\n' +
+                            '        id:   ' + downloadSig.id + '\n' +
+                            '        URI:  ' + downloadSig.uri + '\n' +
+                            '        file: ' + downloadSig.fileName
+                        );                        
+                        resolve(downloadItems);
+                    }
+                    else {
+                        console.log('[Utils] Error starting download: ' + chrome.runtime.lastError);
+                        reject('[Utils] Error starting download: ' + chrome.runtime.lastError);
+                    }
+                }
+            );
+        });
     };
 
 
