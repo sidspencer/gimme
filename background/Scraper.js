@@ -495,7 +495,7 @@ var Scraper = (function Scraper(Utils) {
     /**
      * Find all the image/movie media that is directly inside a node.
      */
-    me.scrape = function scrape(node, loc, opts, res) {
+    me.scrape = function scrape(node, loc, opts) {
         var imgUris = [];
         var cssBgUris = [];
         var jsUris = [];
@@ -539,7 +539,7 @@ var Scraper = (function Scraper(Utils) {
         console.log('[Scraper] Found audioUris: ' + JSON.stringify(audioUris));
         console.log('[Scraper] Found qsUris: ' + JSON.stringify(qsUris));
 
-        res(
+        return Promise.resolve(
             []
             .concat(imgUris)
             .concat(cssBgUris)
