@@ -213,7 +213,6 @@ var Utils = (function Utils() {
     me.sendXhr = function sendXhr(method, uri, props, responseType) {
         return new Promise(function buildXhr(resolve, reject) {
             var errorHandler = function errorHandler(theStatus, theUri) {
-                console.log('[Utils] XHR Error status ' + theStatus + ' while fetching URI: ' + theUri);
                 reject(theStatus);
             };
 
@@ -222,9 +221,7 @@ var Utils = (function Utils() {
             xhr.onreadystatechange = function onXhrRSC() {
                 if (this.readyState == XMLHttpRequest.DONE) 
                 {
-                    if (this.status == 200) {
-                        console.log('[Utils] XHR Got good response for URI: ' + uri);
-                        
+                    if (this.status == 200) {                        
                         if (props && props.length > 1) {
                             var propMap = {};
                             var thisXhr = this;
@@ -333,7 +330,6 @@ var Utils = (function Utils() {
                     resolve(me.createDownloadSig(downloadId, uri, destFilename));
                 }
                 else {
-                    console.log('[Utils] No downloadId for uri ' + uri);
                     reject('[Utils] No downloadId for uri ' + uri);
                 }
             });
@@ -351,17 +347,10 @@ var Utils = (function Utils() {
                     id: downloadSig.id,
                 }, 
                 function searchCallback(downloadItems) {
-                    if (downloadItems && downloadItems.length > 0) {
-                        console.log(
-                            '[Utils] Successfully downloading the following...\n' +
-                            '        id:   ' + downloadSig.id + '\n' +
-                            '        URI:  ' + downloadSig.uri + '\n' +
-                            '        file: ' + downloadSig.fileName
-                        );                        
+                    if (downloadItems && downloadItems.length > 0) {           
                         resolve(downloadItems);
                     }
                     else {
-                        console.log('[Utils] Error starting download: ' + chrome.runtime.lastError);
                         reject('[Utils] Error starting download: ' + chrome.runtime.lastError);
                     }
                 }
