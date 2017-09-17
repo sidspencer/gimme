@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                     var uri = uriMap[thumbUri];
                                   
                     out.addFileOption({ 
-                        id: idx, 
+                        id: (idx++), 
                         uri: uri, 
                         thumbUri: thumbUri,
                         filePath: dir + '/' + uri.substring(uri.lastIndexOf('/')),
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function init() {
         /**
          * This button is in the "action buttons" group. They act upon the list of file download options. This
          * fires all the checkboxes' click events, causing them all the download.
-         * Note: Also clears the persistentDugUris.
+         * Note: Also clears the previouslyHarvestedUriMap.
          */
         document.getElementById('getAllFileOptsButton').addEventListener('click', function getAllFileOpts() {
             document.querySelectorAll('input[type="checkbox"]').forEach(function initiateDownload(cbEl) {
@@ -71,8 +71,8 @@ document.addEventListener("DOMContentLoaded", function init() {
                 cbEl.dispatchEvent(evt);
             });
 
-            chrome.runtime.getBackgroundPage(function clearPersistentDugUris(bgWindow) {
-                bgWindow.Digger.persistentDugUris = [];                
+            chrome.runtime.getBackgroundPage(function clearPreviousHarvest(bgWindow) {
+                bgWindow.Digger.previouslyHarvestedUriMap = {};                
             });
         });
 
@@ -80,7 +80,7 @@ document.addEventListener("DOMContentLoaded", function init() {
         /**
          * This button is in the "action buttons" group. They act upon the list of file download options. This
          * fires the checkboxes' click events for all jpg files only.
-         * Note: Also clears the persistentDugUris.
+         * Note: Also clears the previouslyHarvestedUriMap.
          */
         document.getElementById('getAllJpgOptsButton').addEventListener('click', function getAllJpgOpts() {
             document.querySelectorAll('input[type="checkbox"]').forEach(function initiateJpgDownload(cbEl) {
@@ -89,8 +89,8 @@ document.addEventListener("DOMContentLoaded", function init() {
                     cbEl.dispatchEvent(evt);
                 }
 
-                chrome.runtime.getBackgroundPage(function clearPersistentDugUris(bgWindow) {
-                    bgWindow.Digger.persistentDugUris = [];                
+                chrome.runtime.getBackgroundPage(function clearPreviousHarvest(bgWindow) {
+                    bgWindow.Digger.previouslyHarvestedUriMap = {};                
                 });
             });
         });
@@ -98,11 +98,11 @@ document.addEventListener("DOMContentLoaded", function init() {
 
         /**
          * This button is in the "action buttons" group. It clears the download list, clears the 
-         * persistentDownloadUris, shows the scrape/dig buttons, and hides the "action buttons".
+         * previouslyHarvestedUriMap, shows the scrape/dig buttons, and hides the "action buttons".
          */
         document.getElementById('clearFileListButton').addEventListener('click', function clearFileList() {
             chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
-                bgWindow.Digger.persistentDugUris = [];
+                bgWindow.Digger.previouslyHarvestedUriMap = [];
                 
                 var out = new bgWindow.Output(window.document);
                 out.clearFilesDug();
