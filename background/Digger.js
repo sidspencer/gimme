@@ -8,17 +8,15 @@
 var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // instance object
     var me = {
-        initialized: false,
-
         startingGalleryMap: {},
         options: Options,
         digOpts: { doScrape: true, doDig: true },
 
-        inflightThumbUris: [],        
         harvestedUriMap: {},
         outputIdMap: {},
         
         completedXhrCount: 0,
+        batchCount: 0,
         soleInspectionOption: null,
     };
 
@@ -27,6 +25,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
     // constants
     var DIG_SAVE = 'DIG_SAVE';
+    var BATCH_SIZE = 4;
+    var CHANNELS = 30;
     var OPT = {
         IMGS: 'imgs',
         CSS_BGS: 'cssBgs',
@@ -57,15 +57,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         }, '');
     }
 
-    /**
-     * Initialization function. Must be called prior to digging. 
-     */
-    me.init = function init(starter) {
-        me.digOpts = starter.digOpts;
-        me.startingGalleryMap = starter.galleryMap;
-        me.initialized = true;
-    };
-
 
     /**
      * Is this the only inspection option? 
@@ -74,66 +65,145 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         return (optName === me.soleInspectionOption);
     }
 
-    
-    /**
-     * convenience function to flag our having been passed-in a starter galleryMap.
-     */
-    me.hasStarterMap = function hasStarterMap() {
-        return !!Object.keys(me.startingGalleryMap).length;
-    };
-
 
     /**
-     * Find all the clicked-through (hopefully) large versions of images on pic detail page.
-     * Do it by finding all the 'a img' selecteds, and then grabbing the document specified by
-     * the <a> -- this is queried for any <img> with a similar filename to the supposed "thumbnail".
+     * Execute a promise chain of digDeep() batches, firing BATCH_SIZE
+     * number of digDeep() XHR-and-inspect processes at once. Resolve
+     * with the full me.harvestedUriMap.
      */
-    me.digGallery = function digGallery(doc, loc) {
-        me.harvestedUriMap = {};
-        me.inflightThumbUris = [];
-        me.outputIdMap = {};
+    function digGalleryBatches(galleryMap) {
+        var thumbUris = Object.keys(galleryMap);
+        
+        var promiseChains = [];
+        for (var j = 0; j < CHANNELS; j++) {
+            promiseChains.push(Promise.resolve({}));
+        }     
 
-        // Follow the options. If we're told:
-        //  no scrape & no dig -- just call the callback. 
-        //  yes scrape -- do it all normally through the default digDeep() behavior.
-        if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-            me.harvestedUriMap = {};
-            return Promise.resolve(me.harvestedUriMap);
-        }
-        if (me.digOpts.doScrape) {
-            return discoverGallery(doc, loc);
-        }
-        else if (me.digOpts.doDig) {
-            Object.keys(me.startingGalleryMap).forEach(function setUpInflightStatus(thumbUri) {
-                var id = me.inflightThumbUris.push(thumbUri);
-                me.outputIdMap[thumbUri] = id;
-                Output.addNewEntry(id, thumbUri);
-            });
-            
-            var digDeepPromises = [];
-            Object.keys(me.startingGalleryMap).forEach(function digOneUri(thumbSrc) {
-                digDeepPromises.push(me.digDeep(thumbSrc, me.startingGalleryMap[thumbSrc]));
-            });
+        console.log('[Digger] Found ' + thumbUris.length + ' Gallery entries. Digging in batches of ' + BATCH_SIZE);
+        Output.toOut('Beginning dig of ' + thumbUris.length + ' gallery entries.');
 
-            return (
-                Promise.all(digDeepPromises)
-                .then(function turnPairsIntoMap(pairs) {
-                    var harvest = {};
+        // Add a new promise link to the chain; another batch of executions
+        // that are accumulated, and have independent error-catching
+        while (thumbUris.length > 0) {
+            for (var i = 0; i < promiseChains.length && thumbUris.length > 0; i++) {
+                me.batchCount++;
 
-                    pairs.forEach(function reap(pair) {
-                        if (pair && pair.thumbUri && pair.zoomUri && (Object.values(harvest).indexOf(pair.zoomUri) === -1)) {
-                            harvest[pair.thumbUri] = pair.zoomUri;
-                        }
-                    });
+                console.log('[Digger] Setting up batch #' + me.batchCount);
+                Output.toOut('Digging batch #' + me.batchCount);
+                var batchThumbUris = thumbUris.splice(0, BATCH_SIZE);
+
+                var promiseLinkFn = (function(map, uris, baseId) {
+                    return function (pairs) {
+                        return digNextBatch(map, uris, baseId);                    
+                    };
+                })(galleryMap, batchThumbUris, me.batchCount * BATCH_SIZE);
                     
-                    return Promise.resolve(harvest);
-                })
-            );
+                promiseChains[i] = promiseChains[i].then(promiseLinkFn);
+            }
         }
-        else {
-            return discoverGallery(doc, loc)
+
+        // Resolve with the final digging harvest.
+        return Promise.all(promiseChains).then(function() {
+            console.log('[Digger] ---Returning full harvest---');
+            Digger.previouslyHarvestedUriMap = me.harvestedUriMap;
+
+            return Promise.resolve(me.harvestedUriMap);
+        });
+    }
+
+
+    /**
+     * Build and execute the next batch of digDeep() promises. 
+     */
+    function digNextBatch(galleryMap, thumbUris, baseId) {
+        var diggingBatch = [];
+
+        // Set up the output entry, and enter the uriPair's digDeep() execution
+        // into the promise batch's array. Skip nulls. 
+        for (var i = 0; i < thumbUris.length; i++) {
+            var thumbUri = thumbUris[i];
+            var zoomPageUri = galleryMap[thumbUri];
+
+            // sanity check, then set up the dig.
+            if (!!thumbUri && !!thumbUri.substring && !!zoomPageUri && !!zoomPageUri.substring) {
+                setUpOutput(thumbUri, baseId + i);
+                diggingBatch.push(me.digDeep(thumbUri, zoomPageUri));     
+            } 
+            else {
+                console.log(
+                    '[Digger] Skipping dig for bad URI pair.\n ' + 
+                    '         thumbUri:    ' + thumbUri + '\n' +
+                    '         zoomPageUri: ' + zoomPageUri
+                );                
+            }           
         }
-    };
+
+        // Execute all the Promises together. They must all resolve, or
+        // it'll kill the whole batch.
+        return Promise.all(diggingBatch).then(harvestBatch).catch(logDiggingErrorsAndContinue);
+    }
+
+
+    /**
+     * Take the results from the digDeep() promises and integrate them into the 
+     * harvestedUriMap. Skip any nulls or duplicate zoomUris. Resolve with a dummy value.
+     * What's important is that we resolve.
+     */
+    function harvestBatch(uriPairs) {
+        console.log('[Digger] Harvesting ' + uriPairs.length + ' URI pairs.');
+
+        for (var i = 0; i < uriPairs.length; i++) {
+            var uriPair = uriPairs[i];
+
+            if (!uriPair) {
+                continue;
+            }
+            
+            if (uriPair.thumbUri && uriPair.zoomUri) {
+                if (Object.values(me.harvestedUriMap).indexOf(uriPair.zoomUri) == -1) {
+                    me.harvestedUriMap[uriPair.thumbUri] = uriPair.zoomUri;
+                }
+                else {
+                    console.log('[Digger] Duplicate of zoomUri ' + uriPair.zoomUri);
+                }
+            }
+            else {
+                console.log('[Digger] Bad uriPair.');
+            }
+        }
+
+        // Resolve. The value is unimportant in this code rev, however.
+        return Promise.resolve(me.harvestedUriMap);
+    }
+
+
+    /**
+     * Put the thumbUri into the xhr tracking array, and give it an entry
+     * in the popup's list UI.
+     */
+    function setUpOutput(thumbUri, id) {
+        me.outputIdMap[thumbUri] = id;
+        Output.addNewEntry(id, thumbUri);
+    }
+
+
+    /**
+     * Log any errors that killed the batch. This is relatively catastrophic,
+     * as it means BATCH_SIZE number of digs were killed. 
+     */
+    function logDiggingErrorsAndContinue(errorMessages) {
+        var diggingErrors = (errorMessages && errorMessages.length) ?
+            [].concat(errorMessages) :
+            [errorMessages];
+
+        diggingErrors.forEach(function logDiggingError(diggingError) {
+            console.log('*** ' + diggingError + ' ***');
+            Output.toOut('Lost a batch.');
+        });
+
+        // Resolve. The value is unimportant in this rev.
+        return Promise.resolve({});
+    }
 
 
     /**
@@ -142,33 +212,27 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * UPDATES THE "to" AND "ids" MAPS IN-PLACE!
      */
     function mergeGalleryMaps(from, to, ids) {
+        var fromKeys = Object.keys(from);
+        var nextId = fromKeys.length + Object.keys(to).length;
+
         // Apply the optionally-set me.urisToDig
-        Object.keys(from).forEach(function setNewLinkHrefs(thumbUri) {
+        fromKeys.forEach(function setNewLinkHrefs(thumbUri) {
             // Store the old value, if there was one, and override with our new one.
             var newPageUri = from[thumbUri];            
             var oldPageUri = to[thumbUri];
-            var idx = me.inflightThumbUris.indexOf(thumbUri);
-            var id = -1;
+            var id = nextId;
 
             if (!!oldPageUri) {
                 id = ids[oldPageUri];
                 Output.deleteEntry(id);
                 delete ids[oldPageUri];
             }
-            
-            if (idx === -1) {
-                id = me.inflightThumbUris.push(thumbUri);
-                to[thumbUri] = newPageUri;
-                ids[newPageUri] = id; 
-            }
             else {
-                me.inflightThumbUris.splice(idx, 1);
-
-                id = me.inflightThumbUris.push(thumbUri);
-                to[thumbUri] = newPageUri;
-                ids[newPageUri] = id;
+                nextId++;
             }
-
+            
+            to[thumbUri] = newPageUri;
+            ids[newPageUri] = id;
             Output.addNewEntry(id, thumbUri);            
         });        
     }
@@ -200,8 +264,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                     );
                 }
                 else {
+                    var newId = Object.keys(map).length;
                     map[thumbUri] = zoomUri;                        
-                    var newId = me.inflightThumbUris.push(thumbUri);
                     me.outputIdMap[thumbUri] = newId;
                     Output.addNewEntry(newId, thumbUri);
                 }
@@ -259,7 +323,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // Make a map of all the <img> srcs contained in <a> tags. Sort it as thumbUri -> linkUri.
         // If the ContentPeeper got us stuff, there will already be some entries. Merge them in.
         var galleryMap = {};
-        me.inflightThumbUris = [];
         me.outputIdMap = {};
 
         if (me.digOpts.doScrape !== false) {
@@ -270,117 +333,39 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
         }
 
-        // Perform the XHRs to find the zoom image on the assumed zoomPageUrls. 
-        var thumbUriCount = Object.keys(galleryMap).length;  
-        if (thumbUriCount > 0) {
-            Output.toOut('Discovered ' + thumbUriCount + ' probable gallery links. Now digging deep...');
-
-            if (me.digOpts.doDig === false) {
-                console.log('[Digger] Instructed to not dig. Responding with discovered URIs.')
-                return Promise.resolve(galleryMap);
-            }
-
-            // Do a keys traversal to get each pair and send out the xhr to try to find
-            // the linked media from the gallery thumbs.
-            var digDeepPromises = [];            
-            Object.keys(galleryMap).forEach(function digDeepForSrcAndPageUrl(thumbUri) {
-                if (u.exists(thumbUri)) {
-                    var zoomPageUri = galleryMap[thumbUri];
-
-                    if (u.exists(zoomPageUri)) {
-                        digDeepPromises.push(me.digDeep(thumbUri, zoomPageUri));
-                    }
-                    else {
-                        console.log('[Digger] No zoomPageUri found for thumbUri: ' + thumbUri);
-                    }
-                }
-                else {
-                    console.log('[Digger] Thumb URI was blank.');
-                }
-            });
-
-            return (
-                Promise.all(digDeepPromises)
-                .then(function turnPairsIntoMap(pairs) {
-                    var harvest = {};
-
-                    pairs.forEach(function reap(pair) {
-                        if (pair && pair.thumbUri && pair.zoomUri && (Object.values(harvest).indexOf(pair.zoomUri) === -1)) {
-                            harvest[pair.thumbUri] = pair.zoomUri;
-                        }
-                    });
-                    
-                    return Promise.resolve(harvest);
-                })
-            );
+        if (me.digOpts.doDig === false) {
+            console.log('[Digger] Instructed to not dig. Responding with discovered URIs.')
+            return Promise.resolve(galleryMap);
         }
+        // Perform the full XHR-and-inspection for each entry in the gallery.
         else {
-            Output.toOut('Discovery found nothing matching on the page. Try reloading?');
-            console.log('[Digger] No href/img gallery things found. Try reloading?');
-            
-            return Promise.resolve({});
-        }        
+            return digGalleryBatches(galleryMap);
+        }  
     }
 
 
     /**
-     * Return whether or not we have dug all the entries in the gallery.
+     * Update the UI that we dug a zoomUri. 
      */
-    function allDiggingIsDone() {
-        return (
-            me.inflightThumbUris.length === 0
-        ); 
-    }
-
-
-    /**
-     * Wrapper for adding to the harvested/found "full-size" media uris, so we don't double-add.
-     */
-    function pushNewFullSizeImgUri(thumbUri, newUri) {
-        var values = Object.values(me.harvestedUriMap);
-
-        // Don't add nulls, don't double-add.
-        if (!u.exists(newUri) || (values.indexOf(newUri) !== -1)) {
-            return;
-        }
-        
-        me.harvestedUriMap[thumbUri] = newUri;
-
-        // Get the id of the uri, used to communicate with the UI,
-        // And use it to update the UI.
+    function recordDigResult(thumbUri, zoomedImgUri, isFailure) {
         var id = me.outputIdMap[thumbUri];
-        Output.setEntryAsDug(id, newUri);
-        Output.toOut('Adding dug URLs to download list. Length: ' + (values.length + 1));
-    }
 
-
-    /**
-     * On the end of the xhr, onerror or on onloadend, complete our tracking of the xhr "digging".
-     */
-    function completeXhr(thumbUri, zoomedImgUri) {
         console.log(
             '[Digger] Zoomed image reported.\n' +
             '         thumbUri: ' + thumbUri + '\n' +
             '         zoomedImgUri: ' + zoomedImgUri + ''
         );
-        
-        // If we can, now remove this thumbUri from the inflight array.
-        if (!!thumbUri) {
-            Output.toOut('Completed ' + (++me.completedXhrCount) + ' media fetches...');
-            var fetchIndex = me.inflightThumbUris.indexOf(thumbUri);
-            
-            if (fetchIndex !== -1) {
-                me.inflightThumbUris.splice(fetchIndex, 1);
-            }
-        }
 
-        // If all the xhrs have succeeded, cancel the alarm, and call the
-        // callback by ourselves.
-        if (allDiggingIsDone()) {
-            console.log('[Digger] All XHRs Complete.' );
-            Digger.previouslyHarvestedUriMap = me.harvestedUriMap;
-            return;
-        }        
+        if (isFailure) {
+            Output.setEntryAsFailed(id, zoomedImgUri || '[failed]');
+            //me.harvestedUriMap[thumbUri] = null;                    
+        }
+        else {
+            Output.setEntryAsDug(id, zoomedImgUri);
+            //me.harvestedUriMap[thumbUri] = zoomedImgUri;                    
+        } 
+        
+        Output.toOut('Completed ' + (++me.completedXhrCount) + ' media fetches...');        
     }
 
 
@@ -388,9 +373,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * Syntactic sugar for completing XHR successfully with the proper "full-size" media item.
      */
     function reportDigSuccess(thumbUri, zoomUri) {
-        pushNewFullSizeImgUri(thumbUri, zoomUri);
-        completeXhr(thumbUri, zoomUri);
-        
+        recordDigResult(thumbUri, zoomUri);
         return Promise.resolve({
             thumbUri: thumbUri,
             zoomUri: zoomUri,
@@ -402,9 +385,50 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * Syntactic sugar for completing the XHR without finding a suitable "full-size" media item. 
      */
     function reportDigFailure(thumbUri, zoomUri) {
-        completeXhr(thumbUri, (zoomUri || '[not found]'));
+        recordDigResult(thumbUri, zoomUri, true);
         return Promise.resolve(null);
     }
+
+
+    /**
+     * convenience function to flag our having been passed-in a starter galleryMap.
+     */
+    me.hasStarterMap = function hasStarterMap() {
+        return !!Object.keys(me.startingGalleryMap).length;
+    };
+
+
+    /**
+     * Find all the clicked-through (hopefully) large versions of images on pic detail page.
+     * Do it by finding all the 'a img' selecteds, and then grabbing the document specified by
+     * the <a> -- this is queried for any <img> with a similar filename to the supposed "thumbnail".
+     */
+    me.digGallery = function digGallery(config) {
+        var doc = config.doc;
+        var loc = config.loc;
+
+        me.digOpts = config.digOpts;
+        me.startingGalleryMap = config.galleryMap;
+        me.harvestedUriMap = {};
+        me.outputIdMap = {};
+
+        // Follow the options. If we're told:
+        //  no scrape & no dig -- just call the callback. 
+        //  yes scrape -- do it all normally through the default digDeep() behavior.
+        if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
+            Digger.previouslyHarvestedUriMap = me.harvestedUriMap;            
+            return Promise.resolve(me.harvestedUriMap);
+        }
+        if (me.digOpts.doScrape) {
+            return discoverGallery(doc, loc);
+        }
+        else if (me.digOpts.doDig === false) {
+            return digGalleryBatches(me.startingGalleryMap);
+        }
+        else {
+            return discoverGallery(doc, loc)
+        }
+    };
 
 
     /**
@@ -425,10 +449,10 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 resolve(null);
             }
             
-            var lastSlashIdx = thumbUri.lastIndexOf('/');
-            var thumbFilename = thumbUri.substring((lastSlashIdx === -1) ? 0 : (lastSlashIdx + 1));
+            var thumbFilename = u.extractFilename(thumbUri);
+            var zoomFilename = u.extractFilename(zoomPageUri);            
 
-            Output.toOut('Inspecting thumbnail named ' + thumbFilename + ' ...');
+            Output.toOut('Finding zoom for thumbnail named ' + thumbFilename + ' ...');
             console.log('[Digger] Queueing XHR for thumbnail ' + thumbFilename);
 
             // Note, we always resolve.
@@ -436,12 +460,16 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             .then(function processCompletedXhr(xhr) {
                 // Report anything other than HTML documents as found media.
                 if (xhr.getResponseHeader('Content-Type').indexOf('text/html') !== -1) {
+                    Output.toOut('Found image detail page ' + zoomFilename);
+                    
                     processZoomPage(new URL(thumbUri), new URL(zoomPageUri))
                     .then(function stuff(pair) {
                         resolve(pair);
                     });
                 } 
-                else {                    
+                else {
+                    Output.toOut('Found media ' + zoomFilename);
+                    
                     reportDigSuccess(thumbUri, zoomPageUri);
                     resolve({
                         thumbUri: thumbUri,
@@ -468,6 +496,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             .then(function lookThroughDocument(doc) {
                 var p = null;
 
+                Output.toOut('Examining detail page ' + u.extractFilename(zoomPageUrl.href));            
+
                 // First look in the special rules for a strategy that's already 
                 // been figured out by me. See if we can just get the Uri from there.
                 var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);                    
@@ -489,6 +519,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 // As the Logicker requires async operation to find the largest <img> on a page,
                 // use a callback for the general inspection after using the Logicker.
                 else if (me.options.imgs === true) {
+                    Output.toOut('Comparing image sizes... Looking for largest..');
+
                     p = (
                         Logicker.getPairWithLargestImage(thumbUrl.href, doc)
                         .then(function stuff(pair) {
@@ -528,6 +560,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var zoomUri = null;
         var p = null;
 
+        Output.toOut('Searching through content...');
+
         // For each enabled investigation option, try to find the zoom media item.
         Object.keys(me.options).forEach(function checkUris(optName) {
             if (!zoomUri && me.options[optName] === true) {
@@ -557,6 +591,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var findMediaUris = SCRAPING_TOOLS[optionName] || (function() { return []; });
         var urls = findMediaUris(d, { href: zpUrl.href });
         var zUri = null;
+
+        Output.toOut('Sifting through ' + optionName + ' content...');
 
         // If this is the only option enabled, and there's only one type of the media on the document, 
         // use it.
