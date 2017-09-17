@@ -543,15 +543,24 @@ var Scraper = (function Scraper(Utils) {
         console.log('[Scraper] Found audioUris: ' + JSON.stringify(audioUris));
         console.log('[Scraper] Found qsUris: ' + JSON.stringify(qsUris));
 
-        return Promise.resolve(
-            []
+        // Turn it into a silly map with the same values as keys. 
+        var harvestedUris = []
             .concat(imgUris)
             .concat(cssBgUris)
             .concat(jsUris)
             .concat(videoUris)
             .concat(audioUris)
-            .concat(qsUris)
+            .concat(qsUris);
+
+        var harvestedUriMap = harvestedUris.reduce(
+            function(harvestedMap, uri) {
+                harvestedMap[uri] = uri;
+                return harvestedMap;
+            }, 
+            {}
         );
+
+        return Promise.resolve(harvestedUriMap);
     };
 
 
