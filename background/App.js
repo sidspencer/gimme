@@ -6,7 +6,7 @@
 var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     var me = {
         galleryMap: {},
-        grabberMap: {},
+        peeperMap: {},
         downloadsDir: 'Gimme-site_pagename-tmp',
         digOpts: {
             doScrape: true,
@@ -237,8 +237,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         var loc = resp.locator;
         me.downloadsDir = getSaltedDirectoryName(loc);
 
-        // Get the Uris. The LocationGrabber makes sure they are *full* uris.
-        me.grabberMap = Object.assign({}, resp.galleryMap);
+        // Get the Uris. The ContentPeeper makes sure they are *full* uris.
+        me.peeperMap = Object.assign({}, resp.galleryMap);
 
         // Just resolve with the location
         return Promise.resolve(loc);
@@ -255,13 +255,13 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         // If we know special things about the site, such as thumb -> zoomedImg mappings
         // or whatnot, we do it here. It also returns a descriptor of options for scraping
         // and digging.
-        var dataDescriptor = Logicker.postProcessResponseData(me.grabberMap, locDoc.loc.href);
+        var dataDescriptor = Logicker.postProcessResponseData(me.peeperMap, locDoc.loc.href);
         me.galleryMap = dataDescriptor.processedMap;
         me.digOpts.doDig = dataDescriptor.doDig;
         me.digOpts.doScrape = dataDescriptor.doScrape;
 
-        // log the linkHrefs from LocationGrabber.
-        // Then, log the thumbSrcs from LocationGrabber.
+        // log the linkHrefs from ContentPeeper.
+        // Then, log the thumbSrcs from ContentPeeper.
         var mapSize = Object.getOwnPropertyNames(me.galleryMap).length;
         console.log('[App] Initial processed response has ' + mapSize + ' thumb uris -> zoom link uris.');
 
