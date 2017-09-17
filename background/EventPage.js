@@ -1,8 +1,6 @@
 'use strict'
 
 
-
-
 //
 // Digging
 //
@@ -91,12 +89,9 @@ function goDigVideoGallery(parentDocument) {
 
 
 
-
-
 //
 // Scraping
 //
-
 
 /**
  * Scrape the current page for all included <img>s, style.background-images, 
