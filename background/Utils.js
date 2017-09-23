@@ -5,10 +5,12 @@
  * functions that make our lives easier.
  */
 var Utils = (function Utils() {
-    var me = {};
+    var me = {
+    };
 
-     // Constants
-     var GIMME_ID = 'gimme';
+    // Public Constants
+    me.LISTENER_TIMED_OUT = 'Listener timed out';
+    me.GIMME_ID = 'gimme'; 
 
 
     /**
@@ -38,8 +40,8 @@ var Utils = (function Utils() {
     /**
      * Check the src/uri/href/filename for known audio extensions.
      */
-    me.isAllowedAudioFile = function isAllowedAudioFile(name) {
-        var allowedRx = /^.+?\.(mp3|m4a|aac|wav|ogg|aiff|aif|flac)(\?)?.+?$/i;
+    me.isAllowedAudioType = function isAllowedAudioType(name) {
+        var allowedRx = /(mp3|m4a|aac|wav|ogg|aiff|aif|flac)/i;
         return allowedRx.test(name);
     };
 
@@ -47,8 +49,8 @@ var Utils = (function Utils() {
     /**
      * Check the src/uri/href/filename for known video extensions.
      */
-    me.isAllowedVideoFile = function isAllowedVideoFile(name) {
-        var allowedRx = /^.+?\.(mp4|flv|f4v|m4v|mpg|mpeg|wmv|mov|avi|divx|webm)(\?)?.+?$/i;
+    me.isAllowedVideoType = function isAllowedVideoType(name) {
+        var allowedRx = /(mp4|flv|f4v|m4v|mpg|mpeg|wmv|mov|avi|divx|webm)/i;
         return allowedRx.test(name);
     };
 
@@ -56,8 +58,8 @@ var Utils = (function Utils() {
     /**
      * Check the src/uri/href/filename for known image extensions.
      */
-    me.isAllowedImageFile = function isAllowedImageFile(name) {
-        var allowedRx = /^.+?\.(jpg|jpeg|gif|png|tiff|tif|pdf)(\?)?.+?$/i;
+    me.isAllowedImageType = function isAllowedImageType(name) {
+        var allowedRx = /(jpg|jpeg|gif|png|tiff|tif|pdf)/i;
         return allowedRx.test(name);
     }
 
@@ -118,11 +120,19 @@ var Utils = (function Utils() {
     /**
      * Do we think we know what type this file is? And do we want it?
      */
-    me.isKnownFileType = function isKnownFileType(name) {
+    me.isKnownMediaType = function isKnownMediaType(name) {
         return (
             !me.isBannedUri(name) &&
-            (me.isAllowedImageFile(name) || me.isAllowedVideoFile(name) || me.isAllowedAudioFile(name))  
+            (me.isAllowedImageType(name) || me.isAllowedVideoType(name) || me.isAllowedAudioType(name))  
         );
+    };
+
+
+    /**
+     * Kind of degenerate...
+     */
+    me.isKnownMediaFile = function isKnownMediaFile(name) {
+        return me.isKnownMediaType(name);
     };
 
 
@@ -290,12 +300,14 @@ var Utils = (function Utils() {
      */
     me.sendTabMessage = function sendTabMessage(tabMessage) {
         return new Promise(function messageSend(resolve, reject) {
-            tabMessage.message.senderId = GIMME_ID;
+            tabMessage.message.senderId = me.GIMME_ID;
             
             chrome.tabs.sendMessage(
                 tabMessage.tab.id,
                 tabMessage.message,
-                {},
+                {
+                    frameId: (tabMessage.frameId || 0)
+                },
                 function getMessageResponse(resp) {
                     if (resp) {
                         resolve(resp);                    
@@ -306,6 +318,8 @@ var Utils = (function Utils() {
                             '        lastError: ' + JSON.stringify(chrome.runtime.lastError)
                         ); 
                     }
+                    
+                    return true;
                 }
             );
         });
@@ -355,6 +369,125 @@ var Utils = (function Utils() {
                     }
                 }
             );
+        });
+    };
+
+
+    /**
+     * A promise-based wrapper for setting storage items.
+     */
+    me.setInStorage = function setInStorage(items) {
+        return new Promise(function doSetInStorage(resolve, reject) {
+            chrome.storage.local.set(items, function setInStorageCallback() {
+                if (runtime.lastError) {
+                    reject(runtime.lastError);
+                }
+                else {
+                    resolve(true);
+                }
+            });
+        });
+    };
+
+
+    /**
+     * A promise-based wrapper for getting storage items. 
+     */
+    me.getFromStorage = function getFromStorage(keys) {
+        return new Promise(function doGetFromStorage(resolve, reject) {
+            chrome.storage.local.get(keys, function getFromStorageCallback(items) {
+                if (runtime.lastError) {
+                    reject(runtime.lastError);
+                }
+                else {
+                    resolve(items);
+                }
+            });
+        });
+    };
+
+
+    /**
+     * Add listener for all media requests.
+     */
+    me.addMediaHeadersListener = function addMediaHeadersListener(listener, windowId, tabId) {
+        var filter = {
+            urls: [ 'http://*/*', 'https://*/*' ],
+            types: [ 'image', 'media', 'xmlhttprequest' ]
+        };
+        if (windowId) { filter.windowId = windowId; };
+        if (tabId) { filter.tabId = tabId; };
+
+        chrome.webRequest.onHeadersReceived.addListener(
+            listener, 
+            filter,
+            [ 'responseHeaders' ]
+        );
+    };
+
+
+    /**
+     * Remove listener for media requests (only for parity).
+     */
+    me.removeMediaHeadersListener = function removeMediaHeadersListener(listener) {
+        chrome.webRequest.onHeadersReceived.removeListener(listener);
+    };
+
+
+    /**
+     * Promise-based loader of an external resource into a <iframe>
+     * in the background page. Returns the iframe's document object.
+     */
+    var DEFAULT_IFRAME_ID = 'background_iframe';
+    var listeners = [];
+    var counter = 0;
+    me.loadUriDoc = function loadUriDoc(uri, id) {
+        return new Promise(function doLoadUri(resolve, reject) {
+            id = (!id && id !== 0) ? DEFAULT_IFRAME_ID : id;
+
+            // Create the iframe, removing the old one if needed.
+            var bgDoc = chrome.extension.getBackgroundPage().document;
+            var listenerId = id + (counter++);            
+            var iframe = bgDoc.getElementById(id);
+            if (iframe) { iframe.remove(); };
+
+            iframe = bgDoc.createElement('iframe');
+            iframe.id = id;   
+            
+            // Set a timeout for waiting for the iframe to load. We can't afford to 
+            // just never complete the promise. Wait 7 seconds.
+            var listeningTimeoutId = setTimeout(function listenerTimeout() {
+                chrome.runtime.onMessage.removeListener(listeners[listenerId]);
+                iframe.remove();
+                delete listeners[listenerId];
+
+                reject(me.LISTENER_TIMED_OUT);
+            }, 7000);
+
+            // Add a message listener for the ContentPeeper's loading message.
+            // It will fire for every page or frame loaded, as it is always injected.
+            // But restrict this particular listener to only the uri at hand.
+            listeners[listenerId] = function(request, sender, sendResponse) {                
+                if (request.docInnerHtml && request.uri == uri) {
+                    clearTimeout(listeningTimeoutId);
+                    chrome.runtime.onMessage.removeListener(listeners[listenerId]);
+
+                    var iframeDoc = bgDoc.implementation.createHTMLDocument(uri);
+                    iframeDoc.documentElement.innerHTML = request.docInnerHtml;
+                    resolve(iframeDoc);
+                    
+                    iframe.remove();
+                    delete listeners[listenerId];
+                }
+
+                // Wait a while.
+                return true;
+            }; 
+            chrome.runtime.onMessage.addListener(listeners[listenerId]);
+                 
+            // Set the src (it begins loading here)
+            iframe.src = uri;
+            bgDoc.body.appendChild(iframe);
         });
     };
 
