@@ -7,6 +7,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     var me = {
         galleryMap: {},
         peeperMap: {},
+        peeperDoc: null,
         downloadsDir: 'Gimme-site_pagename-tmp',
         digOpts: {
             doScrape: true,
@@ -219,8 +220,17 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         // Get the Uris. The ContentPeeper makes sure they are *full* uris.
         me.peeperMap = Object.assign({}, resp.galleryMap);
 
-        // Just resolve with the location
-        return Promise.resolve(loc);
+        var peeperDoc = chrome.extension.getBackgroundPage().document.implementation.createHTMLDocument("peeperdoc");
+        peeperDoc.documentElement.innerHTML = resp.docInnerHtml;
+
+        if (!peeperDoc || !resp.docInnerHtml) {
+            return getLocDoc(loc);
+        }
+        else {
+            return Promise.resolve(u.createLocDoc(loc, peeperDoc));
+        }
+
+        //return Promise.resolve(loc);
     }
       
 
@@ -252,6 +262,12 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         me.digOpts.doDig = dataDescriptor.doDig;
         me.digOpts.doScrape = dataDescriptor.doScrape;
 
+        // But make it do everything if it came back as 0.
+        if (Object.keys(me.galleryMap).length === 0) {
+            me.digOpts.doDig = true;
+            me.digOpts.doScrape = true;
+        }
+
         // log the linkHrefs from ContentPeeper.
         // Then, log the thumbSrcs from ContentPeeper.
         var mapSize = Object.getOwnPropertyNames(me.galleryMap).length;
@@ -277,7 +293,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             .then(buildTabMessage)
             .then(u.sendTabMessage)
             .then(processTabMessageResponse)
-            .then(getLocDoc)
+            //.then(getLocDoc)
             .then(processLocDoc)
         );        
     }
@@ -349,7 +365,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         return (
             processContentPage()
             .then(function doScraping(locDoc) {
-                if (digOpts.doScrape === false) {
+                if (me.digOpts.doScrape === false) {
                     console.log('[App] Downloading ContentPeeper uris, not scraping.');
                     return Promise.resolve(me.galleryMap);
                 }
@@ -439,6 +455,47 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                         galleryMap: me.galleryMap,
                     });
                 }
+            })
+            .then(me.presentFileOptions)
+            .catch(function handleError(errorMessage) {
+                console.log(errorMessage);
+                return Promise.reject(errorMessage);
+            })
+        );
+    };
+
+
+     /**  
+     * The main entry point of the app if you want to harvest media items in galleries which
+     * are themselves on a page that is a gallery. Show retuslts to the user so the user can 
+     * choose which ones they want. 
+     */
+    me.digGalleryGallery = function digGalleryGallery() {
+        Output.toOut('Initializing: Collecting links to galleries from page.');        
+        clearGalleryData(true);     
+ 
+        // Begin by communicating with the ContentPeeper for information 
+        // about the target page. Then present the user with choices on what to download,
+        // with either the galleryMap from the ContentPeeper, or from the Digger.
+        return ( 
+            processContentPage()
+            .then(function buildPromises(locDoc) {
+                Digger.digGallery({
+                    doc: locDoc.doc,
+                    loc: locDoc.loc,
+                    digOpts: { doScrape: true, doDig: false },
+                    galleryMap: me.galleryMap,
+                })
+                .then(function(galleryListMap) {
+                    var combinedGalleryMap = {};
+
+                    var chain = Promise.resolve({});
+                    for (galleryKey in galleryListMap) {
+                        chain = chain.then(function() {
+                            return Promise.resolve(combinedGalleryMap);
+                        });
+                    }
+                });
             })
             .then(me.presentFileOptions)
             .catch(function handleError(errorMessage) {
