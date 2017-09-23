@@ -2,17 +2,78 @@
  * Client-Script for Gimme. Returns the location object, and will
  * scrape the page via a prop and a selector if asked.
  */
-(function ContentPeeper(loc, doc) {
+(function ContentPeeper(w) {
     // constants
     var GIMME_ID = 'gimme';
     var CONTENTPEEPER_ID = 'contentpeeper';
+    
+    var doc = w.document;
+    var loc = w.location;
+    var loadComplete = (document.readyState === 'complete');
+    var peepingAround = false;
 
+    window.addEventListener('load', function setWindowLoadComplete() {
+        window.removeEventListener('load', setWindowLoadComplete, false);
+        loadComplete = true;
+
+        chrome.runtime.sendMessage({ 
+            content: 'ContentPeeper window load',
+            uri: loc.href,
+            docInnerHtml: doc.documentElement.innerHTML,
+         });
+    }, false);
+
+    doc.addEventListener('readystatechange', function setDocLoadComplete() {
+        if (doc.readyState === 'complete') {
+            doc.removeEventListener('readystatechange', setDocLoadComplete, false);
+            loadComplete = true;
+
+            chrome.runtime.sendMessage({ 
+                content: 'ContentPeeper doc complete',
+                uri: loc.href,
+                docInnerHtml: doc.documentElement.innerHTML,
+            });
+        }
+    }, false);
+
+
+    /**
+     * The message handler for gimme sending the peep request. 
+     * Note: returns true, as this is aync.
+     */
+    function peepAroundOnceContentLoaded(req, sender, res) {
+        if (loadComplete && !peepingAround) {
+            peepAround(req, sender, res);
+        }
+        else {
+            window.addEventListener("load", function load(event){
+                window.removeEventListener("load", load, false); //remove listener, no longer needed
+            
+                if (!peepingAround) {
+                    peepAround(req, sender, res);
+                }
+            }, false);
+
+            doc.addEventListener('readystatechange', function rsc(event) {
+                if (doc.readyState === 'complete') {
+                    doc.removeEventListener('readystatechange', rsc, false);
+                
+                    if (!peepingAround) {
+                        peepAround(req, sender, res);
+                    }
+                }
+            }, false);
+        }
+
+        return true;
+    }
 
     /**
      * Handle Gimme calling to get document.location.
      * Also do a simple page scrape for whatever is asked.
      */
     function peepAround(req, sender, res) {
+        peepingAround = true;
         var response = undefined;
 
         // Do not respond at all if not from Gimme.
@@ -83,6 +144,7 @@
                     'contentScriptId': CONTENTPEEPER_ID,
 
                     'locator': loc,
+                    'docInnerHtml': w.document.documentElement.innerHTML,
                     'galleryMap': galleryMap,
                     
                     'inputs': {
@@ -101,6 +163,7 @@
                     'contentScriptId': CONTENTPEEPER_ID,
 
                     'locator': loc,
+                    'docInnerHtml': w.document.documentElement.innerHTML,
                     'galleryMap': {},
 
                     'inputs': {
@@ -110,9 +173,10 @@
             }
         }
 
-        return res(response);
+        res(response);
+        return true;
     }
 
     // hook up the event listener.
-    chrome.runtime.onMessage.addListener(peepAround);
-})(window.location, window.document);
+    chrome.runtime.onMessage.addListener(peepAroundOnceContentLoaded);
+})(window);
