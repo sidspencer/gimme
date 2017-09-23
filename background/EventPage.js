@@ -88,6 +88,27 @@ function goDigVideoGallery(parentDocument) {
 }
 
 
+/**
+ * Go dig multiple galleries from a page of gallery of galleries.
+ */
+function goDigGalleryGallery(parentDocument) {
+    var options = {
+        imgs: true,
+        cssBgs: true,
+        videos: true,
+        js: true,
+    };
+
+    var output = Output(parentDocument);
+    var digger = Digger(Scraper, output, Logicker, Utils, options);
+    var app = App(output, digger, Scraper, Logicker, Utils);
+
+    app.digGalleryGallery();
+}
+
+
+
+
 
 //
 // Scraping
