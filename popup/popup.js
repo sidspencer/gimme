@@ -61,6 +61,17 @@ document.addEventListener("DOMContentLoaded", function init() {
 
 
         /**
+         * Scrape and dig a page that contains links to multiple galleries. Don't automatically download. 
+         * Present the user with checkbox options as to what files to download.
+         */
+        document.getElementById('digGalleryGallery').addEventListener('click', function onDigGalleryGallery() {
+            chrome.runtime.getBackgroundPage(function doGalleryGalleryDigging(bgWindow) {
+                bgWindow.goDigGalleryGallery(window.document);
+            });
+        });
+
+
+        /**
          * This button is in the "action buttons" group. They act upon the list of file download options. This
          * fires all the checkboxes' click events, causing them all the download.
          * Note: Also clears the previouslyHarvestedUriMap.
@@ -177,6 +188,21 @@ document.addEventListener("DOMContentLoaded", function init() {
         document.getElementById("digButton").addEventListener("click", function onDigButton() {
             chrome.runtime.getBackgroundPage(function doDigging(bgWindow) {
                 bgWindow.goDig(window.document);
+            });
+        });
+
+
+        /**
+         * Toggle the Voyeur.
+         */
+        document.getElementById("toggleVoyeur").addEventListener("click", function onToggleVoyeurButton() {
+            chrome.runtime.getBackgroundPage(function toggleVoyeur(bgWindow) {
+                if (bgWindow.Voyeur.isWatching) {
+                    bgWindow.Voyeur.stop();
+                }
+                else {
+                    bgWindow.Voyeur.start();
+                }
             });
         });
     }
