@@ -21,6 +21,7 @@ var Logicker = (function Logicker(Utils) {
 
         // Put special rules for particular sites here.
         if (false) {
+            
         }
         else {
             var holderDiv = doc.querySelector('div.photo > div');
@@ -137,14 +138,29 @@ var Logicker = (function Logicker(Utils) {
 
 
     /**
+     * put any image srcs or patterns here that you know you don't want.
+     * Like logos and whatnot. Currently blocks all png files. 
+     */
+    me.isKnownBadImg = function isKnownBadImg(src) {
+        var isBad = false;
+
+        if ((/\.png$/i).test(src)) {
+            isBad = true;
+        }
+
+        return isBad;
+    };
+
+
+    /**
      * Find the largest image in a document. It can't be by dimensions, because the documents returned
      * by the XHRs are not "live", and no elements have dimensions because there was no rendering. SO,
      * we create Image objects and get the dimensions from those. 
      */
     me.getPairWithLargestImage = function getPairWithLargestImage(thumbUri, doc) {
         return new Promise(function findLargestImage(resolve, reject) {
-            var largestImg = null;
-            var largestImgSrc = '';
+            var largestImg = false;
+            var largestImgSrc = false;
             var largestDims = {
                 height: 0,
                 width: 0,
@@ -165,33 +181,26 @@ var Logicker = (function Logicker(Utils) {
                 for (var i = 0; i < imgNodes.length; i++) {
                     var imgNode = imgNodes[i];
 
-                    if (/logo-funky\.png/.test(imgNode.src)) {
-                        continue;
-                    }
-
                     // Construct a temporary image object so we can get the natural dimensions. 
                     var imageObj = new Image();
 
                     imageObj.onload = function compareDimensions(evt) {
-                        // This means we found a 403 one.
-                        if (imgsToCheck < 0) {
-                            reject('[Logicker] Could not find any images -- 403');
-                            return;
-                        }
+                        imgsToCheck--;
 
-                        var dims = {
-                            height: (!!this.height ? this.height : this.naturalHeight),
-                            width: (!!this.width ? this.width : this.naturalWidth)
-                        };
+                        if (!me.isKnownBadImg(this.src)) {
+                            var dims = {
+                                height: (!!this.height ? this.height : this.naturalHeight),
+                                width: (!!this.width ? this.width : this.naturalWidth)
+                            };
 
-                        if (dims.height > largestDims.height && dims.width > largestDims.width) {
-                            largestImg = this;
-                            largestImgSrc = this.src;
-                            largestDims = dims;
+                            if (dims.height > largestDims.height && dims.width > largestDims.width) {
+                                largestImg = this;
+                                largestImgSrc = this.src;
+                                largestDims = dims;
+                            }
                         }
 
                         // If we've reached the last image, call the callback.
-                        imgsToCheck--;
                         if (imgsToCheck === 0) {
                             if (!!largestImgSrc) {
                                 resolve({
@@ -205,28 +214,20 @@ var Logicker = (function Logicker(Utils) {
                         }
                     };
 
-                    // Oddly enough, if we get a 403, that's often a sign that it's *the right* SRC, because
-                    // it's having restricted access. Give this ridiculous dimensions.
-                    imageObj.onerror = function handleImageLoadError(evt) {
+                    imageObj.onerror = function handleImageLoadError(evt) {                        
                         console.log('[Logicker] Error creating image object to get dimensions. evt: ' + JSON.stringify(evt));
-
-                        largestImg = this;
-                        largestImgSrc = this.src;
-                        largestDims = {
-                            height: 1000,
-                            width: 1000
-                        }
-
-                        // Block 
-                        imgsToCheck = -1;
-                        if (!!largestImgSrc) {
-                            resolve({
-                                thumbUri: thumbUri,
-                                zoomUri: (new URL(largestImgSrc)).href,
-                            });
-                        }
-                        else {
-                            reject('[Logicker] Could not find URL of largest image.');
+                        imgsToCheck--;
+                        
+                        if (imgsToCheck === 0) {
+                            if (!!largestImgSrc) {
+                                resolve({
+                                    thumbUri: thumbUri,
+                                    zoomUri: (new URL(largestImgSrc)).href,
+                                });
+                            }
+                            else {
+                                reject('[Logicker] Could not find URL of largest image.');
+                            }
                         }
                     };
 
@@ -267,6 +268,7 @@ var Logicker = (function Logicker(Utils) {
             d.linkHrefProp = 'style.backgroundImage';
             d.thumbSrcProp = 'firstElementChild.src';
         }
+       
 
         return d;
     };
