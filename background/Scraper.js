@@ -403,9 +403,9 @@ var Scraper = (function Scraper(Utils) {
             var pair = qsVars[i].split('=');
             var val = ((pair.length === 1) ? pair[0].substring(1) : pair[1]);
             
-            // If it has a '.' and is of a known filetype, then push it into the 
+            // If it has a '.' and is of a known media type, then push it into the 
             // uri list after URL-ifying it.
-            if (val && (val.indexOf('.') !== -1) && u.isKnownFileType(val)) {
+            if (val && (val.indexOf('.') !== -1) && u.isKnownMediaFile(val)) {
                 var url = new URL(val, u.getBaseUri(loc));
 
                 if (u.exists(url)) {
