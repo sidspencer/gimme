@@ -20,7 +20,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         
         completedXhrCount: 0,
         batchCount: 0,
-        soleInspectionOption: null,
+        soleInspectionOption: false,
     };
 
     // aliases
@@ -28,8 +28,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
     // constants
     var DIG_SAVE = 'DIG_SAVE';
-    var BATCH_SIZE = 4;
-    var CHANNELS = 30;
+    var BATCH_SIZE = 3;
+    var CHANNELS = 11;
     var OPT = {
         IMGS: 'imgs',
         CSS_BGS: 'cssBgs',
@@ -38,6 +38,12 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         AUDIOS: 'audios',
         QS: 'qs',
     };  
+    var SEARCH_DEPTH = {
+        SKIM: 1,
+        LARGEST_IMAGE: 2,
+        INSPECT: 3,
+        DIG_DEEPER: 4,
+    }
     var SCRAPING_TOOLS = {};
     SCRAPING_TOOLS[OPT.IMGS] = Scraper.getAllImgUrls;
     SCRAPING_TOOLS[OPT.CSS_BGS] = Scraper.getAllCssBackgroundUrls;
@@ -45,7 +51,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     SCRAPING_TOOLS[OPT.AUDIOS] = Scraper.getAllAudioUrls;
     SCRAPING_TOOLS[OPT.JS] = Scraper.getAllJsUrls;
     SCRAPING_TOOLS[OPT.QS] = Scraper.getAllQsUrls;  
-
 
     // Set the default inspection options if none were passed in.
     if (!me.options) {
@@ -70,63 +75,113 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
 
     /**
+     * Promise to resolve everything that has been dug.
+     */
+    function resolveDigHarvest() {
+        Digger.previouslyHarvestedUriMap = me.harvestedUriMap;
+        console.log('[Digger] ---Returning dig harvest -> ' + Object.keys(me.harvestedUriMap).length + '------');
+        return Promise.resolve(me.harvestedUriMap);
+    }
+
+
+    /**
      * Execute a promise chain of digDeep() batches, firing BATCH_SIZE
      * number of digDeep() XHR-and-inspect processes at once. Resolve
      * with the full me.harvestedUriMap.
      */
-    function digGalleryBatches(galleryMap) {
-        var thumbUris = Object.keys(galleryMap);
-        
-        var promiseChains = [];
-        for (var j = 0; j < CHANNELS; j++) {
-            promiseChains.push(Promise.resolve({}));
-        }     
-
-        console.log('[Digger] Found ' + thumbUris.length + ' Gallery entries.');
-        Output.toOut('Beginning dig of ' + thumbUris.length + ' gallery entries.');
-
-        // Add a new promise link to the chain; another batch of executions
-        // that are accumulated, and have independent error-catching
-        while (thumbUris.length > 0) {
-            for (var i = 0; i < promiseChains.length && thumbUris.length > 0; i++) {
-                me.batchCount++;
-                var batchThumbUris = thumbUris.splice(0, BATCH_SIZE);
-
-                var promiseLinkFn = (function(map, uris, baseId) {
-                    return function (pairs) {
-                        return digNextBatch(map, uris, baseId);                    
-                    };
-                })(galleryMap, batchThumbUris, me.batchCount * BATCH_SIZE);
-                    
-                promiseChains[i] = promiseChains[i].then(promiseLinkFn);
-            }
+    function digGalleryBatches_old(galleryMap) {                
+        // Make CHANNELS number of promises, each resolving BATCH_SIZE me.digDeep()
+        // calls via digNextBatch(). digNextBatch deletes entries from the galleryMap
+        // as it goes.
+        var promises = [];      
+        for (var i = 0; i < CHANNELS && Object.keys(galleryMap).length > 0; i++) {
+            promises.push(digNextBatch(galleryMap));
         }
+        
+        console.log('[Digger] Digging set of ' + promises.length + 'gallery batches.');        
 
-        // Resolve with the final digging harvest.
-        return Promise.all(promiseChains).then(function() {
-            console.log('[Digger] ---Returning dig harvest---');
-            Digger.previouslyHarvestedUriMap = me.harvestedUriMap;
+        // Note, all these promises must resolve, or it'll kill the whole batch.
+        var p = Promise.all(promises);
+        
+        // Either recurse no matter what, or resolve with the entire harvest of zoom item uris.
+        if (Object.keys(galleryMap).length > 0) {
+            var resolveNextIteration = function rni() { 
+                return digGalleryBatches_old(galleryMap); 
+            };
 
-            return Promise.resolve(me.harvestedUriMap);
-        });
+            return p.then(resolveNextIteration).catch(resolveNextIteration);
+        }
+        else {
+            return p.then(resolveDigHarvest).catch(resolveDigHarvest);  
+        }   
     }
+
+
+    /**
+     * Recursive wrapper around digNextBatch()
+     */
+    function digNextBatchLink(galleryMap) {
+        if (Object.keys(galleryMap).length > 0) {
+            return digNextBatch(galleryMap).then(function() {
+                return digNextBatchLink(galleryMap);
+            });
+        }
+        else {
+            return Promise.resolve({});
+        } 
+    }
+
+
+    /**
+     * Alternate way to dig the gallery batches, more strictly in channeled chains.
+     */
+    function digGalleryBatches(galleryMap, thumbUris) {
+        // Each channel is a promise chain that takes its own subset of the map
+        // entries in galleryMap. The entries are equally distributed, with one 
+        // map getting the remainder. 
+        var promises = [];
+        var subMaps = [];
+        var thumbUris = Object.keys(galleryMap);
+        var thumbsPerChannel = Math.floor(thumbUris.length / (CHANNELS - 1)) || 1;
+
+        // Make the submaps, build the promise chains.
+        for (var i = 0; i < CHANNELS; i++) {
+            var subMap = {};
+
+            for (var j = 0; j < thumbsPerChannel && thumbUris.length > 0; j++) {
+                var thumbUri = thumbUris.pop();
+                subMap[thumbUri] = '' + galleryMap[thumbUri];
+                delete galleryMap[thumbUri];
+            }
+
+            promises.push(digNextBatchLink(subMap));
+        }
+        
+        // Note, all these promises must resolve, or it'll kill the whole batch.        
+        return Promise.all(promises).then(resolveDigHarvest).catch(resolveDigHarvest);  
+    }  
 
 
     /**
      * Build and execute the next batch of digDeep() promises. 
      */
-    function digNextBatch(galleryMap, thumbUris, baseId) {
+    function digNextBatch(galleryMap) {
         var diggingBatch = [];
+        var startingOutputId = (++me.batchCount) * BATCH_SIZE;
 
         // Set up the output entry, and enter the uriPair's digDeep() execution
         // into the promise batch's array. Skip nulls. 
-        for (var i = 0; i < thumbUris.length; i++) {
-            var thumbUri = thumbUris[i];
+        var allThumbUris = Object.keys(galleryMap);    
+
+        for (var i = 0; i < BATCH_SIZE && allThumbUris.length > 0; i++) {
+            // Pop a thumb/link pair from the map.
+            var thumbUri = allThumbUris[i];
             var zoomPageUri = galleryMap[thumbUri];
+            delete galleryMap[thumbUri];
 
             // sanity check, then set up the dig.
             if (!!thumbUri && !!thumbUri.substring && !!zoomPageUri && !!zoomPageUri.substring) {
-                setUpOutput(thumbUri, baseId + i);
+                setUpOutput(thumbUri, startingOutputId + i);
                 diggingBatch.push(me.digDeep(thumbUri, zoomPageUri));     
             } 
             else {
@@ -138,9 +193,15 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             }           
         }
 
+        console.log('[Digger] Queued digging batch #' + me.batchCount +' of size ' + diggingBatch.length);
+
         // Execute all the Promises together. They must all resolve, or
         // it'll kill the whole batch.
-        return Promise.all(diggingBatch).then(harvestBatch).catch(logDiggingErrorsAndContinue);
+        return (
+            Promise.all(diggingBatch)
+            .then(harvestBatch)
+            .catch(logDiggingErrorsAndContinue)
+        );
     }
 
 
@@ -153,10 +214,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         for (var i = 0; i < uriPairs.length; i++) {
             var uriPair = uriPairs[i];
 
-            if (!uriPair) {
+            if (!uriPair || uriPair === null) {
                 continue;
             }
             
+            // Add the new pair to the map, but don't duplicate zoom item uris.
             if (uriPair.thumbUri && uriPair.zoomUri) {
                 if (Object.values(me.harvestedUriMap).indexOf(uriPair.zoomUri) == -1) {
                     me.harvestedUriMap[uriPair.thumbUri] = uriPair.zoomUri;
@@ -167,8 +229,10 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             }
         }
 
+        console.log('[Digger] Harvested ' + uriPairs.length + ' new zoom item uris');
+        
         // Resolve. The value is unimportant in this code rev, however.
-        return Promise.resolve(me.harvestedUriMap);
+        return Promise.resolve();
     }
 
 
@@ -368,10 +432,10 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function reportDigSuccess(thumbUri, zoomUri) {
         recordDigResult(thumbUri, zoomUri);
-        return Promise.resolve({
+        return {
             thumbUri: thumbUri,
             zoomUri: zoomUri,
-        });
+        };
     }
 
 
@@ -380,7 +444,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function reportDigFailure(thumbUri, zoomUri) {
         recordDigResult(thumbUri, zoomUri, true);
-        return Promise.resolve(null);
+        return null;
     }
 
 
@@ -418,11 +482,14 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
 
     /**
-     * Use HEAD requests to resolve what the gallery links point to. If they point to media files, we're
-     * done. If they point to documents, then call another function to further investigate those documents.  
+     * A second way of digging, using Utils.loadUriDoc() to construct the whole document via an 
+     * iframe. It is way more expensive and way slower, but allows full client-side rendering before 
+     * we attempt to process the document.
+     * This one *does* reject.
      */
-    me.digDeep = function digDeep(thumbUri, zoomPageUri) {
-        return new Promise(function buildDigDeep(resolve, reject) {
+    me.digDeeper = function digDeeper(thumbUri, zoomPageUri, searchDepth) {
+        if (searchDepth >= SEARCH_DEPTH.DIG_DEEPER) { searchDepth = SEARCH_DEPTH.DIG_DEEPER - 1; };
+
             // Validate URIs exist, and the zoomPageUri is of a fetchable protocol.
             if (!u.exists(thumbUri) || !u.exists(zoomPageUri) || !u.isFetchableUri(zoomPageUri)) {
                 console.log(
@@ -431,111 +498,235 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                     (zoomPageUri || '-blank-') + ']'
                 );
 
-                reportDigFailure(thumbUri, zoomPageUri);
-                resolve(null);
-                return;
+                return Promise.reject('Trying to digDeeper Bad URIs');
+            }
+
+            var thumbFilename = u.extractFilename(thumbUri);
+            var zoomFilename = u.extractFilename(zoomPageUri);
+
+            if (u.isKnownMediaType(zoomPageUri)) {
+                Output.toOut('Found direct link to media: ' + zoomFilename);
+                return Promise.resolve({
+                    thumbUri: thumbUri, 
+                    zoomUri: zoomPageUri
+                });
             }
             
-            var thumbFilename = u.extractFilename(thumbUri);
-            var zoomFilename = u.extractFilename(zoomPageUri);            
+            var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf('.'))); 
+            
+            console.log('[Digger] uriDocId: ' + uriDocId);
+            Output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + '');
 
-            Output.toOut('Finding zoom-media for thumbnail named ' + thumbFilename + '');
+            var p = u.loadUriDoc(zoomPageUri, uriDocId)
+            .then(function lookAtLoadedDoc(doc) {
+                console.log('[Digger] Digger loaded doc: ' + zoomPageUri);
+                Output.toOut('Loaded document ' + zoomFilename);
+                
+                return processZoomPage(doc, new URL(thumbUri), new URL(zoomPageUri), searchDepth)
+                .then(function resolveFinalPair(pair) {
+                    return Promise.resolve(pair);
+                });
+            })
+            .catch(function handleLoadFailure(e) {
+                console.log('[Digger] Load error: ' + e);                
+                return Promise.reject(e);
+            });
 
-            // Note, we always resolve.
-            u.sendXhr('HEAD', zoomPageUri)
-            .then(function processCompletedXhr(xhr) {
-                // Report anything other than HTML documents as found media.
-                if (xhr.getResponseHeader('Content-Type').indexOf('text/html') !== -1) {
-                    Output.toOut('Found image detail page ' + zoomFilename);
-                    
-                    processZoomPage(new URL(thumbUri), new URL(zoomPageUri))
-                    .then(function stuff(pair) {
-                        resolve(pair);
-                    });
-                } 
-                else {
-                    Output.toOut('Found media ' + zoomFilename);
-                    
-                    reportDigSuccess(thumbUri, zoomPageUri);
-                    resolve({
-                        thumbUri: thumbUri,
-                        zoomUri: zoomPageUri, 
-                    });
-                }
-            })
-            .catch(function processXhrFailure(errorMessage) {
-                console.log('[Digger] digDeep error: ' + errorMessage);
-                reportDigFailure(thumbUri, zoomPageUri);
-                resolve(null);
-            })
-        });
+            return p;
     };
 
 
     /**
-     * Excute the GET to fetch a zoom-page document, and inspect it to find the full-sized 
-     * media pointed to by the gallery thumb image.
+     * Use a HEAD request to resolve what Content-Type the gallery link points to. If it points to a media file, 
+     * we're done looking. If it points to a document, then call processZoomPage() to look more closely for
+     * the zoom-item.
+     * 
+     * Dig successes and failures are *only* reported in this function.
      */
-    function processZoomPage(thumbUrl, zoomPageUrl) {
-        return (
-            u.getXhrResponse('GET', zoomPageUrl.href, 'document')
-            .then(function lookThroughDocument(doc) {
-                var p = null;
-                var zoomFilename = u.extractFilename(zoomPageUrl.href);
+    me.digDeep = function digDeep(thumbUri, zoomPageUri, searchDepth) {
+        // Validate URIs exist, and the zoomPageUri is of a fetchable protocol.
+        if (!u.exists(thumbUri) || !u.exists(zoomPageUri) || !u.isFetchableUri(zoomPageUri)) {
+            console.log(
+                '[Digger] Cannot dig due missing/unfetchable URIs. [' + 
+                (thumbUri || '-blank-') + ', ' + 
+                (zoomPageUri || '-blank-') + ']'
+            );
 
-                Output.toOut('Examining detail page ' + zoomFilename);            
+            return Promise.resolve(reportDigFailure(thumbUri, zoomPageUri));
+        }
+        
+        var thumbFilename = u.extractFilename(thumbUri);
+        var zoomFilename = u.extractFilename(zoomPageUri);            
 
-                // First look in the special rules for a strategy that's already 
-                // been figured out by me. See if we can just get the Uri from there.
-                var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);                    
-                if (!!blessedZoomUri) {
-                    console.log('[Digger] Found blessed full-size uri: ' + blessedZoomUri);
-                    p = Promise.resolve({
-                        thumbUri: thumbUrl.href, 
-                        zoomUri: blessedZoomUri,
-                    });
-                }
-                // Degenerate case -- no investigation options -- just complete with the zoom page URI itself.
-                else if (!u.exists(me.options)) {
-                    console.log('[Digger] No options, completing fetch with zoomPageUri itself: ' + zoomPageUrl.href);
-                    p = Promise.resolve({
-                        thumbUri: thumbUrl.href,
-                        zoomUri: zoomPageUrl.href
-                    });
-                }
-                // As the Logicker requires async operation to find the largest <img> on a page,
-                // use a callback for the general inspection after using the Logicker.
-                else if (me.options.imgs === true) {
-                    Output.toOut('Comparing image sizes, looking for largest on ' + zoomFilename);
+        Output.toOut('Finding zoom-media for thumbnail named ' + thumbFilename + '');
+        console.log('working on ' + zoomPageUri);
 
-                    p = (
-                        Logicker.getPairWithLargestImage(thumbUrl.href, doc)
-                        .then(function resolveWithLargestImage(pair) {
-                            return Promise.resolve(pair);
-                        })
-                        .catch(function fallbackToInspection() {
-                            return inspectZoomPage(doc, thumbUrl, zoomPageUrl);
-                        })
-                    );
-                }
-                // Final catch-all
-                else {
-                    p = inspectZoomPage(doc, thumbUrl, zoomPageUrl);
-                }
+        // Note, we always resolve.
+        var p = u.sendXhr('HEAD', zoomPageUri)
+        .then(function processCompletedXhr(xhr) {
+            var mimeType = new String(xhr.getResponseHeader('content-type'));
 
-                return p;
-            })
-            .then(function reportSuccess(pair) {
-                return reportDigSuccess(pair.thumbUri, pair.zoomUri);
-            })
-            .catch(function onError(errorMessage) {
-                console.log(
-                    '[Digger] Process zoom-page failed for reason:\n' + 
-                    '         ' + JSON.stringify(errorMessage)
+            // Report anything other than HTML documents as found media.
+            if (mimeType.indexOf('html') !== -1) {
+                Output.toOut('Found image detail page ' + zoomFilename);
+                
+                return (
+                    processZoomPage(false, new URL(thumbUri), new URL(zoomPageUri), searchDepth)
+                    .then(function stuff(pair) {
+                        return Promise.resolve(pair);
+                    })
                 );
-                return reportDigFailure(thumbUrl.href);
-            })
-        );
+            } 
+            else if (u.isKnownMediaType(mimeType)) {
+                Output.toOut('Found media ' + zoomFilename);
+                return Promise.resolve({
+                    thumbUri: thumbUri,
+                    zoomUri: zoomPageUri,
+                });
+            }
+            else {
+                return Promise.reject('Unknown Content-type ' + mimeType);
+            }
+        })
+        .then(function recordDigSuccess(pair) {
+            return reportDigSuccess(pair.thumbUri, pair.zoomUri);
+        })
+        .catch(function completeDigWithFailure(errorMessage) {
+            console.log('[Digger] digDeep error: ' + errorMessage);
+            return Promise.resolve(reportDigFailure(thumbUri, zoomPageUri));
+        });
+
+        return p;
+    };
+
+
+    /**
+     * XHR 'GET' the zoom page if we weren't passed it, then apply search methods
+     * from least-intensive -> most intensive til we find something. Variable depth
+     * search, defaults to trying every strategy in the app.
+     */
+    function processZoomPage(inDoc, thumbUrl, zoomPageUrl, searchDepth) {
+        if (!searchDepth) { searchDepth = SEARCH_DEPTH.DIG_DEEPER; };
+
+        var zoomFilename = u.extractFilename(zoomPageUrl.href);                    
+        var errors = [];
+        var startingPromise = Promise.resolve({});
+        var doc = inDoc;
+
+        // Get the doc if it was null, starting the promise chain. 
+        if (!doc || doc === null) {
+            startingPromise = 
+                u.getXhrResponse('GET', zoomPageUrl.href, 'document')
+                .catch(function(e) {
+                    console.log('[Digger] processZoomPage xhr error: ' + e)
+                    return Promise.resolve(e);
+                });
+        }
+
+        // -Chain description-
+        // Apply search methods from simplest (fastest) -> hardest (longest).
+        // This is primarily a regection-based chain. 
+        // Each step is executed only on the previous step's failure.
+        // Each step is executed only if searchDepts says to go that deep.
+        // Each step pushes the previous step's error into errors[].
+
+        // 1 - Skim the document for low-hanging fruit.
+        var p = startingPromise.then(function doSkimming(d) {
+            if (!d || !d.querySelectorAll) {
+                errors.push(e);
+                console.log('[Digger] Processing started with error');
+                return Promise.resolve(null);
+            }
+            else {
+                doc = d;
+                Output.toOut('Skimming ' + zoomFilename);                        
+                return skimZoomPage(doc, thumbUrl, zoomPageUrl);
+            }
+        })
+        // 2 - Look for the largest image
+        .catch(function maybeLookForLargestImage(previousError) {
+            errors.push(previousError);
+            if (searchDepth < SEARCH_DEPTH.LARGEST_IMAGE) { return Promise.resolve(null); };
+            if (me.options.imgs !== true) { return Promise.reject('Not looking for images'); };
+            
+            console.log('largest image');
+            Output.toOut('Looking for the largest Image on ' + zoomFilename);
+            return Logicker.getPairWithLargestImage(thumbUrl.href, doc);
+        })
+        // 3 - Use document inspection, using each options-defined type of scrape.
+        .catch(function maybeInspectDocument(previousError) {
+            errors.push(previousError);                        
+            if (searchDepth < SEARCH_DEPTH.INSPECT) { return Promise.resolve(null); };
+
+            console.log('inspectZoomPage');
+            Output.toOut('Inspecting all media on ' + zoomFilename);
+            return inspectZoomPage(doc, thumbUrl, zoomPageUrl);                    
+        })
+        // 4 - Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs.
+        .catch(function maybeDigDeeper(previousError) {
+            errors.push(previousError);                        
+            if (searchDepth < SEARCH_DEPTH.DIG_DEEPER) { return Promise.resolve(null); };
+
+            console.log('digDeeper');
+            Output.toOut('Checking ' + zoomFilename + ' a second way');
+            return me.digDeeper(thumbUrl.href, zoomPageUrl.href, (SEARCH_DEPTH.DIG_DEEPER - 1));
+        })
+        // Pair Found - Resolve with that pair.
+        .then(function resolveSuccessfully(pair) {
+            if (!pair || pair === null) {
+                return Promise.reject('Invalid pair');
+            }
+            else {
+                return Promise.resolve(pair);
+            }
+        })
+        // No Pair - Log errors[], resolve with null.
+        .catch(function rejectWithFailure(previousError) {
+            errors.push(previousError);
+
+            // Log it all to the console. 
+            var combinedMessage = errors.reduce(
+                function allToString(previousMessage, errorMessage) {
+                    return previousMessage + '\n         ' + errorMessage;
+                }, 
+                '[Digger] No processing result for ' + zoomPageUrl.href
+            );
+
+            return Promise.reject(combinedMessage);
+        });
+
+        return p;
+    }
+
+
+    /**
+     * Skim through the zoom page for low-hanging fruit.
+     * reject if nothing is found.
+     * TODO: Put more here. 
+     */
+    function skimZoomPage(doc, thumbUrl, zoomPageUrl) {
+        var zoomFilename = u.extractFilename(zoomPageUrl.href);
+
+        // First look in the special rules for a strategy that's already 
+        // been figured out by me. See if we can just get the Uri from there.
+        var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);                    
+        if (!!blessedZoomUri) {
+            console.log('[Digger] Found blessed full-size uri: ' + blessedZoomUri);
+            return Promise.resolve({
+                thumbUri: thumbUrl.href, 
+                zoomUri: blessedZoomUri,
+            });
+        }
+        else if (me.options.imgs && doc.images.length === 1) {
+            return Promise.resolve({
+                thumbUri: thumbUrl.href,
+                zoomUri: doc.images[0].src,
+            });
+        }
+        else {
+            // TODO: Create more skim-worthy search strategies.        
+            return Promise.reject('Skimming found nothing');
+        }
     }
 
     
@@ -544,10 +735,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * whatever zoom media item we can for the gallery thumb.
      */
     function inspectZoomPage(doc, thumbUrl, zoomPageUrl) {
-        var zoomUri = null;
-        var p = null;
-
-        Output.toOut('Searching through media on ' + u.extractFilename(zoomUri));
+        var zoomUri = false;        
+        Output.toOut('Searching through media on ' + u.extractFilename(zoomPageUrl.href));
 
         // For each enabled investigation option, try to find the zoom media item.
         Object.keys(me.options).forEach(function checkUris(optName) {
@@ -556,18 +745,17 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             }
         });
 
+        // Resolve if we found something that works. Otherwise, reject.
         if (zoomUri) {
-            p = Promise.resolve({
+            return Promise.resolve({
                 thumbUri: thumbUrl.href,
                 zoomUri: zoomUri
             });            
         }
         else {
-            console.log('[Digger] Inspection found no zoom media on ' + zoomUri);
-            p = Promise.resolve(null)
+            Output.toOut('Inspection found nothing good on ' + u.extractFilename(zoomPageUrl.href));
+            return Promise.reject('Inspection found no zoom-item on ' + zoomPageUrl.href);
         }
-
-        return p;
     }
 
 
@@ -577,7 +765,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     function findZoomUri(d, tUrl, zpUrl, optionName) {
         var findMediaUris = SCRAPING_TOOLS[optionName] || (function() { return []; });
         var urls = findMediaUris(d, { href: zpUrl.href });
-        var zUri = null;
+        var zUri = false;
 
         Output.toOut('Sifting through ' + optionName + ' content on detail page.');
 
