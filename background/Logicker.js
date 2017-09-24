@@ -20,8 +20,7 @@ var Logicker = (function Logicker(Utils) {
         var zoomImgUri = '';
 
         // Put special rules for particular sites here.
-        if (false) {
-            
+	if (false) {
         }
         else {
             var holderDiv = doc.querySelector('div.photo > div');
@@ -49,8 +48,11 @@ var Logicker = (function Logicker(Utils) {
         // confirm type and value existence, then trim whitespace. Otherwise, blank string, which
         // will make isPossibly be returned as false.
         if (!(thumbUrl && zoomUrl && (thumbUrl.href.length > 0) && (zoomUrl.href.length > 0))) {
-            isPossibly = false;
-            return isPossibly;    
+            return false;    
+        }
+
+        if (me.isKnownBadImg(zoomUrl)) {
+            return false;
         }
 
         // Pick out the basic filenames of the src and dest. No file extensions.
@@ -65,10 +67,10 @@ var Logicker = (function Logicker(Utils) {
         var zval = '';
 
         // bail if the zoomUri.href is for a thumbnail.
-        if (/(thumb|tn_|small|-t\.|)/i.test(zoomUrl.href)) {
-            isPossibly = false;
-            return isPossibly;
-        }
+        // if (/(thumb|tn_|small|-t\.|_t\.)/i.test(zoomUrl.href)) {
+        //     isPossibly = false;
+        //     return isPossibly;
+        // }
 
         // Do the low-hanging fruit first. Just don't hit your head on it.
         // first: The happiest of paths.
@@ -82,7 +84,7 @@ var Logicker = (function Logicker(Utils) {
             var root = '' + name;
 
             // remove "thumb" or "large" type words.
-            root = root.replace(/(thumb|\/tn|small|thumbnail|\-t|full|large)/gi, '-');
+            root = root.replace(/(thumb|\/tn|small|thumbnail|\-t|full|large)/i, '');
 
             // replace all punctuation with dashes.
             root = root.replace(/(_|-|\(|\)|\.)/gi, '-');
@@ -144,7 +146,11 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/\.png$/i).test(src)) {
+    // if ((/(logo\.|_?header(\.|_|-)|thumb\.||default-avatar-0\.jpg|evil-angel\.jpg|index(\.|_)|contact\.jpg)/i).test(src)) {
+    //     isBad = true;
+    // }
+        if ((/(\/logo\.|\/header\.jpg|\.png)/i).test(src))
+        {
             isBad = true;
         }
 
@@ -250,9 +256,11 @@ var Logicker = (function Logicker(Utils) {
      */
     me.getMessageDescriptorForUrl = function getMessageDescriptorForUrl(url) {
         var d = {
-            selector: 'a[href]',
+            command: 'peepAround',
+            linkSelector: 'a[href]',
             linkHrefProp: 'href',
-            thumbSrcProp: 'firstElementChild.src',
+            thumbSubselector: ':scope img',
+            thumbSrcProp: 'src',
             useRawValues: false,
         };
 
@@ -264,11 +272,9 @@ var Logicker = (function Logicker(Utils) {
 
         // Add all the special rules for particular sites here.
         if (/facebook\.com\//.test(url)) {
-            d.selector = '.uiMediaThumbImg';
-            d.linkHrefProp = 'style.backgroundImage';
-            d.thumbSrcProp = 'firstElementChild.src';
+            d.thumbSubselector = ":scope .uiMediaThumbImg";
+            d.thumbSrcProp = 'style.backgroundImage';
         }
-       
 
         return d;
     };
@@ -283,7 +289,7 @@ var Logicker = (function Logicker(Utils) {
         var instructions = {
             doScrape: true,
             doDig: true,
-            processedMap: {},
+            processedMap: null,
         };
         var thumbUris = Object.getOwnPropertyNames(galleryMap);
         
@@ -294,12 +300,11 @@ var Logicker = (function Logicker(Utils) {
             });
 
             instructions.doScrape = false;
-            instructions.doDig = true;
         }
-        else {
-            instructions.processedMap = Object.assign({}, galleryMap);
-            instructions.doScrape = true;
-            instructions.doDig = true;            
+
+        // Set the default map.
+        if (instructions.processedMap === null) {
+            instructions.processedMap = Object.assign({}, galleryMap);            
         }
 
         return instructions;
