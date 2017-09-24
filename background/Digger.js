@@ -85,39 +85,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
 
     /**
-     * Execute a promise chain of digDeep() batches, firing BATCH_SIZE
-     * number of digDeep() XHR-and-inspect processes at once. Resolve
-     * with the full me.harvestedUriMap.
-     */
-    function digGalleryBatches_old(galleryMap) {                
-        // Make CHANNELS number of promises, each resolving BATCH_SIZE me.digDeep()
-        // calls via digNextBatch(). digNextBatch deletes entries from the galleryMap
-        // as it goes.
-        var promises = [];      
-        for (var i = 0; i < CHANNELS && Object.keys(galleryMap).length > 0; i++) {
-            promises.push(digNextBatch(galleryMap));
-        }
-        
-        console.log('[Digger] Digging set of ' + promises.length + 'gallery batches.');        
-
-        // Note, all these promises must resolve, or it'll kill the whole batch.
-        var p = Promise.all(promises);
-        
-        // Either recurse no matter what, or resolve with the entire harvest of zoom item uris.
-        if (Object.keys(galleryMap).length > 0) {
-            var resolveNextIteration = function rni() { 
-                return digGalleryBatches_old(galleryMap); 
-            };
-
-            return p.then(resolveNextIteration).catch(resolveNextIteration);
-        }
-        else {
-            return p.then(resolveDigHarvest).catch(resolveDigHarvest);  
-        }   
-    }
-
-
-    /**
      * Recursive wrapper around digNextBatch()
      */
     function digNextBatchLink(galleryMap) {
@@ -145,7 +112,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var thumbsPerChannel = Math.floor(thumbUris.length / (CHANNELS - 1)) || 1;
 
         // Make the submaps, build the promise chains.
-        for (var i = 0; i < CHANNELS; i++) {
+        //for (var i = 0; i < CHANNELS; i++) {
+        while (thumbUris.length > 0) {
             var subMap = {};
 
             for (var j = 0; j < thumbsPerChannel && thumbUris.length > 0; j++) {
@@ -172,7 +140,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // Set up the output entry, and enter the uriPair's digDeep() execution
         // into the promise batch's array. Skip nulls. 
         var allThumbUris = Object.keys(galleryMap);    
-
         for (var i = 0; i < BATCH_SIZE && allThumbUris.length > 0; i++) {
             // Pop a thumb/link pair from the map.
             var thumbUri = allThumbUris[i];
@@ -183,17 +150,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             if (!!thumbUri && !!thumbUri.substring && !!zoomPageUri && !!zoomPageUri.substring) {
                 setUpOutput(thumbUri, startingOutputId + i);
                 diggingBatch.push(me.digDeep(thumbUri, zoomPageUri));     
-            } 
-            else {
-                console.log(
-                    '[Digger] Skipping dig for bad URI pair.\n ' + 
-                    '         thumbUri:    ' + thumbUri + '\n' +
-                    '         zoomPageUri: ' + zoomPageUri
-                );                
-            }           
+            }     
         }
-
-        console.log('[Digger] Queued digging batch #' + me.batchCount +' of size ' + diggingBatch.length);
 
         // Execute all the Promises together. They must all resolve, or
         // it'll kill the whole batch.
@@ -223,13 +181,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 if (Object.values(me.harvestedUriMap).indexOf(uriPair.zoomUri) == -1) {
                     me.harvestedUriMap[uriPair.thumbUri] = uriPair.zoomUri;
                 }
-                else {
-                    console.log('[Digger] Duplicate of zoomUri ' + uriPair.zoomUri);
-                }
             }
         }
-
-        console.log('[Digger] Harvested ' + uriPairs.length + ' new zoom item uris');
         
         // Resolve. The value is unimportant in this code rev, however.
         return Promise.resolve();
@@ -316,11 +269,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
                 // Create the associations, but do not add duplicates.
                 if (thumbUri in map) {
-                    console.log(
-                        '[Digger] Found two zoomUris for thumb: ' + thumbUri + 
-                        '\n       keeping original: ' + map[thumbUri] + 
-                        '\n       discarding dupe:  ' + zoomUri
-                    );
+                    // console.log(
+                    //     '[Digger] Found two zoomUris for thumb: ' + thumbUri + 
+                    //     '\n       keeping original: ' + map[thumbUri] + 
+                    //     '\n       discarding dupe:  ' + zoomUri
+                    // );
                 }
                 else {
                     var newId = Object.keys(map).length;
@@ -332,47 +285,242 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         }
     }
 
+
     /**
-     * Find all the gallery-item looking <a>...<img/>...</a> structures, mapping the src
-     * of the thumbnail image to the href of the supposed zoom page.
-     * 
-     * ALSO URL-IFIES THE SRCs. FROM THIS POINT ON THEY ARE REAL URIs IN THE MAPS/ARRAYS.
+     * See whether hrefUri or jsUri better matches src, by doing a canonical filename match.
+     * favor hrefUri.
      */
-    function buildSimpleGalleryMap(doc, loc) {
-        var map = {};
-        var links = doc.querySelectorAll('a[href]');
+    function chooseBetterMatchingUri(src, hrefUri, jsUri) {
+        if (!src) {
+            //console.log('[Digger] asked to choose with a blank src.');
+            return '';
+        }
+        else if (!hrefUri && !jsUri) {
+            //console.log('[Digger] asked to choose with two blank uris.');
+            return '';
+        }
+        else if (!jsUri) {
+            //console.log('[Digger] chosen by default, uri: ' + hrefUri);            
+            return hrefUri;
+        }
+        else if (!hrefUri) {
+            //console.log('[Digger] chosen by default, uri: ' + jsUri);            
+            return jsUri;
+        }
 
-        Output.toOut('Looking at ' + links.length + ' possible gallery links...');
-        console.log('[Digger] Found ' + links.length + ' possible gallery links.');
+        // Which href looks more likely? If we're 'data:' or 'blob:' just put it in the map.
+        var bareSrc = src;
+
+        // strip of the querystring if there is one.
+        var srcQsIndex = bareSrc.indexOf('?');
+        if (srcQsIndex !== -1) { bareSrc = bareSrc.substring(0, srcQsIndex); };
+
+        // if there's no extension '.', it's probably not a good <img>.
+        var extIndex = bareSrc.lastIndexOf('.');
+        if (extIndex === -1) { return; };
+
+        // Get just the name without the extension.
+        var imgCanonicalName = bareSrc.substring(
+            bareSrc.lastIndexOf('/') + 1, 
+            bareSrc.lastIndexOf('.')
+        );
+
+        //console.log('[Digger] Found canonical src name of: [' + imgCanonicalName + ']');                
         
-        // For all the links, find the <img> tags contained in them. Also, find
-        // any elements with a background-image simulating an <img> tag.
-        if (links.length > 0) {
-            for (var i=0; i < links.length; i++) {
-                var linky = links[i];
-                var linkHref = u.exists(linky.href) ? linky.href : linky.attributes.href.value;
+        // check if the hrefUri has the canonical name in one of its path parts.
+        var hrefHasIt = false;
+        var hrefUriArray = hrefUri.split('/');
+        hrefUriArray.forEach(function lookForCanonicalNameInHref(pathPart) {
+            if (!hrefHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
+                hrefHasIt = true;
+            }
+        });                    
 
-                if (linkHref.indexOf('javascript:') === 0) {
-                    continue;
-                }
+        // check if the extracted-from-js uri has the canonical name in one of its path parts.
+        var jsHasIt = false;
+        var jsUriArray = jsUri.split('/');
+        jsUriArray.forEach(function lookForCanonicalNameInHref(pathPart) {
+            if (!jsHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
+                jsHasIt = true;
+            }
+        });
+        
+        // Pop it in the gallery! 
+        // use the jsUri only if it has it, but the href does not.
+        var zoomPageUri = ''; 
+        if (!hrefHasIt && jsHasIt) {
+            zoomPageUri = jsUri;
+        }
+        else {
+            zoomPageUri = hrefUri;
+        } 
 
-                var linkUrl = new URL(linkHref, u.getBaseUri(loc));
-                
-                // Populate the gallery map and tracking objects.
-                var containedImgUrls = Scraper.getAllImgUrls(linky, loc);
-                containedImgUrls.forEach(function addImgLinksToGallery(imgUrl) {
-                    addToMap(imgUrl, linkUrl, map);
-                });
+        return zoomPageUri;
+    }
 
-                var containedBgUrls = Scraper.getAllCssBackgroundUrls(linky, loc);
-                containedBgUrls.forEach(function addCssBgLinksToGallery(bgUrl) {
-                    addToMap(bgUrl, linkUrl, map);
-                });                
+
+    /**
+     * Get a property value given a tag, and a dot-notation property path as a string.
+     * It handles extracting from javascript functions, and from css properties.
+     */
+    var URL_EXTRACTING_REGEX = /(url\()?('|")(https?|data|blob|file)\:.+?\)?(\'|\")\)?/i;    
+    function extractUriPropValue(tag, propPath, loc) {
+        if (!tag || !propPath) {
+            return '';
+        }
+
+        // Iterate through the path of properties to get the value.
+        var pathParts = propPath.split('.');
+        var iterator = tag;
+        for(var i = 0; (!!iterator && iterator !== null && typeof iterator !== 'undefined') && i < pathParts.length; i++) {
+            if (!!iterator && iterator !== null) {
+                iterator = iterator[pathParts[i]];
             }
         }
+        var value = iterator;
+        if (!value) { return ''; };
+
+        // Special processing for srcset props.
+        if (pathParts[pathParts.length-1] === 'srcset') {
+            value = value.split(',')[0].split(' ')[0];
+        }
+
+        // Do a url extraction from functions or javascript hrefs.
+        if (typeof value === 'function' || /^javascript\:/.test(value)) {
+            var text = value.toString();
+            value = URL_EXTRACTING_REGEX.exec(text);
+
+            if (!!value && value.length) {
+                value = value[0];
+            }
+        }
+        if (!value) { return ''; };
+
+        // Remove the 'url("...")' wrapping from css background images.
+        if (value.indexOf('url(') !== -1) {
+            value = value.replace('url("', '').replace('")', '');
+        }
+
+        // Make it a full URL if it isn't.
+        if (!(/^(http|https|data|blob|file)\:/i).test(value) && !!loc) {
+            value = (new URL(value, loc.origin)).href;
+        }
+
+        return value;
+    }
+
+
+    /**
+     * Find the uri that might be gone to if the element was clicked, whether it is the
+     * target, or some ancestor is the target. 
+     * spec is like: { selector: 'img', keyPropPath: 'parentElement.src', altKeyPropPath: 'currentSrc' }
+     */
+    // These CLICK_PROPS are in priority order of which to pay attention to.
+    var CLICK_PROPS = [ 'onclick', 'href' ];
+    function getClickUriMap(doc, loc, spec) {
+        if (!spec.selector) { return {}; };
+        if (!spec.propPaths || !spec.propPaths.length || spec.propPaths.length <= 0) { return {}; };
+
+        var subjects = doc.querySelectorAll(spec.selector);
+        var map = {};
+
+        console.log('[Digger] found ' + subjects.length + ' thumb tags.');
+        subjects.forEach(function(tag) {
+            // Use the first propPath in the array which works. 
+            var src = '';
+            spec.propPaths.forEach(function lookForSrc(propPath) {
+                if (!!src) { return; }
+
+                var value = extractUriPropValue(tag, propPath, loc);
+                if (!!value) {
+                    src = value;
+                }
+            });
+            if (!src) { return; }
+
+            // Iterate through parent elements up the DOM until we find one that
+            // has at least one clickable prop on it. It itself might even be clickable.
+            // also check to make sure there isn't a link inside this tag. It's a
+            // new trick.
+            var iterator = tag.firstElementChild ? tag.firstElementChild : tag;
+            var foundClickProps = [];            
+            while (foundClickProps.length === 0 && !(typeof iterator === 'undefined' || iterator === null || !iterator)) {
+                // Are any of the CLICK_PROPS present on the iterator element? If so, we
+                // probably have the link.
+                for (var i = 0; i < CLICK_PROPS.length; i++) {
+                    var val = iterator[CLICK_PROPS[i]];
+
+                    if (typeof val !== 'undefined' && !!val && val !== null) {
+                        foundClickProps.push(CLICK_PROPS[i]);
+                    }                    
+                }
+                
+                // End the loop once we've found a click prop value. Otherwise, iterate up the DOM.
+                if (foundClickProps.length !== 0) {
+                    break;
+                }
+                else { 
+                    iterator = iterator.parentElement;
+                }                
+            }            
+            if (!iterator || iterator === null || foundClickProps.length === 0) { return; };
+
+            // For each click prop on the iterator, try to get the uri.
+            var uris = [];                        
+            for (var j = 0; j < foundClickProps.length; j++) {
+                var val = extractUriPropValue(iterator, foundClickProps[j], loc);
+                if (!!val) { uris.push(val); };
+            }
+            if (uris.length === 0) { return; };
+
+            // Figure out which URI is the best.
+            var bestUri = uris[0]; 
+            for (var k = 1; k < uris.length; k++) {
+                var bestUri = chooseBetterMatchingUri(src, bestUri, uris[k]);
+            }
+            
+            console.log(
+                '[Digger] New pair added to digging map:\n ' +
+                '         thumbSrc: ' + src + '\n' +
+                '         zoomPage: ' + bestUri + ''
+            );
+
+            // Turn them into real URLs, then add to the map and make the output entries.
+            var thumbUrl = new URL(src);
+            var linkUrl = new URL(bestUri);
+
+            addToMap(thumbUrl, linkUrl, map);
+        });
 
         return map;
     }
+
+
+    /**
+     * Build a gallery map based upon multiple calls to getClickUriMap(), which 
+     * Finds what navigation action will happen if clicking on the image's area.
+     */
+    function buildSimpleGalleryMap(doc, loc) {
+        var imgMap = getClickUriMap(
+            doc,
+            loc,
+            { 
+                selector: 'img', 
+                propPaths: ['src', 'currentSrc', 'srcset'], 
+            }
+        );
+
+        var cssBgMap = getClickUriMap(
+            doc,
+            loc,
+            { 
+                selector: 'div,span', 
+                propPaths: ['style.backgroundImage', 'style.background']
+            }
+        );
+
+        return Object.assign({}, imgMap, cssBgMap);
+    }        
 
 
     /**
@@ -381,7 +529,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function discoverGallery(doc, loc) {
         // Make a map of all the <img> srcs contained in <a> tags. Sort it as thumbUri -> linkUri.
-        // If the ContentPeeper got us stuff, there will already be some entries. Merge them in.
+        // If the Digger got us stuff, there will already be some entries. Merge them in.
         var galleryMap = {};
         me.outputIdMap = {};
 
@@ -633,7 +781,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // 1 - Skim the document for low-hanging fruit.
         var p = startingPromise.then(function doSkimming(d) {
             if (!d || !d.querySelectorAll) {
-                errors.push(e);
                 console.log('[Digger] Processing started with error');
                 return Promise.resolve(null);
             }
@@ -649,7 +796,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             if (searchDepth < SEARCH_DEPTH.LARGEST_IMAGE) { return Promise.resolve(null); };
             if (me.options.imgs !== true) { return Promise.reject('Not looking for images'); };
             
-            console.log('largest image');
             Output.toOut('Looking for the largest Image on ' + zoomFilename);
             return Logicker.getPairWithLargestImage(thumbUrl.href, doc);
         })
@@ -658,7 +804,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             errors.push(previousError);                        
             if (searchDepth < SEARCH_DEPTH.INSPECT) { return Promise.resolve(null); };
 
-            console.log('inspectZoomPage');
             Output.toOut('Inspecting all media on ' + zoomFilename);
             return inspectZoomPage(doc, thumbUrl, zoomPageUrl);                    
         })
@@ -667,7 +812,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             errors.push(previousError);                        
             if (searchDepth < SEARCH_DEPTH.DIG_DEEPER) { return Promise.resolve(null); };
 
-            console.log('digDeeper');
             Output.toOut('Checking ' + zoomFilename + ' a second way');
             return me.digDeeper(thumbUrl.href, zoomPageUrl.href, (SEARCH_DEPTH.DIG_DEEPER - 1));
         })
