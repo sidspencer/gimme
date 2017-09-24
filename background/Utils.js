@@ -174,12 +174,7 @@ var Utils = (function Utils() {
     me.createTabMessage = function createTabMessage(tab, message) {
         return {
             tab: tab,
-            message: {
-                selector: message.selector,
-                linkHrefProp: message.linkHrefProp,
-                thumbSrcProp: message.thumbSrcProp,
-                useRawValues: !!message.useRawValues,
-            },
+            message: message,
         };
     };
 
@@ -269,16 +264,20 @@ var Utils = (function Utils() {
 
 
     /**
+     * 
+     */
+    me.queryActiveTab = function queryActiveTab() {
+        return me.queryTab({
+            active: true,
+            currentWindow: true,
+        })
+    }
+
+
+    /**
      * Wrapper for chrome.tabs.query.
      */
-    me.queryActiveTab = function queryActiveTab(opts) {
-        if (!opts) {
-            opts = {
-                active: true,
-                currentWindow: true,
-            }
-        }
-        
+    me.queryTab = function queryTab(opts) {
         return new Promise(function doQueryTabs(resolve, reject) {
             chrome.tabs.query(
                 opts,
@@ -361,7 +360,7 @@ var Utils = (function Utils() {
                     id: downloadSig.id,
                 }, 
                 function searchCallback(downloadItems) {
-                    if (downloadItems && downloadItems.length > 0) {           
+                    if (downloadItems && downloadItems.length > 0) {
                         resolve(downloadItems);
                     }
                     else {
@@ -490,6 +489,15 @@ var Utils = (function Utils() {
             bgDoc.body.appendChild(iframe);
         });
     };
+
+
+    /**
+     * Stringify JSON so it's pretty.
+     */
+    me.toPrettyJson = function toPrettyJson(obj) {
+        return JSON.stringify(obj).replace('{', '{\n\t').replace('}', '\n}').replace(',',',\n\t');
+    };
+
 
 
     // return the singleton
