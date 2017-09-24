@@ -172,6 +172,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             var uriWithoutQs = uri.replace(/\?(.+?)$/, '');
             var destFileName = uriWithoutQs.replace(/^.+\//, '');
 
+            // For data-returning php files.
+            if (/\/.+?.php\?/.test(uri)) {
+                destFileName = destFileName + '.jpg';
+            }
+            // For weird filenames with parentheses in them.
+            if (/^\(.*\)/.test(destFileName)) {
+                destFileName = destFileName.replace(/^\(.*\)/, '');
+            }
+
             var destFilePath = me.downloadsDir + '/' + destFileName;
             var optIdx = me.fileOptions.push(destFilePath);
             var fileOption = u.createFileOption(optIdx, uri, thumbUri, destFilePath, downloadFile);
@@ -198,12 +207,9 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
 
         if (me.contentScriptSelection) {
             var d = Logicker.getMessageDescriptorForUrl(tab.url);
-            message.selector = d.selector;
-            message.linkHrefProp = d.linkHrefProp;
-            message.thumbSrcProp = d.thumbSrcProp;
-            message.useRawValues = d.useRawValues;
-        }    
-        
+            Object.assign(message, d);
+        }
+                
         var tabMessage = u.createTabMessage(tab, message); 
         return Promise.resolve(tabMessage);
     }
@@ -213,6 +219,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * Do some things with the tab response, resolve with the location.
      */
     function processTabMessageResponse(resp) {
+        console.log('[App] GOT RESPONSE: \n ' + u.toPrettyJson(resp));
+
         // Get the locator from the response. Create the downloads directory name.
         var loc = resp.locator;
         me.downloadsDir = getSaltedDirectoryName(loc);
@@ -472,30 +480,74 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      */
     me.digGalleryGallery = function digGalleryGallery() {
         Output.toOut('Initializing: Collecting links to galleries from page.');        
-        clearGalleryData(true);     
- 
+        clearGalleryData(true);
+        var locDocs = [];
+        var combinedMap = {}; 
+
         // Begin by communicating with the ContentPeeper for information 
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the Digger.
         return ( 
+            
             processContentPage()
             .then(function buildPromises(locDoc) {
-                Digger.digGallery({
+                return Digger.digGallery({
                     doc: locDoc.doc,
                     loc: locDoc.loc,
                     digOpts: { doScrape: true, doDig: false },
                     galleryMap: me.galleryMap,
                 })
-                .then(function(galleryListMap) {
-                    var combinedGalleryMap = {};
+            })
+            .then(function(mapOfGalleryLinks) {
+                var p = Promise.resolve(true);
 
-                    var chain = Promise.resolve({});
-                    for (galleryKey in galleryListMap) {
-                        chain = chain.then(function() {
-                            return Promise.resolve(combinedGalleryMap);
+                // make a simple chain of 
+                var id = 0;
+                
+                Object.values(mapOfGalleryLinks).forEach(function(uri) {                    
+                    p = p.then(function() { 
+                        return u.loadUriDoc(uri, 'gallery_' + (id++))
+                        .then(function pushDoc(d) {
+                            console.log('[App] Executed load of gallery page ' + uri);                            
+                            locDocs.push({
+                                loc: new URL(uri),
+                                doc: d,
+                            });
+                            return Promise.resolve(true);
+                        }).catch(function(e) {
+                            console.log('[App] Failed to load gallery doc ' + uri)
+                            console.log('      Error: ' + e);
+                            return Promise.resolve(true);
                         });
-                    }
+                    });
                 });
+
+                return p;
+            })
+            .then(function docsLoaded() {
+                var promises = [];
+
+                locDocs.forEach(function(lDoc) {
+                    console.log('[App] creating dig promise for ' + lDoc.loc.href);
+                    var promises = [];
+                    promises.push(
+                        Digger.digGallery({
+                            doc: lDoc.doc,
+                            loc: lDoc.loc,
+                            digOpts: { doScrape: true, doDig: true },
+                            galleryMap: {},
+                        })
+                        .then(function receiveGalleryMap(gMap) {
+                            Object.assign(combinedMap, gMap);
+                        })
+                    );
+                });
+
+                return Promise.all(promises);
+            })
+            .then(function() {
+                console.log('[App] Received combinedMap.');
+                return Promise.resolve(combinedMap); 
             })
             .then(me.presentFileOptions)
             .catch(function handleError(errorMessage) {
