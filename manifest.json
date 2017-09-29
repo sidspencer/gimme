@@ -28,6 +28,7 @@
       "all_frames": true
     }
   ],
+
   "browser_action": {
     "default_icon": {
       "16": "media/icon16.png",
@@ -37,14 +38,19 @@
     },
     "default_popup": "popup/popup.html"
   },
+
+  "options_page": "options/options.html",
+  
   "permissions": [
     "activeTab",
     "webRequest",
     "alarms",
     "downloads",
+    "storage",
     "http://*/*",
     "https://*/*",
     "file:///*/*"
   ],
+
   "content_security_policy": "script-src 'self' https://ajax.googleapis.com; object-src 'self'"
 }
