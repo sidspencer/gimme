@@ -1,10 +1,10 @@
 'use strict'
 
 /**
- * Scraper service/singleton for Gimme. It holds all the
+ * Factory function for the Scraper for Gimme. It holds all the
  * functions for scraping a node.
  */
-var Scraper = (function Scraper(Utils) {
+var Scraper = (function Scraper(Utils, Logicker, Output) {
     // service object
     var me = {};
 
@@ -12,121 +12,44 @@ var Scraper = (function Scraper(Utils) {
     var u = Utils;
 
     // constants
-    var DEFAULT_ALL_JS_SELECTOR = '*[onclick],*[onmouseover],*[onmouseout],*[onmouseenter],*[onchange],[href^="javascript:"],script';    
+    var DEFAULT_ALL_JS_SELECTOR = ':scope *[onclick],*[onmouseover],*[onmouseout],*[onmouseenter],*[onchange],*[href^="javascript:"],script';    
     var BLANK_LOC = new URL('http://localhost/');
 
+
     /**
-     * Collect all the values of "propName" of all the tags of a given kind on
+     * Collect all the values of the property "paths" given of all the tags of a given kind on
      * the page.
      */
-    me.getElementUrls = function getElementUrls(inOpts) {
-        if (!u.exists(inOpts) || !u.exists(inOpts.root)) {
+    me.getElementUrls = function getElementUrls(inputSpec) {
+        var tagUrls = [];
+        var defaultSpec = {
+            loc: BLANK_LOC,
+            selector: '*',
+            propPaths: [ 'currentSrc', 'href' ]
+        };
+        var spec = Object.assign({}, inputSpec);
+        
+        // Check for missing values. We can use the defaults unless there is no root node.
+        if (!spec.root) {
             console.log('[Scraper] getElementUrls called with no root node.');
             return [];
         }
-
-        var ptns = {
-            root: inOpts.root,
-            loc: inOpts.loc,
-            selector: '*',
-            propName: 'currentSrc',
-            subPropName: undefined,
-            subSubPropName: undefined,
-            altPropName: 'href',
-            altSubPropName: undefined,
-            altSubSubPropName: undefined,
-        };
-
-        // Only use the defaults if we were not passed in a valid options object.
-        if (u.exists(inOpts.selector) && u.exists(inOpts.propName)) {
-            ptns = inOpts;
-        }
-
-        if (!u.exists(ptns.loc)) {
-            ptns.loc = BLANK_LOC;
-        }
-
-        // Grab whatever the selector told us to inside the root node
-        var tagUrls = [];
-        var tags = ptns.root.querySelectorAll(ptns.selector);
-
-        // get the "propname" from the tags. 
-        // optionally go deeper with subPropName and subSubPropName.
-        if (tags && tags.length) {
-            for (var i = 0; i < tags.length; i++){
-                var src = '';
-                var prop = '';
-                var subProp = '';
-                var subSubProp = '';
-
-                // Try to find the prop. Traverse as far as we have subprops for.
-                if (u.exists(ptns.propName)) {
-                    prop = tags[i][ptns.propName];
-
-                    if (u.exists(ptns.subPropName) && u.exists(prop)) {
-                        subProp = prop[ptns.subPropName];
-
-                        if (u.exists(ptns.subSubPropName) && u.exists(subProp)) {
-                            subSubProp = subProp[ptns.subSubPropName];
-                            
-                            if (u.exists(subSubProp)) {
-                                src = subSubProp;
-                            }
-                            else {
-                                src = subProp;
-                            }
-                        }
-                        else if (u.exists(subProp)) {
-                            src = subProp;
-                        }
-                    }
-                    else if (u.exists(prop)) {
-                        src = prop;
-                    }
+        if (!spec.loc) { spec.loc = defaultSpec.loc; }
+        if (!Array.isArray(spec.propPaths)) { spec.propPaths = defaultSpec.propPaths; };
+        if (!spec.selector) { spec.selector = defaultSpec.selector };
+        
+        // Extract the URL for each returned element. Go with the first property in the list
+        // that returns a valid URL.
+        var tags = spec.root.querySelectorAll(spec.selector);
+        tags.forEach(function doUrlExtraction(tag) {
+            for(var i = 0; i < spec.propPaths.length; i++) {
+                var url = Logicker.extractUrl(tag, spec.propPaths[i], spec.loc);
+                if (url) {
+                    tagUrls.push(url);
+                    return;
                 }
-                else {
-                    src = '';
-                }
-            
-                // if the prop* field names don't work, try the alt* ones.
-                if (!u.exists(src)) {
-                    if (u.exists(ptns.altPropName)) {
-                        prop = tags[i][ptns.altPropName];
-
-                        if (u.exists(ptns.altSubPropName) && u.exists(prop)) {
-                            subProp = prop[ptns.altSubPropName];
-
-                            if (u.exists(ptns.altSubSubPropName) && u.exists(subProp)) {
-                                subSubProp = subProp[ptns.altSubSubPropName];
-                                
-                                if (u.exists(subSubProp)) {
-                                    src = subSubProp;
-                                }
-                                else {
-                                    src = subProp;
-                                }
-                            }
-                            else if (u.exists(subProp)) {
-                                src = subProp;
-                            }
-                        }
-                        else if (u.exists(prop)) {
-                            src = prop;
-                        }
-                    }
-                    else {
-                        src = '';
-                    }
-                }                
-                
-                // Process the src that we got.
-                var cleansedUrl = u.srcToUrl(src, ptns.loc);
-
-                if (u.exists(cleansedUrl)) {
-                    tagUrls.push(cleansedUrl);
-                }
-            };
-        }
+            } 
+        });
 
         return tagUrls;
     };
@@ -136,7 +59,7 @@ var Scraper = (function Scraper(Utils) {
      * Amass all the background-images. This is for places like Flickr.
      */
     me.getAllCssBackgroundUrls = function getAllCssBackgroundUrls(root, loc) {
-        if (!u.exists(root)) {
+        if (!root) {
             console.log('[Scraper] No root node. Returning blank array.');
             return [];
         }
@@ -185,7 +108,7 @@ var Scraper = (function Scraper(Utils) {
         var urlList = [];
 
         // Query for video-src-holding elements. Currently no <object> or <embed> support.
-        var videos = node.querySelectorAll('video, a[href], source');
+        var videos = node.querySelectorAll(':scope video, a[href], source');
         if (videos.length > 0) {
             videos.forEach(function getVideoCurrentSrc(vid) {
                 var vidSrc = '';
@@ -338,9 +261,8 @@ var Scraper = (function Scraper(Utils) {
         var audioUrls = me.getElementUrls({
             root: node,
             loc: loc,
-            selector: 'audio[src],audio>source[src],param[value],a[href]',
-            propName: 'currentSrc',
-            altPropName: 'value',
+            selector: ':scope audio[src],audio>source[src],param[value],a[href]',
+            propPaths: [ 'currentSrc', 'value' ]
         });
 
         var cleanAudioUrls = [];
@@ -371,9 +293,8 @@ var Scraper = (function Scraper(Utils) {
         return me.getElementUrls({
             root: node,
             loc: loc,
-            selector: 'img[src]',
-            propName: 'src',
-            altPropName: 'currentSrc',
+            selector: ':scope img',
+            propPaths: ['dataset.src', 'src']
         });    
     };
 
@@ -499,6 +420,7 @@ var Scraper = (function Scraper(Utils) {
         var opts = config.opts;
         var node = config.node;
         var loc = config.loc;
+        var node = config.node;
 
         var imgUris = [];
         var cssBgUris = [];
@@ -510,26 +432,32 @@ var Scraper = (function Scraper(Utils) {
         console.log('[Scraper] options: ' + JSON.stringify(opts));
 
         if (opts.imgs) {
+            Output.toOut('Scraping all images.')
             imgUris = me.scrapeAllImgUris(node, loc);   
         }
 
         if (opts.cssBgs) {
+            Output.toOut('Scraping all CSS background-images.')            
             cssBgUris = me.scrapeAllCssBgUris(node, loc);
         }
 
         if (opts.js) {
+            Output.toOut('Scraping all javascript.')            
             jsUris = me.scrapeAllJsUris(node, loc, null);
         }
         
         if (opts.videos) {
+            Output.toOut('Scraping all Videos.')            
             videoUris = me.scrapeAllVideoUris(node, loc);
         }
 
         if (opts.audios) {
+            Output.toOut('Scraping all Audio.')            
             audioUris = me.scrapeAllAudioUris(node, loc);
         }
 
         if (opts.qs && (!!loc || !!node.location)) {
+            Output.toOut('Scraping the Querystring.')            
             qsUris = me.scrapeAllQsUris(node, loc);
         }
         else {
@@ -560,10 +488,12 @@ var Scraper = (function Scraper(Utils) {
             {}
         );
 
+        console.log('[scraper] map: ' + u.toPrettyJson(harvestedUriMap));
+
         return Promise.resolve(harvestedUriMap);
     };
 
 
     // return the singleton
     return me;
-})(Utils);
+})
