@@ -111,8 +111,10 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var thumbUris = Object.keys(galleryMap);
         var thumbsPerChannel = Math.floor(thumbUris.length / (CHANNELS - 1)) || 1;
 
+        console.log('[Digger] Digging ' + thumbUris.length + ' scraped thumbnails.');
+        Output.toOut('Now digging ' + thumbUris.length + ' thumbnails found in gallery.');
+        
         // Make the submaps, build the promise chains.
-        //for (var i = 0; i < CHANNELS; i++) {
         while (thumbUris.length > 0) {
             var subMap = {};
 
@@ -286,128 +288,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     }
 
 
-    /**
-     * See whether hrefUri or jsUri better matches src, by doing a canonical filename match.
-     * favor hrefUri.
-     */
-    function chooseBetterMatchingUri(src, hrefUri, jsUri) {
-        if (!src) {
-            //console.log('[Digger] asked to choose with a blank src.');
-            return '';
-        }
-        else if (!hrefUri && !jsUri) {
-            //console.log('[Digger] asked to choose with two blank uris.');
-            return '';
-        }
-        else if (!jsUri) {
-            //console.log('[Digger] chosen by default, uri: ' + hrefUri);            
-            return hrefUri;
-        }
-        else if (!hrefUri) {
-            //console.log('[Digger] chosen by default, uri: ' + jsUri);            
-            return jsUri;
-        }
-
-        // Which href looks more likely? If we're 'data:' or 'blob:' just put it in the map.
-        var bareSrc = src;
-
-        // strip of the querystring if there is one.
-        var srcQsIndex = bareSrc.indexOf('?');
-        if (srcQsIndex !== -1) { bareSrc = bareSrc.substring(0, srcQsIndex); };
-
-        // if there's no extension '.', it's probably not a good <img>.
-        var extIndex = bareSrc.lastIndexOf('.');
-        if (extIndex === -1) { return; };
-
-        // Get just the name without the extension.
-        var imgCanonicalName = bareSrc.substring(
-            bareSrc.lastIndexOf('/') + 1, 
-            bareSrc.lastIndexOf('.')
-        );
-
-        //console.log('[Digger] Found canonical src name of: [' + imgCanonicalName + ']');                
-        
-        // check if the hrefUri has the canonical name in one of its path parts.
-        var hrefHasIt = false;
-        var hrefUriArray = hrefUri.split('/');
-        hrefUriArray.forEach(function lookForCanonicalNameInHref(pathPart) {
-            if (!hrefHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
-                hrefHasIt = true;
-            }
-        });                    
-
-        // check if the extracted-from-js uri has the canonical name in one of its path parts.
-        var jsHasIt = false;
-        var jsUriArray = jsUri.split('/');
-        jsUriArray.forEach(function lookForCanonicalNameInHref(pathPart) {
-            if (!jsHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
-                jsHasIt = true;
-            }
-        });
-        
-        // Pop it in the gallery! 
-        // use the jsUri only if it has it, but the href does not.
-        var zoomPageUri = ''; 
-        if (!hrefHasIt && jsHasIt) {
-            zoomPageUri = jsUri;
-        }
-        else {
-            zoomPageUri = hrefUri;
-        } 
-
-        return zoomPageUri;
-    }
-
-
-    /**
-     * Get a property value given a tag, and a dot-notation property path as a string.
-     * It handles extracting from javascript functions, and from css properties.
-     */
-    var URL_EXTRACTING_REGEX = /(url\()?('|")(https?|data|blob|file)\:.+?\)?(\'|\")\)?/i;    
-    function extractUriPropValue(tag, propPath, loc) {
-        if (!tag || !propPath) {
-            return '';
-        }
-
-        // Iterate through the path of properties to get the value.
-        var pathParts = propPath.split('.');
-        var iterator = tag;
-        for(var i = 0; (!!iterator && iterator !== null && typeof iterator !== 'undefined') && i < pathParts.length; i++) {
-            if (!!iterator && iterator !== null) {
-                iterator = iterator[pathParts[i]];
-            }
-        }
-        var value = iterator;
-        if (!value) { return ''; };
-
-        // Special processing for srcset props.
-        if (pathParts[pathParts.length-1] === 'srcset') {
-            value = value.split(',')[0].split(' ')[0];
-        }
-
-        // Do a url extraction from functions or javascript hrefs.
-        if (typeof value === 'function' || /^javascript\:/.test(value)) {
-            var text = value.toString();
-            value = URL_EXTRACTING_REGEX.exec(text);
-
-            if (!!value && value.length) {
-                value = value[0];
-            }
-        }
-        if (!value) { return ''; };
-
-        // Remove the 'url("...")' wrapping from css background images.
-        if (value.indexOf('url(') !== -1) {
-            value = value.replace('url("', '').replace('")', '');
-        }
-
-        // Make it a full URL if it isn't.
-        if (!(/^(http|https|data|blob|file)\:/i).test(value) && !!loc) {
-            value = (new URL(value, loc.origin)).href;
-        }
-
-        return value;
-    }
 
 
     /**
@@ -416,24 +296,36 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * spec is like: { selector: 'img', keyPropPath: 'parentElement.src', altKeyPropPath: 'currentSrc' }
      */
     // These CLICK_PROPS are in priority order of which to pay attention to.
-    var CLICK_PROPS = [ 'onclick', 'href' ];
-    function getClickUriMap(doc, loc, spec) {
-        if (!spec.selector) { return {}; };
-        if (!spec.propPaths || !spec.propPaths.length || spec.propPaths.length <= 0) { return {}; };
+    var DEAULT_CLICK_PROPS = [ 'onclick', 'href' ];
+    var DEFAULT_PROP_PATHS = [ 'src', 'href' ];
+    var DEFAULT_SELECTOR = ':scope *';
+    function getClickUriMap(node, loc, spec) {
+        // Throw errors if no node (usually document) or loc.
+        if (!node || !loc || !node.querySelectorAll || !loc.origin) {
+            console.log('[Digger] Cannot build gallery click-map without both node and location.')
+        }
 
-        var subjects = doc.querySelectorAll(spec.selector);
-        var map = {};
+        // Use defaults if not passed in a full spec. Note clickProps are rarely passed in.
+        if (!spec.selector) { spec.selector = DEFAULT_SELECTOR; };
+        if (!Array.isArray(spec.propPaths) || !spec.propPaths.length) { spec.propPaths = DEFAULT_PROP_PATHS; };
+        if (!spec.clickProps) { spec.clickProps = DEAULT_CLICK_PROPS; };
 
-        console.log('[Digger] found ' + subjects.length + ' thumb tags.');
+        // Amass the possible thumbnails (the subjects of the search).
+        var subjects = node.querySelectorAll(spec.selector);
+        var clickMap = {};
+
+        // Decide whether or not this subject is a real thumbnail image.
+        console.log('[Digger] Found ' + subjects.length + ' possible thumbnails.');
         subjects.forEach(function(tag) {
-            // Use the first propPath in the array which works. 
+            // Use the first propPath in the array which works. They are in 
+            // priority order.  
             var src = '';
             spec.propPaths.forEach(function lookForSrc(propPath) {
                 if (!!src) { return; }
 
-                var value = extractUriPropValue(tag, propPath, loc);
-                if (!!value) {
-                    src = value;
+                var value = Logicker.extractUrl(tag, propPath, loc);
+                if (!!url && !!url.href) {
+                    src = url.href;
                 }
             });
             if (!src) { return; }
@@ -447,52 +339,49 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             while (foundClickProps.length === 0 && !(typeof iterator === 'undefined' || iterator === null || !iterator)) {
                 // Are any of the CLICK_PROPS present on the iterator element? If so, we
                 // probably have the link.
-                for (var i = 0; i < CLICK_PROPS.length; i++) {
-                    var val = iterator[CLICK_PROPS[i]];
+                for (var i = 0; i < spec.clickProps.length; i++) {
+                    var val = iterator[spec.clickProps[i]];
 
                     if (typeof val !== 'undefined' && !!val && val !== null) {
-                        foundClickProps.push(CLICK_PROPS[i]);
+                        foundClickProps.push(spec.clickProps[i]);
                     }                    
                 }
                 
-                // End the loop once we've found a click prop value. Otherwise, iterate up the DOM.
-                if (foundClickProps.length !== 0) {
-                    break;
-                }
-                else { 
-                    iterator = iterator.parentElement;
-                }                
+                // End the loop once we've found a click prop value. 
+                if (foundClickProps.length !== 0) { break; };
+                  
+                // Otherwise, iterate up the DOM.
+                iterator = iterator.parentElement;                
             }            
             if (!iterator || iterator === null || foundClickProps.length === 0) { return; };
 
-            // For each click prop on the iterator, try to get the uri.
+            // For each click prop on the iterator, try to get a URI from it.
             var uris = [];                        
             for (var j = 0; j < foundClickProps.length; j++) {
-                var val = extractUriPropValue(iterator, foundClickProps[j], loc);
-                if (!!val) { uris.push(val); };
+                var url = Logicker.extractUrl(iterator, foundClickProps[j], loc);
+                if (!!url && !!url.href) { uris.push(url.href); };
             }
             if (uris.length === 0) { return; };
 
-            // Figure out which URI is the best.
+            // Figure out which of the URIs is the best.
             var bestUri = uris[0]; 
             for (var k = 1; k < uris.length; k++) {
-                var bestUri = chooseBetterMatchingUri(src, bestUri, uris[k]);
+                var bestUri = Logicker.chooseBetterMatchingUri(src, bestUri, uris[k]);
             }
             
             console.log(
-                '[Digger] New pair added to digging map:\n ' +
+                '[Digger] New pair added to gallery click-map:\n ' +
                 '         thumbSrc: ' + src + '\n' +
                 '         zoomPage: ' + bestUri + ''
             );
 
-            // Turn them into real URLs, then add to the map and make the output entries.
+            // Add this pair's full URLs to the map and the Output.
             var thumbUrl = new URL(src);
             var linkUrl = new URL(bestUri);
-
-            addToMap(thumbUrl, linkUrl, map);
+            addToMap(thumbUrl, linkUrl, clickMap);
         });
 
-        return map;
+        return clickMap;
     }
 
 
@@ -500,7 +389,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * Build a gallery map based upon multiple calls to getClickUriMap(), which 
      * Finds what navigation action will happen if clicking on the image's area.
      */
-    function buildSimpleGalleryMap(doc, loc) {
+    function buildGalleryMap(doc, loc) {
+        // Start with <img> tags.
         var imgMap = getClickUriMap(
             doc,
             loc,
@@ -510,6 +400,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             }
         );
 
+        // Also try <div>s and <span>s with css background-images.
         var cssBgMap = getClickUriMap(
             doc,
             loc,
@@ -519,7 +410,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             }
         );
 
-        return Object.assign({}, imgMap, cssBgMap);
+        var galleryMap = Object.assign({}, imgMap, cssBgMap);        
+        return galleryMap;
     }        
 
 
@@ -532,20 +424,23 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // If the Digger got us stuff, there will already be some entries. Merge them in.
         var galleryMap = {};
         me.outputIdMap = {};
+        var gallerySize = 0;
 
         if (me.digOpts.doScrape !== false) {
-            galleryMap = buildSimpleGalleryMap(doc, loc);
+            galleryMap = buildGalleryMap(doc, loc);
+            gallerySize = Object.keys(galleryMap).length;  
         }
 
+        // This merges, and also manages the Output entries.
         if (!!me.startingGalleryMap && !!Object.keys(me.startingGalleryMap).length) {
             mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
         }
 
+        // Begin digging, or stop if instructed to.
         if (me.digOpts.doDig === false) {
             console.log('[Digger] Instructed to not dig. Responding with discovered URIs.')
             return Promise.resolve(galleryMap);
         }
-        // Perform the full XHR-and-inspection for each entry in the gallery.
         else {
             return digGalleryBatches(galleryMap);
         }  
@@ -638,49 +533,53 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     me.digDeeper = function digDeeper(thumbUri, zoomPageUri, searchDepth) {
         if (searchDepth >= SEARCH_DEPTH.DIG_DEEPER) { searchDepth = SEARCH_DEPTH.DIG_DEEPER - 1; };
 
-            // Validate URIs exist, and the zoomPageUri is of a fetchable protocol.
-            if (!u.exists(thumbUri) || !u.exists(zoomPageUri) || !u.isFetchableUri(zoomPageUri)) {
-                console.log(
-                    '[Digger] Cannot dig due missing/unfetchable URIs. [' + 
-                    (thumbUri || '-blank-') + ', ' + 
-                    (zoomPageUri || '-blank-') + ']'
-                );
+        // Validate URIs exist, and the zoomPageUri is of a fetchable protocol.
+        if (!u.exists(thumbUri) || !u.exists(zoomPageUri) || !u.isFetchableUri(zoomPageUri)) {
+            console.log(
+                '[Digger] Cannot dig due missing/unfetchable URIs. [' + 
+                (thumbUri || '-blank-') + ', ' + 
+                (zoomPageUri || '-blank-') + ']'
+            );
 
-                return Promise.reject('Trying to digDeeper Bad URIs');
-            }
+            return Promise.reject('Trying to digDeeper Bad URIs');
+        }
 
-            var thumbFilename = u.extractFilename(thumbUri);
-            var zoomFilename = u.extractFilename(zoomPageUri);
+        // Extract filenames for better output messages. 
+        var thumbFilename = u.extractFilename(thumbUri);
+        var zoomFilename = u.extractFilename(zoomPageUri);
 
-            if (u.isKnownMediaType(zoomPageUri)) {
-                Output.toOut('Found direct link to media: ' + zoomFilename);
-                return Promise.resolve({
-                    thumbUri: thumbUri, 
-                    zoomUri: zoomPageUri
-                });
-            }
-            
-            var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf('.'))); 
-            
-            console.log('[Digger] uriDocId: ' + uriDocId);
-            Output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + '');
-
-            var p = u.loadUriDoc(zoomPageUri, uriDocId)
-            .then(function lookAtLoadedDoc(doc) {
-                console.log('[Digger] Digger loaded doc: ' + zoomPageUri);
-                Output.toOut('Loaded document ' + zoomFilename);
-                
-                return processZoomPage(doc, new URL(thumbUri), new URL(zoomPageUri), searchDepth)
-                .then(function resolveFinalPair(pair) {
-                    return Promise.resolve(pair);
-                });
-            })
-            .catch(function handleLoadFailure(e) {
-                console.log('[Digger] Load error: ' + e);                
-                return Promise.reject(e);
+        // Resolve if we can tell the zoom page URI points directly to media.
+        if (u.isKnownMediaType(zoomPageUri)) {
+            Output.toOut('Found direct link to media: ' + zoomFilename);
+            return Promise.resolve({
+                thumbUri: thumbUri, 
+                zoomUri: zoomPageUri
             });
+        }
+        
+        // Construct the ID used by loadUriDoc() to identify the <iframe>
+        var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf('.')));  
+        console.log('[Digger] uriDocId: ' + uriDocId);
+        Output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + '');
 
-            return p;
+        // Load the document and process it. Either resolve with the pair, or reject. digDeeper()
+        // can safely reject, as it is the final attempt to look at the zoom page.
+        var p = u.loadUriDoc(zoomPageUri, uriDocId)
+        .then(function lookAtLoadedDoc(doc) {
+            console.log('[Digger] Digger loaded doc: ' + zoomPageUri);
+            Output.toOut('Loaded document ' + zoomFilename);
+            
+            return processZoomPage(doc, new URL(thumbUri), new URL(zoomPageUri), searchDepth);
+        })
+        .then(function resolveFinalPair(pair) {
+            return Promise.resolve(pair);
+        })
+        .catch(function handleLoadFailure(e) {
+            console.log('[Digger] Load error: ' + e);                
+            return Promise.reject(e);
+        });
+
+        return p;
     };
 
 
@@ -703,13 +602,18 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             return Promise.resolve(reportDigFailure(thumbUri, zoomPageUri));
         }
         
+        // Extract the filenames for better output.
         var thumbFilename = u.extractFilename(thumbUri);
         var zoomFilename = u.extractFilename(zoomPageUri);            
 
         Output.toOut('Finding zoom-media for thumbnail named ' + thumbFilename + '');
         console.log('working on ' + zoomPageUri);
 
-        // Note, we always resolve.
+        // Do a HEAD request XHR to discover the content-type of the zoom-page. Either it is
+        // media, and we resolve with it, it is an HTML doc and we process it, or skip it if
+        // it's something unknown.
+        //
+        // Catch *all* reject()s here. Always resolve(). Otherwise, we'll break the promise chain.
         var p = u.sendXhr('HEAD', zoomPageUri)
         .then(function processCompletedXhr(xhr) {
             var mimeType = new String(xhr.getResponseHeader('content-type'));
