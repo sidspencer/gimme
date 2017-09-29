@@ -495,7 +495,7 @@ var Utils = (function Utils() {
      * Stringify JSON so it's pretty.
      */
     me.toPrettyJson = function toPrettyJson(obj) {
-        return JSON.stringify(obj).replace('{', '{\n\t').replace('}', '\n}').replace(',',',\n\t');
+        return JSON.stringify(obj).replace(/\{/g, '{\n\t').replace(/\}/g, '\n}').replace(/\,/g,',\n\t');
     };
 
 
