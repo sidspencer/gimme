@@ -6,10 +6,25 @@
  */
 var Logicker = (function Logicker(Utils) {
     // service object
-    var me = {};
+    var me = {
+        hasSpecialRules: false,
+    };
 
     // aliases
     var u = Utils;
+
+    // Constants
+    me.MIN_ZOOM_HEIGHT = 250;
+    me.MIN_ZOOM_WIDTH = 250;
+
+
+    /**
+     * Initialize. Read specs.json for information on how to find thumbs and zoom-links
+     * for specific sites.
+     */
+    function init() {
+        
+    }
 
 
     /**
@@ -20,7 +35,8 @@ var Logicker = (function Logicker(Utils) {
         var zoomImgUri = '';
 
         // Put special rules for particular sites here.
-	if (false) {
+        if (me.hasSpecialRules) {
+
         }
         else {
             var holderDiv = doc.querySelector('div.photo > div');
@@ -146,9 +162,6 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-    // if ((/(logo\.|_?header(\.|_|-)|thumb\.||default-avatar-0\.jpg|evil-angel\.jpg|index(\.|_)|contact\.jpg)/i).test(src)) {
-    //     isBad = true;
-    // }
         if ((/(\/logo\.|\/header\.jpg|\.png)/i).test(src))
         {
             isBad = true;
@@ -156,6 +169,15 @@ var Logicker = (function Logicker(Utils) {
 
         return isBad;
     };
+
+
+    /**
+     * Is this image large enough to be a zoom image? 
+     * Any object with the "width" and "height" properties can be used.
+     */
+    me.isZoomSized = function isZoomSized(obj) {
+        return (obj.height > me.MIN_ZOOM_HEIGHT || obj.width > me.MIN_ZOOM_WIDTH);
+    }
 
 
     /**
@@ -193,16 +215,20 @@ var Logicker = (function Logicker(Utils) {
                     imageObj.onload = function compareDimensions(evt) {
                         imgsToCheck--;
 
+                        // Skip the image if the filename is known to not ever be a real zoom-image.
                         if (!me.isKnownBadImg(this.src)) {
                             var dims = {
                                 height: (!!this.height ? this.height : this.naturalHeight),
                                 width: (!!this.width ? this.width : this.naturalWidth)
                             };
 
-                            if (dims.height > largestDims.height && dims.width > largestDims.width) {
-                                largestImg = this;
-                                largestImgSrc = this.src;
-                                largestDims = dims;
+                            // Skip the image if it is not big enough.
+                            if (me.isZoomSized(dims)) {
+                                if (dims.height > largestDims.height && dims.width > largestDims.width) {
+                                    largestImg = this;
+                                    largestImgSrc = this.src;
+                                    largestDims = dims;
+                                }
                             }
                         }
 
@@ -224,6 +250,7 @@ var Logicker = (function Logicker(Utils) {
                         console.log('[Logicker] Error creating image object to get dimensions. evt: ' + JSON.stringify(evt));
                         imgsToCheck--;
                         
+                        // If we've reached the last image, call the callback.
                         if (imgsToCheck === 0) {
                             if (!!largestImgSrc) {
                                 resolve({
@@ -271,9 +298,8 @@ var Logicker = (function Logicker(Utils) {
         }
 
         // Add all the special rules for particular sites here.
-        if (/facebook\.com\//.test(url)) {
-            d.thumbSubselector = ":scope .uiMediaThumbImg";
-            d.thumbSrcProp = 'style.backgroundImage';
+        if (me.hasSpecialRules) {
+
         }
 
         return d;
@@ -294,12 +320,8 @@ var Logicker = (function Logicker(Utils) {
         var thumbUris = Object.getOwnPropertyNames(galleryMap);
         
         // Put your special processing rules for particular sites here.
-        if (/facebook\.com\//.test(pageUri)) {
-            thumbUris.forEach(function extractUriFromCss(href) {
-                instructions.processedMap[href] = href.replace(/^url\(('|")?/, '').replace(/('|")?\)$/, '');
-            });
+        if (me.hasSpecialRules) {
 
-            instructions.doScrape = false;
         }
 
         // Set the default map.
@@ -308,6 +330,105 @@ var Logicker = (function Logicker(Utils) {
         }
 
         return instructions;
+    };
+
+
+    /**
+     * See whether firstUri or secondUri better matches src, by doing a canonical filename match.
+     * favor firstUri.
+     */
+    me.chooseBetterMatchingUri = function chooseBetterMatchingUri(src, firstUri, secondUri) {
+        if (!src || !(firstUri || secondUri)) { return ''; }
+        else if (!secondUri) { return firstUri; }
+        else if (!firstUri) { return secondUri; }
+
+        // strip of the querystring if there is one.
+        var bareSrc = src;        
+        var srcQsIndex = bareSrc.indexOf('?');
+        if (srcQsIndex !== -1) { bareSrc = bareSrc.substring(0, srcQsIndex); };
+
+        // if there's no extension '.', and we're not of protocol 'data:' or 'blob:', 
+        // it's probably not a good <img>.
+        var extIndex = bareSrc.lastIndexOf('.');
+        if (extIndex === -1) { return; };
+
+        // Get just the name without the extension.
+        var imgCanonicalName = bareSrc.substring(bareSrc.lastIndexOf('/')+1, extIndex);
+        
+        // check if the firstUri has the canonical name in one of its path parts.
+        var firstHasIt = false;
+        var firstUriArray = firstUri.split('/');
+        firstUriArray.forEach(function lookForCanonicalNameInUri(pathPart) {
+            if (!firstHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
+                firstHasIt = true;
+            }
+        });                    
+
+        // check if the secondUri has the canonical name in one of its path parts.
+        var secondHasIt = false;
+        var secondUriArray = secondUri.split('/');
+        secondUriArray.forEach(function lookForCanonicalNameInUri(pathPart) {
+            if (!secondHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
+                secondHasIt = true;
+            }
+        });
+        
+        // Give the first uri priority. 
+        var zoomPageUri = ''; 
+        if (secondHasIt && !firstHasIt) {
+            zoomPageUri = secondUri;
+        }
+        else {
+            zoomPageUri = firstUri;
+        } 
+
+        return zoomPageUri;
+    };
+
+
+    /**
+     * Get a property value given a tag, and a dot-notation property path as a string.
+     * It handles extracting from javascript functions, and from css properties.
+     */
+    var URL_EXTRACTING_REGEX = /(url\()?('|")(https?|data|blob|file)\:.+?\)?(\'|\")\)?/i;    
+    me.extractUrl = function extractUrl(tag, propPath, loc) {
+        if (!tag || !propPath) {
+            return '';
+        }
+
+        // Iterate through the path of properties to get the value.
+        var pathParts = propPath.split('.');
+        var iterator = tag;
+        for(var i = 0; (!!iterator && iterator !== null && typeof iterator !== 'undefined') && i < pathParts.length; i++) {
+            if (!!iterator && iterator !== null) {
+                iterator = iterator[pathParts[i]];
+            }
+        }
+        var value = iterator;
+        if (!value) { return ''; };
+
+        // Special processing for srcset props.
+        if (pathParts[pathParts.length-1] === 'srcset') {
+            value = value.split(',')[0].split(' ')[0];
+        }
+
+        // Do a url extraction from functions or javascript hrefs.
+        if (typeof value === 'function' || /^(java)?script\:/.test(value)) {
+            var text = value.toString();
+            value = URL_EXTRACTING_REGEX.exec(text);
+
+            if (!!value && value.length) {
+                value = value[0];
+            }
+        }
+        if (!value) { return ''; };
+
+        // Remove the 'url("...")' wrapping from css background images.
+        if (value.indexOf('url(') !== -1) {
+            value = value.replace('url("', '').replace('")', '');
+        }
+
+        return (new URL(value, loc.origin));
     };
 
 
