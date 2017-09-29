@@ -219,8 +219,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      * Do some things with the tab response, resolve with the location.
      */
     function processTabMessageResponse(resp) {
-        console.log('[App] GOT RESPONSE: \n ' + u.toPrettyJson(resp));
-
         // Get the locator from the response. Create the downloads directory name.
         var loc = resp.locator;
         me.downloadsDir = getSaltedDirectoryName(loc);
@@ -228,22 +226,23 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         // Get the Uris. The ContentPeeper makes sure they are *full* uris.
         me.peeperMap = Object.assign({}, resp.galleryMap);
 
+        // Create our own copy of the document we're looking at.
         var peeperDoc = chrome.extension.getBackgroundPage().document.implementation.createHTMLDocument("peeperdoc");
         peeperDoc.documentElement.innerHTML = resp.docInnerHtml;
 
+        // Fallback to getting the document via XHR if we have to. (worse, because scripts will not have run.)
         if (!peeperDoc || !resp.docInnerHtml) {
             return getLocDoc(loc);
         }
         else {
             return Promise.resolve(u.createLocDoc(loc, peeperDoc));
         }
-
-        //return Promise.resolve(loc);
     }
       
 
     /**
      * Fetch the document on which we are scraping/digging.
+     * Please note, no <script>s will be run, so it's only the base html, and often not useful.
      */
     function getLocDoc(loc) {
         return (
@@ -301,7 +300,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             .then(buildTabMessage)
             .then(u.sendTabMessage)
             .then(processTabMessageResponse)
-            //.then(getLocDoc)
             .then(processLocDoc)
         );        
     }
