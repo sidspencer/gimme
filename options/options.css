@@ -14,6 +14,7 @@ div#status {
 }
 
 div.entry {
+    position: relative;
     width: 75%;
     background-color: rgba(0,255,0,0.2);
     margin: 5px;
@@ -21,6 +22,7 @@ div.entry {
 }
 
 div.subentry {
+    position: relative;
     width: 90%;
     margin: 10px;
     background-color: rgba(0,255,0,0.1);
@@ -30,6 +32,10 @@ div.subentry {
 label {
     display: block;
     text-align: left;
+}
+
+label::after {
+    content: ':';
 }
 
 input[type="text"] {
@@ -51,8 +57,34 @@ div#actionButtons {
     padding: 5px;
 }
 
-button#set {
+button {
     border: 1px solid rgba(0,255,0,1);
     color: rgba(0,255,0,1);
     background-color: rgba(0,0,0,1);
+}
+
+button.add {
+    display: block;
+    margin: 1em;
+}
+
+button.delete {
+    position: absolute;
+    right: 1px;
+    top: 1px;
+    border: none;
+    background-color: rgba(0,0,0,0);
+    z-index: 2;
+    margin: 0;
+    padding: 0;
+}
+
+button.delete::before {
+    content: '[';
+    font-size: 1.1em;
+}
+
+button.delete::after {
+    content: ']';
+    font-size: 1.1em;
 }
