@@ -223,7 +223,7 @@ var Dominatrix = (function Dominatrix(doc, C) {
                 // For scalar values, use value.text or the value itself.
                 else {
                     input.type = 'text';                    
-                    inputValue = (('text' in value) ? value.text : value.toString());;
+                    inputValue = (('text' in value) ? value.text.toString() : value.toString());;
                 }
                 input.value = inputValue;
 
@@ -235,7 +235,6 @@ var Dominatrix = (function Dominatrix(doc, C) {
                 deleteButton.textContent = 'X';
                 deleteButton.className = DELETE_BUTTON_CLASS;
                 deleteButton.addEventListener('click', function onDeleteButtonClick() {
-
                     div.remove();
                 });
 
@@ -475,11 +474,9 @@ var Optionator = (function Optionator(doc, dmx, C) {
             function storageSet() {
                 var statusDiv = doc.getElementById('status');
                 statusDiv.style.display = 'block';
-                statusDiv.textContent = 'spec set successfully.'
 
                 setTimeout(function clearMessage() {
                     statusDiv.style.display = 'none';
-                    statusDiv.textContent = '';
                 }, 5000);
             }
         );
@@ -604,7 +601,7 @@ var Optionator = (function Optionator(doc, dmx, C) {
         getSpec();
 
         // Hook up the event handlers for each section's "Add" button on DOMContentLoaded.
-        doc.querySelectorAll('button.add').forEach(function addNewEntry(button) {
+        doc.querySelectorAll('button.addEntry').forEach(function addNewEntry(button) {
             button.addEventListener('click', function addNewEntry() {
                 var section = button.parentElement.id;
                 layoutSpecSection(C.SECTIONS[section], C.DEFAULT_SPEC[section.toLowerCase()]);
