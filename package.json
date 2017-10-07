@@ -1,0 +1,28 @@
+{
+  "name": "gimme",
+  "version": "0.0.10",
+  "description": "A tool for helping you download media from a page, or from the pages that are linked.",
+  "main": "popup/popup.js",
+  "dependencies": {
+    "jszip": "^3.1.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sidspencer/gimme.git"
+  },
+  "keywords": [
+    "extension",
+    "downloader",
+    "gallery-downloader"
+  ],
+  "author": "sidspencer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sidspencer/gimme/issues"
+  },
+  "homepage": "https://github.com/sidspencer/gimme#readme"
+}
