@@ -7,21 +7,48 @@ p {
     margin-bottom: 20px;
 }
 
-label {
-    display: block;
-    font-weight: bold;
-    text-align: left;
-}
-
-textarea {
-    width: 600px;
-    height: 500px;
-}
-
 div#status {
     display: none;
     margin: 20px auto 10px auto;
     width: 30%;
+}
+
+div.entry {
+    width: 75%;
+    background-color: rgba(0,255,0,0.2);
+    margin: 5px;
+    padding-bottom: 0.5em;
+}
+
+div.subentry {
+    width: 90%;
+    margin: 10px;
+    background-color: rgba(0,255,0,0.1);
+    padding-bottom: 0.5em;
+}
+
+label {
+    display: block;
+    text-align: left;
+}
+
+input[type="text"] {
+    display: block;
+    margin: 3px 5px 5px 5px;
+    padding: 5px;
+    width: 90%;
+    color: rgba(0,255,0,1);
+    background-color: rgba(0,0,0,1);
+    border: 1px solid rgba(0,255,0,1);
+}
+
+div.subentry input[type="text"] {
+    width: 95%;
+}
+
+div#actionButtons {
+    margin-top: 30px;
+    padding: 5px;
 }
 
 button#set {

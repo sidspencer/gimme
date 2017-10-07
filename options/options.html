@@ -5,19 +5,44 @@
         <link rel="stylesheet" href="options.css"/>
     </head>
     <body>
-        <p>Enter your known specifications for websites and their galleries here.</p>
+        <p><h2>Enter your known specifications for websites and their galleries here.</h2></p>
         
-        <div>
-            <label>known gallery spec</label>
-            <textarea id="spec"></textarea>
-        </div>
-        
+        <!-- status line -->
         <div>
             <div id="status">options saved</div>
+        </div>
 
+        <!-- config global values -->
+        <div id="config">
+            <p><h4>global config values.</h4></p>
+        </div>
+
+
+        <!-- messages, per-site configurations -->
+        <div id="messages">
+            <p><h4>per-site message descriptors</h4></p>
+        </div>
+
+
+        <!-- processings, per-site configurations -->
+        <div id="processings">
+            <p><h4>per-site processings</h4></p>
+        </div>
+
+
+        <!-- blessings, per-site configurations -->
+        <div id="blessings">
+            <p><h4>per-site zoom-item URI blessings</h4></p>
+        </div>
+
+
+        <!-- action buttons -->
+        <div id="actionButtons">
             <button id="set">set</button>
         </div>
 
+
+        <!-- include scripts -->
         <script src="options.js"></script>
     </body>
 </html>
