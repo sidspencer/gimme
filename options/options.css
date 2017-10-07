@@ -1,10 +1,18 @@
 body {
     color: rgba(0,255,0,1);
     background-color: rgba(0,0,0,1);
+    font-size: 12px;
 }
 
-p {
-    margin-bottom: 20px;
+h1 {
+    border: 0.2em dotted rgba(0,255,0,1);
+    padding: 0.5em;
+    width: 75%;
+}
+
+h3 {
+    margin-top: 2em;
+    font-variant: small-caps;
 }
 
 div#status {
@@ -17,8 +25,8 @@ div.entry {
     position: relative;
     width: 75%;
     background-color: rgba(0,255,0,0.2);
-    margin: 5px;
-    padding-bottom: 0.5em;
+    margin: 1.5em 0.5em 1.5em 0.5em;
+    padding: 0.5em 1em 1em 1em;
 }
 
 div.subentry {
@@ -32,6 +40,7 @@ div.subentry {
 label {
     display: block;
     text-align: left;
+    margin-top: 1em;
 }
 
 label::after {
@@ -40,7 +49,7 @@ label::after {
 
 input[type="text"] {
     display: block;
-    margin: 3px 5px 5px 5px;
+    margin: 0.25em 0.5em 0.5em 0.5em;
     padding: 5px;
     width: 90%;
     color: rgba(0,255,0,1);
@@ -53,8 +62,12 @@ div.subentry input[type="text"] {
 }
 
 div#actionButtons {
-    margin-top: 30px;
-    padding: 5px;
+    margin-top: 4em;
+    padding: 1em;
+}
+
+div#actionButtons > button {
+    font-size: 20px;
 }
 
 button {
@@ -63,9 +76,15 @@ button {
     background-color: rgba(0,0,0,1);
 }
 
-button.add {
+button.addEntry {
     display: block;
     margin: 1em;
+}
+
+button.addSubentry {
+    border: 1px dashed rgba(0,255,0,1);
+    margin: 0.5em 1em 0.5em 1em;
+    background-color: rgba(0,0,0,0);
 }
 
 button.delete {
