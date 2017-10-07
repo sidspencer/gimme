@@ -18,6 +18,7 @@ var Dominatrix = (function Dominatrix(doc) {
     var VALUE_ID_PREFIX = 'value_';
     var ENTRY_CLASS = 'entry';
     var SUB_ENTRY_CLASS = 'subentry';
+    var DELETE_BUTTON_CLASS = 'delete';
 
     // Enumeration of section holder <div>s that exist on the options form page.
     var SECTION = {
@@ -86,8 +87,19 @@ var Dominatrix = (function Dominatrix(doc) {
                 }
                 input.value = inputValue;
 
-                // appent the value's input element.
+                // append the value's input element.
                 div.appendChild(input);
+
+                // Create a delete button for the entry/subentry.
+                var deleteButton = doc.createElement('button');
+                deleteButton.textContent = 'X';
+                deleteButton.className = DELETE_BUTTON_CLASS;
+                deleteButton.addEventListener('click', function onDeleteButtonClick() {
+                    div.remove();
+                });
+
+                // append the delete button.
+                div.appendChild(deleteButton);
             }
         }
 
@@ -149,15 +161,27 @@ var Dominatrix = (function Dominatrix(doc) {
      */
     function getEntry(root) {
         var entry = {};
+        var textInputs = [];
+        var hiddenInputs = [];
 
-        var textInputs = root.querySelectorAll(':scope > input[type="text"]');
+        // Sort out the text inputs and hidden inputs.
+        root.childNodes.forEach(function sortInputs(child) {
+            if (child.nodeName === 'INPUT') {
+                if (child.type === 'text') {
+                    textInputs.push(child);
+                }
+                else if (child.type === 'hidden') {
+                    hiddenInputs.push(child);
+                }
+            }
+        });
+
         textInputs.forEach(function addToConfig(input) {
             if (input.dataset.key) {
                 entry[input.dataset.key] = input.value;
             }
         });
 
-        var hiddenInputs = root.querySelectorAll(':scope > input[type="hidden"]');
         hiddenInputs.forEach(function getSubEntry(input) {
             if (input.dataset.key) {
                 if (!(input.dataset.key in entry)) {
@@ -167,8 +191,8 @@ var Dominatrix = (function Dominatrix(doc) {
                     entry[input.dataset.key] = [ entry[input.dataset.key] ];
                 }
 
-                var subEntry = root.querySelector('div#' + input.value);
-                if (!!subEntry) {
+                var subEntry = input.previousSibling;
+                if (!!subEntry && subEntry.className === SUB_ENTRY_CLASS) {
                     entry[input.dataset.key].push(getEntry(subEntry));
                 }
             }
@@ -185,7 +209,13 @@ var Dominatrix = (function Dominatrix(doc) {
      */
     function getEntries(section) {
         var entries = [];
-        var divs = section.querySelectorAll(':scope div.' + ENTRY_CLASS);
+        var divs = [];
+        
+        section.childNodes.forEach(function sortOutEntryDivs(child) {
+            if (child.nodeName === 'DIV' && child.className === ENTRY_CLASS) {
+                divs.push(child);
+            }
+        });
 
         divs.forEach(function addEachEntry(div) {
             entries.push(getEntry(div));
@@ -509,7 +539,13 @@ var Optionator = (function Optionator(doc, dmx) {
     // Hook up the event handlers.
     doc.addEventListener('DOMContentLoaded', getSpec);
     doc.getElementById('set').addEventListener('click', setSpec);
-
+    
+    doc.querySelectorAll('button.add').forEach(function addNewEntry(button) {
+        button.addEventListener('click', function addNewEntry() {
+            var section = button.parentElement.id;
+            layoutSpecSection(SECTIONS[section.toUpperCase()], DEFAULT_SPEC[section]);
+        });
+    });
 
     return me;
 })(window.document, Dominatrix);
