@@ -1,6 +1,9 @@
 'use strict'
 
 
+/**
+ * Singleton for holding the shared constants. 
+ */
 var Constance = (function() {
     var me = {};
 
@@ -97,8 +100,10 @@ var Constance = (function() {
         blessings: cannedBlessings,
     };
 
+
     return me;
  })();
+
 
 /**
  * Singleton which handles layout and serialization to and from the HTML5 form
@@ -176,6 +181,7 @@ var Dominatrix = (function Dominatrix(doc, C) {
                 input.id = valueId;
                 input.name = valueId;
                 input.dataset.key = value.key;
+                div.appendChild(input);                
 
                 var inputValue = '';
                 
@@ -186,19 +192,25 @@ var Dominatrix = (function Dominatrix(doc, C) {
                     input.type = 'hidden';                    
                     inputValue = subEntryId;
                     
-                    // Hook up the addSubEntry button to add new subentry, copied from this
-                    // subentry's values.
+                    // Hook up the addSubEntry button to add new subentries. Only place the
+                    // button after the last subentry value in the array. 
                     if ((i+1) === values.length || values[i+1].key !== value.key) {
+                        // Wrap this in an IIFE to avoid closure problems.
                         (function buildAddSubEntryButton(d, rootNode, val, refEntryId) {  
                             var refNode = d.getElementById(refEntryId);
 
+                            // Build the 'add subentry' button, and insert it into the <div>.
                             var addSubEntry = d.createElement('button');
                             addSubEntry.id = ADD_SUB_ENTRY_ID_PREFIX + i;
                             addSubEntry.className = ADD_SUB_ENTRY_CLASS;
                             addSubEntry.textContent = 'add subentry';
                             rootNode.insertBefore(addSubEntry, refNode);                                                
 
+                            // Create the 'add subentry' click handler. It creates a new label for the 
+                            // subentry section, adds the subentry by copying an existing subentry's values,
+                            // and creates the needed hidden element that points to it.
                             addSubEntry.addEventListener('click', function() {
+                                // Create the label.
                                 var newLabel = (!!val.label ? d.createElement('label') : false);
                                 var newValueId = rootNode.id + '_' + VALUE_ID_PREFIX + (i++);
                                 if (!!newLabel) {
@@ -206,16 +218,26 @@ var Dominatrix = (function Dominatrix(doc, C) {
                                     newLabel.for = newValueId;
                                     rootNode.insertBefore(newLabel, addSubEntry); 
                                 }
+
+                                 // Create the hidden input that points to this subentry.
+                                 var newInput = d.createElement('input');
+                                 newInput.id = newValueId;
+                                 newInput.type = 'hidden';
+                                 newInput.name = newValueId;
+                                 newInput.dataset.key = val.key;
+                                 rootNode.insertBefore(newInput, addSubEntry);
                                 
+                                // Add the subentry to the <div>.
                                 var addedSubentryId = addEntry(val.values, rootNode, true, addSubEntry.id);
-                                
-                                var newInput = d.createElement('input');
-                                newInput.id = newValueId;
-                                newInput.type = 'hidden';
-                                newInput.name = newValueId;
-                                newInput.dataset.key = val.key;
                                 newInput.value = addedSubentryId;
-                                rootNode.insertBefore(newInput, addSubEntry);
+
+                                // Unhide all the subentries' delete buttons in the section.
+                                var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + DELETE_BUTTON_CLASS);
+                                deleteButtons.forEach(function showButton(dButton) {
+                                    if (dButton.parentNode.className === SUB_ENTRY_CLASS) {
+                                        dButton.style.display = '';
+                                    }
+                                });
                             });
                         })(doc, div, value, subEntryId);
                     }
@@ -226,25 +248,37 @@ var Dominatrix = (function Dominatrix(doc, C) {
                     inputValue = (('text' in value) ? value.text.toString() : value.toString());;
                 }
                 input.value = inputValue;
-
-                // append the value's input element.
-                div.appendChild(input);
-
-                // Create a delete button for the entry/subentry.
-                var deleteButton = doc.createElement('button');
-                deleteButton.textContent = 'X';
-                deleteButton.className = DELETE_BUTTON_CLASS;
-                deleteButton.addEventListener('click', function onDeleteButtonClick() {
-                    div.remove();
-                });
-
-                // append the delete button.
-                div.appendChild(deleteButton);
             }
+
+            // Create a delete button for the entry/subentry. If we're dealing with the first
+            // subentry of a list of subentries, do not create a delete button for it.
+            var deleteButton = doc.createElement('button');
+            deleteButton.textContent = 'X';
+            deleteButton.className = DELETE_BUTTON_CLASS;
+            deleteButton.addEventListener('click', function onDeleteButtonClick() {
+                // Remove the subentry title (like 'actions'), then the hidden input
+                // for the subentry, then the subentry itself.
+                if (div.previousSibling.value === div.id) {
+                    div.previousSibling.previousSibling.remove();
+                    div.previousElementSibling.remove();
+                }
+                div.remove();
+
+                // If there is only 1 subentry left, find it and hide its delete button.
+                // otherwise, show all the subentries' delete buttons.
+                var remainingSubentries = section.querySelectorAll(':scope div.' + SUB_ENTRY_CLASS);
+                if (remainingSubentries.length === 1) {
+                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + DELETE_BUTTON_CLASS);
+                    deleteButton.style.display = 'none';
+                }
+            });
+            
+            // append the delete button.
+            div.appendChild(deleteButton);
         }
 
-        // Add the new entry to the section, or to the end of the doc if no section
-        // was given.
+        // Add the new entry to the section, optionally before a reference node, or 
+        // just add it to the end of the doc if no section was given.
         if (!!section) {
             if (!!insertionRefNodeId) {
                 section.insertBefore(div, doc.getElementById(insertionRefNodeId));
@@ -336,7 +370,7 @@ var Dominatrix = (function Dominatrix(doc, C) {
                     entry[input.dataset.key] = [ entry[input.dataset.key] ];
                 }
 
-                var subEntry = input.previousSibling;
+                var subEntry = input.nextSibling;
                 if (!!subEntry && subEntry.className === SUB_ENTRY_CLASS) {
                     entry[input.dataset.key].push(getEntry(subEntry));
                 }
@@ -401,10 +435,6 @@ var Dominatrix = (function Dominatrix(doc, C) {
         return getEntries(SECTION_ELEMENTS.BLESSINGS);
     };
 
-
-    doc.addEventListener('DOMContentLoaded', function onDomContentLoaded() {
-        
-    });
 
     return me;
 })(window.document, Constance);
