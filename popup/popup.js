@@ -28,12 +28,17 @@ document.addEventListener("DOMContentLoaded", function init() {
                 var idx = 0;
                 for (var thumbUri in uriMap) { 
                     var uri = uriMap[thumbUri];
+                    var queryPos = uri.lastIndexOf('?');
+
+                    if (queryPos === -1) {
+                        queryPos = uri.length;
+                    }
                                   
                     out.addFileOption({ 
                         id: (idx++), 
                         uri: uri, 
                         thumbUri: thumbUri,
-                        filePath: dir + '/' + uri.substring(uri.lastIndexOf('/')),
+                        filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
                         onSelect: bgWindow.App.downloadFile, 
                     });
                 }
