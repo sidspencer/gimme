@@ -208,7 +208,7 @@ var Utils = (function Utils() {
      * Promise-wrapper for doing an XHR
      */
     me.getXhrResponse = function getXhrResponse(method, uri, responseType) {
-        var prop = (responseType === 'document') ? 'responseXML' : 'response';
+        var prop = (responseType === 'document' || responseType === 'blob') ? 'responseXML' : 'response';
         return me.sendXhr(method, uri, [prop], responseType);
     }
 
@@ -345,6 +345,54 @@ var Utils = (function Utils() {
                 else {
                     reject('[Utils] No downloadId for uri ' + uri);
                 }
+            });
+        });
+    };
+
+
+
+    /**
+     * Download as zip.
+     */
+    me.downloadInZip = function downloadInZip(fileOpts) {
+        var zip = new JSZip();
+        var a = chrome.extension.getBackgroundPage().document.createElement('a');
+
+        var promises = [];
+
+        for (var i = 0; i < fileOpts.length-1; i++) {
+            if (!fileOpts[i].uri.match(/preview/)) {
+                promises.push(new Promise(function doDownloadInZip(resolve, reject) {
+                    console.log('DOWNLOAD IN ZIP: ' + JSON.stringify(fileOpts[i]));
+
+                    return me.sendXhr('GET', fileOpts[i].uri, ['response'], 'blob')
+                        .then(function addToZip(r) {
+                            console.log('ZIP.FILING');
+
+                            zip.file(fileOpts[i].filePath, r);
+                            console.log('ZIP.FILED');
+                            resolve();
+                        })
+                        .catch(function(error) {
+                            console.log('ZIP FAILED ' + error);
+                            resolve();
+                        });
+                }));
+            }
+        }
+
+        return Promise.all(promises).then(function() {
+            zip.generateAsync({
+                type: 'blob'
+            })
+            .then(function(content) {
+                a.download = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf('/')) + '.zip';
+                a.href = URL.createObjectURL(content);
+                chrome.extension.getBackgroundPage().document.querySelector('body').appendChild(a);
+                a.click();
+                a.remove();
+            })
+            .catch(function() {
             });
         });
     };

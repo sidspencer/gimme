@@ -26,10 +26,12 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // aliases
     var u = Utils;
 
+    // Parameterized values, tunable via the Options page.
+    me.BATCH_SIZE = 3;
+    me.CHANNELS = 11;
+
     // constants
     var DIG_SAVE = 'DIG_SAVE';
-    var BATCH_SIZE = 3;
-    var CHANNELS = 11;
     var OPT = {
         IMGS: 'imgs',
         CSS_BGS: 'cssBgs',
@@ -109,7 +111,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var promises = [];
         var subMaps = [];
         var thumbUris = Object.keys(galleryMap);
-        var thumbsPerChannel = Math.floor(thumbUris.length / (CHANNELS - 1)) || 1;
+        var thumbsPerChannel = Math.floor(thumbUris.length / (me.CHANNELS - 1)) || 1;
 
         console.log('[Digger] Digging ' + thumbUris.length + ' scraped thumbnails.');
         Output.toOut('Now digging ' + thumbUris.length + ' thumbnails found in gallery.');
@@ -137,12 +139,12 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function digNextBatch(galleryMap) {
         var diggingBatch = [];
-        var startingOutputId = (++me.batchCount) * BATCH_SIZE;
+        var startingOutputId = (++me.batchCount) * me.BATCH_SIZE;
 
         // Set up the output entry, and enter the uriPair's digDeep() execution
         // into the promise batch's array. Skip nulls. 
         var allThumbUris = Object.keys(galleryMap);    
-        for (var i = 0; i < BATCH_SIZE && allThumbUris.length > 0; i++) {
+        for (var i = 0; i < me.BATCH_SIZE && allThumbUris.length > 0; i++) {
             // Pop a thumb/link pair from the map.
             var thumbUri = allThumbUris[i];
             var zoomPageUri = galleryMap[thumbUri];
@@ -302,7 +304,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     function getClickUriMap(node, loc, spec) {
         // Throw errors if no node (usually document) or loc.
         if (!node || !loc || !node.querySelectorAll || !loc.origin) {
-            console.log('[Digger] Cannot build gallery click-map without both node and location.')
+            console.log('[Digger] Cannot build gallery click-map without both node and location.');
+            return {};
         }
 
         // Use defaults if not passed in a full spec. Note clickProps are rarely passed in.
@@ -324,11 +327,14 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 if (!!src) { return; }
 
                 var value = Logicker.extractUrl(tag, propPath, loc);
-                if (!!url && !!url.href) {
-                    src = url.href;
+                if (!!value && !!value.href) {
+                    src = value.href;
                 }
             });
-            if (!src) { return; }
+            if (!src) {
+                console.log('[Digger] No src found for tag.'); 
+                return; 
+            }
 
             // Iterate through parent elements up the DOM until we find one that
             // has at least one clickable prop on it. It itself might even be clickable.
