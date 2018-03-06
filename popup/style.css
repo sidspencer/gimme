@@ -3,8 +3,10 @@ body {
     background-color: rgba(0,0,0,1);
     font-family: monospace;
     font-size: 12px;
-    height: 300px;
+    min-height: 300px;
+    max-height: 700px;
     width: 700px;
+    overflow: auto;
 }
 
 h1 {
