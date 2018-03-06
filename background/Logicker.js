@@ -55,7 +55,7 @@ var Logicker = (function Logicker(Utils) {
         }
 
         // Look for the trivial case.
-        if (zoomImgUri.legnth === 0) {
+        if (zoomImgUri.length === 0) {
             var holderDiv = doc.querySelector('div.photo > div');
             if (!!holderDiv && !!holderDiv.style.backgroundImage) {
                 var bg = holderDiv.style.backgroundImage;
@@ -474,7 +474,7 @@ var Logicker = (function Logicker(Utils) {
      * Get a property value given a tag, and a dot-notation property path as a string.
      * It handles extracting from javascript functions, and from css properties.
      */
-    var URL_EXTRACTING_REGEX = /(url\()?('|")(https?|data|blob|file)\:.+?\)?(\'|\")\)?/i;    
+    var URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;    
     me.extractUrl = function extractUrl(tag, propPath, loc) {
         if (!tag || !propPath) {
             return '';
@@ -509,7 +509,9 @@ var Logicker = (function Logicker(Utils) {
 
         // Remove the 'url("...")' wrapping from css background images.
         if (value.indexOf('url(') !== -1) {
-            value = value.replace('url("', '').replace('")', '');
+            value = value.replace('url(', '').replace(')', '');
+            value = value.replace("'", '');
+            value = value.replace('"', '');
         }
 
         return (new URL(value, loc.origin));
