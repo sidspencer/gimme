@@ -595,7 +595,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             .then(function goDig(locDoc) {
                 // Just download from here if all of our linkHrefs should already point directly at a valid imgUrl.
                 if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
-                    console.log('[App] Downloading ContentHelper uris')                        
+                    console.log('[App] Downloading ContentHelper uris');
+                    
+                    chrome.storage.sync.set({
+                            prevUriMap: me.galleryMap
+                        },
+                        function() {
+                            console.log('[App] Setting prevUriMap');
+                        }
+                    );
                     return Promise.resolve(me.galleryMap);
                 }
                 else {

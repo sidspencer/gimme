@@ -80,9 +80,17 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * Promise to resolve everything that has been dug.
      */
     function resolveDigHarvest() {
-        Digger.previouslyHarvestedUriMap = me.harvestedUriMap;
-        console.log('[Digger] ---Returning dig harvest -> ' + Object.keys(me.harvestedUriMap).length + '------');
-        return Promise.resolve(me.harvestedUriMap);
+        return (new Promise(function(resolve, reject) {
+            chrome.storage.sync.set({
+                    prevUriMap: me.harvestedUriMap,
+                },
+                function storageSet() {
+                    console.log('[Digger] Set prevUriMap in storage');
+                    console.log('[Digger] ---Returning dig harvest -> ' + Object.keys(me.harvestedUriMap).length + '------');
+                    resolve(me.harvestedUriMap);
+                }
+            );
+        }));
     }
 
 
@@ -515,8 +523,16 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         //  no scrape & no dig -- just call the callback. 
         //  yes scrape -- do it all normally through the default digDeep() behavior.
         if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-            Digger.previouslyHarvestedUriMap = me.harvestedUriMap;            
-            return Promise.resolve(me.harvestedUriMap);
+            return (new Promise(function(resolve, reject) {
+                chrome.storage.sync.set({
+                        prevUriMap: me.harvestedUriMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                        resolve(me.harvestedUriMap);
+                    }
+                );
+            }));
         }
         if (me.digOpts.doScrape) {
             return discoverGallery(doc, loc);
