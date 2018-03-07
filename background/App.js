@@ -154,9 +154,10 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     function downloadFile(uri, destFilename) {
         // If it's a PHP file, guess and give it a .jpg.
         if (!/\.(jpg|jpeg|png|gif|tiff)$/i.test(destFilename)) {
-            destFilePath = destFilename + '.jpg'
+            destFilename = destFilename + '.jpg'
         }
 
+        // Ugly hack to make it work with google images.
         if (me.alreadyDownloaded[uri]) {
             return getDownloadItems(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename));
         }
