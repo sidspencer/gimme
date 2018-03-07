@@ -94,3 +94,7 @@ div.doublewide > button {
     display: inline-block;
     width: 100px;
 }
+
+#toggleVoyeur {
+    display: none;
+}
