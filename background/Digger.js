@@ -81,7 +81,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function resolveDigHarvest() {
         return (new Promise(function(resolve, reject) {
-            chrome.storage.sync.set({
+            chrome.storage.local.set({
                     prevUriMap: me.harvestedUriMap,
                 },
                 function storageSet() {
@@ -524,7 +524,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         //  yes scrape -- do it all normally through the default digDeep() behavior.
         if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
             return (new Promise(function(resolve, reject) {
-                chrome.storage.sync.set({
+                chrome.storage.local.set({
                         prevUriMap: me.harvestedUriMap,
                     },
                     function storageSet() {
