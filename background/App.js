@@ -605,14 +605,13 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the Digger.
         return ( 
-            
             processContentPage()
             .then(function buildPromises(locDoc) {
                 return Digger.digGallery({
                     doc: locDoc.doc,
                     loc: locDoc.loc,
                     digOpts: { doScrape: true, doDig: false },
-                    galleryMap: me.galleryMap,
+                    galleryMap: {},
                 })
             })
             .then(function(mapOfGalleryLinks) {
@@ -649,32 +648,35 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(function docsLoaded() {
                 var promises = [];
-                var prm = Promise.resolve([]);
+                var p = Promise.resolve(true);
+
 
                 locDocs.forEach(function(lDoc) {
                     console.log('[App] creating dig promise for ' + lDoc.loc.href);
                     Output.toOut('Beginning dig for ' + lDoc.loc.href);
 
-                    promises.push(
-                        Digger.digGallery({
+                    p = p.then(function() {
+                        return Digger.digGallery({
                             doc: lDoc.doc,
                             loc: lDoc.loc,
-                            digOpts: { doScrape: true, doDig: true },
+                            digOpts: me.digOpts,
                             galleryMap: {},
                         })
                         .then(function receiveGalleryMap(gMap) {
                             Output.toOut('Received file list for ' + lDoc.loc.href);
-                            Object.assign(combinedMap, gMap);
-                        })
-                    );
 
-                    prm = prm.then(function() {
-                        return promises.pop();
+                            console.log('[App] Received ' + Object.getOwnPropertyNames(gMap).length + '');
+                            console.log('[App] Applying post-processing to: ' + lDoc.loc.href);
+                            var instructions = Logicker.postProcessResponseData(gMap, lDoc.loc.href);
+
+                            Object.assign(combinedMap, instructions.processedMap);
+                            
+                            return Promise.resolve(true);
+                        });
                     });
                 });
 
-                return prm;
-                //return Promise.all(promises);
+                return p;
             })
             .then(function() {
                 console.log('[App] Received combinedMap.');
