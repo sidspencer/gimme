@@ -4,9 +4,8 @@ body {
     font-family: monospace;
     font-size: 12px;
     min-height: 300px;
-    max-height: 700px;
+    max-height: 1024px;
     width: 700px;
-    overflow: auto;
 }
 
 h1 {
