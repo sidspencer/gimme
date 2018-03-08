@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", function init() {
      * Note: clicking one of the "download all [ |jpgs]" button will clear them.
      */
     function setFileOptionList() {
-        chrome.storage.sync.get({
+        chrome.storage.local.get({
                 prevUriMap: {}
             }, 
             function storageRetrieved(store) {
@@ -51,6 +51,9 @@ document.addEventListener("DOMContentLoaded", function init() {
                         out.hideDigScrapeButtons();
                         out.showActionButtons();
                     }
+                    else {
+                        chrome.browserAction.setBadgeText({ text: '' });
+                    }
                 });
             }
         );
@@ -58,17 +61,19 @@ document.addEventListener("DOMContentLoaded", function init() {
 
 
     /**
-     * 
+     * Clear the persisted URI map from storage.
      */
     function clearPreviousUriMap() {
-        chrome.storage.sync.set({
+        chrome.browserAction.setBadgeText({ text: '' });
+        chrome.storage.local.set({
                 prevUriMap: {},
             },
             function storageSet() {
-                console.log('[Popup] Cleared prev uri map')
+                console.log('[Popup] Cleared prev uri map');
             }
         );    
     }
+
 
     /**
      * Connect up all the event handlers.
