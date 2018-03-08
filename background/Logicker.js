@@ -474,10 +474,16 @@ var Logicker = (function Logicker(Utils) {
      * Get a property value given a tag, and a dot-notation property path as a string.
      * It handles extracting from javascript functions, and from css properties.
      */
-    var URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;    
+    var URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;
+    var googleHackCounter = 0;    
     me.extractUrl = function extractUrl(tag, propPath, loc) {
         if (!tag || !propPath) {
             return '';
+        }
+
+        // horrible hack for google images.
+        if (tag.baseURI.indexOf('google.com') !== -1) {
+            return tag.parentNode.href;
         }
 
         // Iterate through the path of properties to get the value.
