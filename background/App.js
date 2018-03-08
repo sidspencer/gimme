@@ -332,8 +332,11 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             fileOptionzzz.push(fileOption);
         }
 
+        chrome.browserAction.setBadgeText({ text: '' + me.fileOptions.length + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
+
         console.log('[App] Presented ' + me.fileOptions.length + ' file options.');
-        Output.toOut('Please select which files you would like to download.');
+        Output.toOut('Please select which of the ' + me.fileOptions.length + ' files you would like to download.');
         Output.showActionButtons();
 
         return Promise.resolve(fileOptionzzz);
@@ -598,7 +601,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
                     console.log('[App] Downloading ContentHelper uris');
                     
-                    chrome.storage.sync.set({
+                    chrome.storage.local.set({
                             prevUriMap: me.galleryMap
                         },
                         function() {
@@ -617,17 +620,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 }
             })
             .then(me.presentFileOptions)
-            // .then(function(fileOpts) {
-            //     console.log('STARTING DOWNLOAD');
-
-            //     u.downloadInZip(fileOpts).then(function() {
-            //         for (var index = 0; index < fileOpts.length; index++) {
-            //             Output.setEntryAsDownloading(index);
-            //         };
-            //     });
-
-            //     return Promise.resolve([]); 
-            // })
             .catch(function handleError(errorMessage) {
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
