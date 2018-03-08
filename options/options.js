@@ -56,7 +56,7 @@ var Constance = (function() {
     };
     var cannedProcessings = [
         {
-            match: '/greentextonblack\\.net\\//',
+            match: 'fakeexample.fake',
             actions: [
                 {
                     noun: 'src',
@@ -77,7 +77,7 @@ var Constance = (function() {
     ];
     var cannedMessages = [
         {
-            match: '/greentextonblack\\.net\\//',
+            match: 'fakeexample.fake',
             link: 'a.link[href]',
             href: 'href',
             thumb: 'img.thumb[data-src]',
@@ -86,7 +86,7 @@ var Constance = (function() {
     ];
     var cannedBlessings = [
         {
-            match: '/greentextonblack\\.net\\//',
+            match: 'fakeexample.fake',
             zoom: 'img.zoomed',
             src: 'src',
         }

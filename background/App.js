@@ -23,54 +23,16 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
     var u = Utils;
 
     // These are the default spec values, used if there is nothing in storage yet.
-    var cannedConfig = {
-        minZoomWidth: '300',
-        minZoomHeight: '300',
-        dlChannels: '3',
-        dlBatchSize: '5',
-    };
-    var cannedProcessings = [
-        {
-            match: '/greentextonblack\\.net\\//',
-            actions: [
-                {
-                    noun: 'src',
-                    verb: 'replace',
-                    match: '/^t-/',
-                    new: 'big-'
-                },
-                {
-                    noun: 'href',
-                    verb: 'replace',
-                    match: '/\\/fakeout\\//',
-                    new: '/realpath/'
-                }
-            ],
-            dig: true,
-            scrape: false,
-        }
-    ];
-    var cannedMessages = [
-        {
-            match: '/greentextonblack\\.net\\//',
-            link: 'a.link[href]',
-            href: 'href',
-            thumb: 'img.thumb[data-src]',
-            src: 'dataset.src',
-        }
-    ];
-    var cannedBlessings = [
-        {
-            match: '/greentextonblack\\.net\\//',
-            zoom: 'img.zoomed',
-            src: 'src',
-        }
-    ];
     var DEFAULT_SPEC = {
-        config: cannedConfig,
-        messages: cannedMessages,
-        processings: cannedProcessings,
-        blessings: cannedBlessings,
+        config: {
+            minZoomWidth: '300',
+            minZoomHeight: '300',
+            dlChannels: '3',
+            dlBatchSize: '5',
+        },
+        messages: [],
+        processings: [],
+        blessings: [],
     };
 
 
