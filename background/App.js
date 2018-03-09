@@ -181,7 +181,9 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      */
     me.startDownloading = function startDownloading(harvestedMap) {
         var length = Object.keys(harvestedMap).length;
-        var downloadPromises = [];        
+        var downloadPromises = [];  
+        
+        me.galleryMap = harvestedMap;
 
         if (!harvestedMap || length < 1) {
             console.log('[App] No files to download.');
@@ -257,6 +259,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             console.log('[App] called with null harvestedMap.');
             return Promise.resolve([]);
         }
+
+        me.galleryMap = harvestedMap;
         
         var thumbUris = Object.keys(harvestedMap);
         var length = thumbUris.length;
@@ -473,6 +477,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
+            })
         );
     };
 
@@ -509,6 +522,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
@@ -550,6 +572,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
@@ -598,6 +629,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
+            })
         );
     };
 
@@ -623,7 +663,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                     doc: locDoc.doc,
                     loc: locDoc.loc,
                     digOpts: { doScrape: true, doDig: false },
-                    galleryMap: {},
+                    galleryMap: Object.assign({}, me.peeperMap),
                 })
             })
             .then(function(mapOfGalleryLinks) {
@@ -662,7 +702,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 var promises = [];
                 var p = Promise.resolve(true);
 
-
                 locDocs.forEach(function(lDoc) {
                     console.log('[App] creating dig promise for ' + lDoc.loc.href);
                     Output.toOut('Beginning dig for ' + lDoc.loc.href);
@@ -671,7 +710,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                         return Digger.digGallery({
                             doc: lDoc.doc,
                             loc: lDoc.loc,
-                            digOpts: me.digOpts,
+                            digOpts: { doScrape: true, doDig: me.digOpts.doDig },
                             galleryMap: {},
                         })
                         .then(function receiveGalleryMap(gMap) {
@@ -701,6 +740,15 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
