@@ -119,15 +119,19 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             destFilename = destFilename + '.jpg'
         }
 
+        me.downloadCount++;
         // Ugly hack to make it work with google images.
         if (me.alreadyDownloaded[uri]) {
-            return getDownloadItems(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename));
+            Output.toOut('Already downloaded file ' + me.downloadCount);
+            return (
+                u.searchDownloads(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename))
+            );
         }
         else {
             return (
                 u.download(uri, destFilename)
                 .then(function reportSuccess(downloadSig) {
-                    Output.toOut('Downloading file ' + (++me.downloadCount));
+                    Output.toOut('Downloading file ' + me.downloadCount);
                     return Promise.resolve(downloadSig);                    
                 })
                 .then(u.searchDownloads)
@@ -235,6 +239,11 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 Output.toOut('-Done Downloading-');
                 console.log('[App] -Done Downloading-\n\n')
                 return Promise.resolve(allDownloadItems);
+            })
+            .catch(function stillCompleteOnError() {
+                Output.toOut('-Done Downloading-');
+                console.log('[App] -Done Downloading- (but with errors)');
+                return Promise.resolve([]);
             })
         );
     };
@@ -461,6 +470,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.startDownloading)            
             .catch(function onDocRequestError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -497,6 +507,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.presentFileOptions)            
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -537,6 +548,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.startDownloading)
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -583,6 +595,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.presentFileOptions)
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -686,9 +699,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.presentFileOptions)
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
-                Output.toOut('Failed to get file lists');
-
                 return Promise.reject(errorMessage);
             })
         );
