@@ -49,6 +49,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                         }
                      
                         out.hideDigScrapeButtons();
+                        out.toOut('Please select which of the ' + length + ' files you wish to download.')
                         out.showActionButtons();
                     }
                     else {
