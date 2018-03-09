@@ -127,9 +127,9 @@ document.addEventListener("DOMContentLoaded", function init() {
                     var evt = new MouseEvent('click');
                     cbEl.dispatchEvent(evt);
                 }
-
-                clearPreviousUriMap();
             });
+
+            clearPreviousUriMap();
         });
 
 
