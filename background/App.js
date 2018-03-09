@@ -119,10 +119,9 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             destFilename = destFilename + '.jpg'
         }
 
-        me.downloadCount++;
         // Ugly hack to make it work with google images.
         if (me.alreadyDownloaded[uri]) {
-            Output.toOut('Already downloaded file ' + me.downloadCount);
+            Output.toOut('Already downloaded file ' + (++me.downloadCount));
             return (
                 u.searchDownloads(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename))
             );
@@ -131,7 +130,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             return (
                 u.download(uri, destFilename)
                 .then(function reportSuccess(downloadSig) {
-                    Output.toOut('Downloading file ' + me.downloadCount);
+                    Output.toOut('Downloading file ' + (++me.downloadCount));
                     return Promise.resolve(downloadSig);                    
                 })
                 .then(u.searchDownloads)
