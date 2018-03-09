@@ -121,7 +121,10 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
 
         // Ugly hack to make it work with google images.
         if (me.alreadyDownloaded[uri]) {
-            return getDownloadItems(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename));
+            Output.toOut('Already downloaded file ' + (++me.downloadCount));
+            return (
+                u.searchDownloads(u.createDownloadSig(me.alreadyDownloaded[uri], uri, destFilename))
+            );
         }
         else {
             return (
@@ -178,7 +181,9 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
      */
     me.startDownloading = function startDownloading(harvestedMap) {
         var length = Object.keys(harvestedMap).length;
-        var downloadPromises = [];        
+        var downloadPromises = [];  
+        
+        me.galleryMap = harvestedMap;
 
         if (!harvestedMap || length < 1) {
             console.log('[App] No files to download.');
@@ -236,6 +241,11 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 console.log('[App] -Done Downloading-\n\n')
                 return Promise.resolve(allDownloadItems);
             })
+            .catch(function stillCompleteOnError() {
+                Output.toOut('-Done Downloading-');
+                console.log('[App] -Done Downloading- (but with errors)');
+                return Promise.resolve([]);
+            })
         );
     };
     
@@ -249,6 +259,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             console.log('[App] called with null harvestedMap.');
             return Promise.resolve([]);
         }
+
+        me.galleryMap = harvestedMap;
         
         var thumbUris = Object.keys(harvestedMap);
         var length = thumbUris.length;
@@ -461,8 +473,18 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.startDownloading)            
             .catch(function onDocRequestError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
@@ -497,8 +519,18 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.presentFileOptions)            
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
@@ -537,8 +569,18 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.startDownloading)
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
@@ -583,8 +625,18 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.presentFileOptions)
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };
@@ -605,14 +657,13 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the Digger.
         return ( 
-            
             processContentPage()
             .then(function buildPromises(locDoc) {
                 return Digger.digGallery({
                     doc: locDoc.doc,
                     loc: locDoc.loc,
                     digOpts: { doScrape: true, doDig: false },
-                    galleryMap: me.galleryMap,
+                    galleryMap: Object.assign({}, me.peeperMap),
                 })
             })
             .then(function(mapOfGalleryLinks) {
@@ -649,32 +700,34 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(function docsLoaded() {
                 var promises = [];
-                var prm = Promise.resolve([]);
+                var p = Promise.resolve(true);
 
                 locDocs.forEach(function(lDoc) {
                     console.log('[App] creating dig promise for ' + lDoc.loc.href);
                     Output.toOut('Beginning dig for ' + lDoc.loc.href);
 
-                    promises.push(
-                        Digger.digGallery({
+                    p = p.then(function() {
+                        return Digger.digGallery({
                             doc: lDoc.doc,
                             loc: lDoc.loc,
-                            digOpts: { doScrape: true, doDig: true },
+                            digOpts: { doScrape: true, doDig: me.digOpts.doDig },
                             galleryMap: {},
                         })
                         .then(function receiveGalleryMap(gMap) {
                             Output.toOut('Received file list for ' + lDoc.loc.href);
-                            Object.assign(combinedMap, gMap);
-                        })
-                    );
 
-                    prm = prm.then(function() {
-                        return promises.pop();
+                            console.log('[App] Received ' + Object.getOwnPropertyNames(gMap).length + '');
+                            console.log('[App] Applying post-processing to: ' + lDoc.loc.href);
+                            var instructions = Logicker.postProcessResponseData(gMap, lDoc.loc.href);
+
+                            Object.assign(combinedMap, instructions.processedMap);
+                            
+                            return Promise.resolve(true);
+                        });
                     });
                 });
 
-                return prm;
-                //return Promise.all(promises);
+                return p;
             })
             .then(function() {
                 console.log('[App] Received combinedMap.');
@@ -684,10 +737,18 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             })
             .then(me.presentFileOptions)
             .catch(function handleError(errorMessage) {
+                Output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
-                Output.toOut('Failed to get file lists');
-
                 return Promise.reject(errorMessage);
+            })
+            .finally(function setUriMapInStorage() {
+                chrome.storage.local.set({
+                        prevUriMap: me.galleryMap,
+                    },
+                    function storageSet() {
+                        console.log('[Digger] Set prevUriMap in storage');
+                    }
+                );
             })
         );
     };

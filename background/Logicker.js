@@ -359,7 +359,7 @@ var Logicker = (function Logicker(Utils) {
 
             // if the page uri matches, apply the processings to the galleryMap.
             var matcher = new RegExp(p.match);
-            if (matcher.test(pageUri)) {
+            if (pageUri.match(matcher)) {
                 //console.log('[Logicker] pageUri matched: ' + pageUri);
 
                 newGalleryMap = {};
@@ -378,13 +378,13 @@ var Logicker = (function Logicker(Utils) {
                         //console.log('[Logicker] testing thumbUri with matcher...');
 
                         // Use the thumbUri if 'src', otherwise the 'href', zoomPageUri
-                        if (act.noun === 'src' && matchey.test(thumbUri)) {
+                        if (act.noun === 'src' && thumbUri.match(matchey)) {
                             //console.log('[Logicker] thumbUri matched. Replacing.');
 
                             thumbUri2 = thumbUri.replace(matchey, act.new);
                             newGalleryMap[thumbUri] = thumbUri2; 
                         }
-                        else if (act.noun === 'href' && matchey.test(galleryMap[thumbUri])) {
+                        else if (act.noun === 'href' && galleryMap[thumbUri].match(matchey)) {
                             //console.log('[Logicker] zoomPageUri matched. Replacing.');
 
                             newGalleryMap[thumbUri] = galleryMap[thumbUri].replace(matchey, act.new);

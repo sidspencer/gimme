@@ -420,7 +420,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             loc,
             { 
                 selector: 'div,span', 
-                propPaths: ['style.backgroundImage', 'style.background']
+                propPaths: ['style.backgroundImage', 'style.background', 'dataset.lazy']
             }
         );
 

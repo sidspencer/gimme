@@ -254,11 +254,11 @@
                     }
                 }
             });
-                
-            // Respond with our results, the window.location, an identifier, and our inputs.
-            payload.galleryMap = galleryMap;
-            return payload;
         }
+
+        // Respond with our results, the window.location, an identifier, and our inputs.
+        payload.galleryMap = galleryMap;
+        return payload;
     }
 
     // hook up the event listener.
