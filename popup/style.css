@@ -97,3 +97,7 @@ div.doublewide > button {
 #toggleVoyeur {
     display: none;
 }
+
+#outputHolder {
+    margin-bottom: 7px;
+}
