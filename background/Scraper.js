@@ -488,9 +488,18 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
             {}
         );
 
-        console.log('[scraper] map: ' + u.toPrettyJson(harvestedUriMap));
-
-        return Promise.resolve(harvestedUriMap);
+        console.log('[Scraper] harvested map of length: ' + harvestedUris.length);
+        
+        return (new Promise(function(resolve, reject) {
+            chrome.storage.local.set({
+                    prevUriMap: harvestedUriMap,
+                },
+                function storageSet() {
+                    console.log('[Scraper] Set prevUriMap in storage');
+                    resolve(harvestedUriMap);
+                }
+            );
+        }));
     };
 
 

@@ -8,24 +8,17 @@ var Logicker = (function Logicker(Utils) {
     // service object
     var me = {
         hasSpecialRules: false,
+        
+        MIN_ZOOM_HEIGHT: 250,
+        MIN_ZOOM_WIDTH: 250,
+
+        messages: [],
+        processings: [],
+        blessings: [],
     };
 
     // aliases
-    var u = Utils;
-
-    // Constants
-    me.MIN_ZOOM_HEIGHT = 250;
-    me.MIN_ZOOM_WIDTH = 250;
-
-
-    /**
-     * Initialize. Read specs.json for information on how to find thumbs and zoom-links
-     * for specific sites.
-     */
-    function init() {
-        
-    }
-
+    var u = Utils;   
 
     /**
      * Find the right uri for the zoomed media item pointed to by the gallery thumb.
@@ -34,11 +27,35 @@ var Logicker = (function Logicker(Utils) {
     me.findBlessedZoomUri = function findBlessedZoomUri(doc, thumbUri) {
         var zoomImgUri = '';
 
-        // Put special rules for particular sites here.
-        if (me.hasSpecialRules) {
+        // Look through the blessings for one that matches this thumbUri.
+        if (me.blessings.length !== -1) {
+            me.blessings.forEach(function applyBlessing(blessing) {
+                //console.log('[Logicker] applying blessing: ' + JSON.stringify(blessing));
 
+                // If the thumbUri matches the pattern and we can find the blessed element,
+                // use the blessing src prop on the element to get the right zoom uri.
+                var matcher = new RegExp(blessing.match);
+                if (matcher.test(doc.documentURI)) {
+                    //console.log('[Logicker] blessing matched thumbUri: ' + thumbUri);
+                    var zoomImg = doc.querySelector(blessing.zoom);
+
+                    if (!!zoomImg) {
+                        //console.log('[Logicker] found blessed zoomImg: ' + zoomImg[blessing.src]);
+
+                        if (blessing.src.indexOf('style') === 0) {
+                            var parts = blessing.src.split('.');
+                            zoomImgUri = me.extractUrl(zoomImg[parts[0]][parts[1]]);
+                        }
+                        else {
+                            zoomImgUri = zoomImg[blessing.src];
+                        }
+                    }
+                }
+            });
         }
-        else {
+
+        // Look for the trivial case.
+        if (zoomImgUri.length === 0) {
             var holderDiv = doc.querySelector('div.photo > div');
             if (!!holderDiv && !!holderDiv.style.backgroundImage) {
                 var bg = holderDiv.style.backgroundImage;
@@ -162,7 +179,7 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/(\/logo\.|\/header\.jpg|\.png)/i).test(src))
+        if ((/(\/logo\.|\/header\.jpg|premium_|preview\.png)|preview\.jpg/i).test(src))
         {
             isBad = true;
         }
@@ -297,9 +314,23 @@ var Logicker = (function Logicker(Utils) {
             return d;
         }
 
-        // Add all the special rules for particular sites here.
-        if (me.hasSpecialRules) {
+        // Check all of the special messaging rules for guidance in what to use for the
+        // thumb element and uri, and the zoom page anchor element and uri.
+        for (var i = 0; i < me.messages.length; i++) {
+            var m = me.messages[i];
+            
+            console.log('[Logicker] working on message: ' + JSON.stringify(m));
 
+            if (url.match(m.match)) {
+                console.log('[Logicker] uri matched: ' + url);
+
+                d.linkSelector = m.link;
+                d.linkHrefProp = m.href;
+
+                // Note, :scope the subselector.
+                d.thumbSubselector = (m.thumb.indexOf(':scope') === -1 ? ':scope ' + m.thumb : m.thumb);
+                d.thumbSrcProp = m.src;
+            }
         }
 
         return d;
@@ -318,14 +349,67 @@ var Logicker = (function Logicker(Utils) {
             processedMap: null,
         };
         var thumbUris = Object.getOwnPropertyNames(galleryMap);
-        
-        // Put your special processing rules for particular sites here.
-        if (me.hasSpecialRules) {
+        var newGalleryMap = null;
 
+        // Utilize processings hints from the Options page.
+        for (var i=0; i < me.processings.length; i++) {
+            var p = me.processings[i];
+
+            //console.log('[Logicker] working on processing: ' + JSON.stringify(p));
+
+            // if the page uri matches, apply the processings to the galleryMap.
+            var matcher = new RegExp(p.match);
+            if (pageUri.match(matcher)) {
+                //console.log('[Logicker] pageUri matched: ' + pageUri);
+
+                newGalleryMap = {};
+                thumbUris.forEach(function applyProcessings(thumbUri) {
+                    var thumbUri2 = thumbUri + '';
+
+                    p.actions.forEach(function applyActions(act) {
+                        //console.log('[Logicker] applying action: ' + JSON.stringify(act));
+
+                        // We only support "replace" for now.
+                        if (act.verb !== 'replace') {
+                            return;
+                        }
+
+                        var matchey = new RegExp(act.match);
+                        //console.log('[Logicker] testing thumbUri with matcher...');
+
+                        // Use the thumbUri if 'src', otherwise the 'href', zoomPageUri
+                        if (act.noun === 'src' && thumbUri.match(matchey)) {
+                            //console.log('[Logicker] thumbUri matched. Replacing.');
+
+                            thumbUri2 = thumbUri.replace(matchey, act.new);
+                            newGalleryMap[thumbUri] = thumbUri2; 
+                        }
+                        else if (act.noun === 'href' && galleryMap[thumbUri].match(matchey)) {
+                            //console.log('[Logicker] zoomPageUri matched. Replacing.');
+
+                            newGalleryMap[thumbUri] = galleryMap[thumbUri].replace(matchey, act.new);
+                        }
+                    });
+
+                    // Put all other valid pairs into newGalleryMap, even the not actionated ones.
+                    if (!newGalleryMap[thumbUri] && !!galleryMap[thumbUri]) {
+                        newGalleryMap[thumbUri] = galleryMap[thumbUri] + '';
+                    }
+
+                    //console.log('[Logicker] new thumbUri, zoomUri: \n ' + thumbUri2 + '\n ' + newGalleryMap[thumbUri2]);
+                });
+
+                // The scrape and dig flags come through as strings...
+                instructions.doScrape = (p.scrape !== 'false');
+                instructions.doDig = (p.dig !== 'false');
+            }
         }
 
-        // Set the default map.
-        if (instructions.processedMap === null) {
+        // Set the new gallery map if we built one, otherwise copy galleryMap.
+        if (!!newGalleryMap) {
+            instructions.processedMap = newGalleryMap;
+        }
+        else {
             instructions.processedMap = Object.assign({}, galleryMap);            
         }
 
@@ -390,10 +474,16 @@ var Logicker = (function Logicker(Utils) {
      * Get a property value given a tag, and a dot-notation property path as a string.
      * It handles extracting from javascript functions, and from css properties.
      */
-    var URL_EXTRACTING_REGEX = /(url\()?('|")(https?|data|blob|file)\:.+?\)?(\'|\")\)?/i;    
+    var URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;
+    var googleHackCounter = 0;    
     me.extractUrl = function extractUrl(tag, propPath, loc) {
         if (!tag || !propPath) {
             return '';
+        }
+
+        // horrible hack for google images.
+        if (tag.baseURI.indexOf('google.com') !== -1) {
+            return tag.parentNode.href;
         }
 
         // Iterate through the path of properties to get the value.
@@ -425,7 +515,9 @@ var Logicker = (function Logicker(Utils) {
 
         // Remove the 'url("...")' wrapping from css background images.
         if (value.indexOf('url(') !== -1) {
-            value = value.replace('url("', '').replace('")', '');
+            value = value.replace('url(', '').replace(')', '');
+            value = value.replace("'", '');
+            value = value.replace('"', '');
         }
 
         return (new URL(value, loc.origin));

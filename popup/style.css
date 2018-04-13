@@ -3,7 +3,8 @@ body {
     background-color: rgba(0,0,0,1);
     font-family: monospace;
     font-size: 12px;
-    height: 300px;
+    min-height: 300px;
+    max-height: 1024px;
     width: 700px;
 }
 
@@ -91,4 +92,12 @@ div.doublewide {
 div.doublewide > button {
     display: inline-block;
     width: 100px;
+}
+
+#toggleVoyeur {
+    display: none;
+}
+
+#outputHolder {
+    margin-bottom: 7px;
 }

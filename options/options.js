@@ -56,7 +56,7 @@ var Constance = (function() {
     };
     var cannedProcessings = [
         {
-            match: '/greentextonblack\\.net\\//',
+            match: 'fakeexample.fake',
             actions: [
                 {
                     noun: 'src',
@@ -77,7 +77,7 @@ var Constance = (function() {
     ];
     var cannedMessages = [
         {
-            match: '/greentextonblack\\.net\\//',
+            match: 'fakeexample.fake',
             link: 'a.link[href]',
             href: 'href',
             thumb: 'img.thumb[data-src]',
@@ -86,7 +86,7 @@ var Constance = (function() {
     ];
     var cannedBlessings = [
         {
-            match: '/greentextonblack\\.net\\//',
+            match: 'fakeexample.fake',
             zoom: 'img.zoomed',
             src: 'src',
         }
@@ -214,6 +214,7 @@ var Dominatrix = (function Dominatrix(doc, C) {
                                 var newLabel = (!!val.label ? d.createElement('label') : false);
                                 var newValueId = rootNode.id + '_' + VALUE_ID_PREFIX + (i++);
                                 if (!!newLabel) {
+                                    newLabel.id = 'label_' + newValueId
                                     newLabel.textContent = val.label;
                                     newLabel.for = newValueId;
                                     rootNode.insertBefore(newLabel, addSubEntry); 
@@ -228,7 +229,7 @@ var Dominatrix = (function Dominatrix(doc, C) {
                                  rootNode.insertBefore(newInput, addSubEntry);
                                 
                                 // Add the subentry to the <div>.
-                                var addedSubentryId = addEntry(val.values, rootNode, true, addSubEntry.id);
+                                var addedSubentryId = addEntry(val.values, rootNode, true, newValueId);
                                 newInput.value = addedSubentryId;
 
                                 // Unhide all the subentries' delete buttons in the section.

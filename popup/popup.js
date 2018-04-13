@@ -4,8 +4,8 @@
  * Set up event handlers for the UI. All actual work is done in the background scripts.
  */
 document.addEventListener("DOMContentLoaded", function init() {
-    connectEventHandlers();    
     setFileOptionList();
+    connectEventHandlers();    
     
 
     /**
@@ -13,35 +13,66 @@ document.addEventListener("DOMContentLoaded", function init() {
      * Note: clicking one of the "download all [ |jpgs]" button will clear them.
      */
     function setFileOptionList() {
-        chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {            
-            var uriMap = bgWindow.Digger.previouslyHarvestedUriMap || {};
+        chrome.storage.local.get({
+                prevUriMap: {}
+            }, 
+            function storageRetrieved(store) {
+                var uriMap = store.prevUriMap;
 
-            // If there were non-downloaded files from last time, show that list.
-            var length = Object.values(uriMap).length;
-            if (length) {
-                console.log("[Popup] Got persisted uris:")
-                console.log(JSON.stringify(uriMap));
+                // If there were non-downloaded files from last time, show that list.
+                var length = Object.values(uriMap).length;
+                chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
+                    if (length) {
+                        console.log("[Popup] Got persisted uris:");
+                        console.log(JSON.stringify(uriMap));
 
-                var out = new bgWindow.Output(window.document);
-                var dir = bgWindow.App.getSaltedDirectoryName();
+                        var out = new bgWindow.Output(window.document);
+                        var dir = bgWindow.App.getSaltedDirectoryName();
 
-                var idx = 0;
-                for (var thumbUri in uriMap) { 
-                    var uri = uriMap[thumbUri];
-                                  
-                    out.addFileOption({ 
-                        id: (idx++), 
-                        uri: uri, 
-                        thumbUri: thumbUri,
-                        filePath: dir + '/' + uri.substring(uri.lastIndexOf('/')),
-                        onSelect: bgWindow.App.downloadFile, 
-                    });
-                }
+                        var idx = 0;
+                        for (var thumbUri in uriMap) { 
+                            var uri = uriMap[thumbUri];
+                            var queryPos = uri.lastIndexOf('?');
 
-                out.hideDigScrapeButtons();
-                out.showActionButtons();
+                            if (queryPos === -1) {
+                                queryPos = uri.length;
+                            }
+                                        
+                            out.addFileOption({ 
+                                id: (idx++), 
+                                uri: uri, 
+                                thumbUri: thumbUri,
+                                filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
+                                onSelect: bgWindow.App.downloadFile, 
+                            });
+
+                        }
+                     
+                        out.hideDigScrapeButtons();
+                        out.toOut('Please select which of the ' + length + ' files you wish to download.')
+                        out.showActionButtons();
+                    }
+                    else {
+                        chrome.browserAction.setBadgeText({ text: '' });
+                    }
+                });
             }
-        });
+        );
+    }
+
+
+    /**
+     * Clear the persisted URI map from storage.
+     */
+    function clearPreviousUriMap() {
+        chrome.browserAction.setBadgeText({ text: '' });
+        chrome.storage.local.set({
+                prevUriMap: {},
+            },
+            function storageSet() {
+                console.log('[Popup] Cleared prev uri map');
+            }
+        );    
     }
 
 
@@ -82,9 +113,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                 cbEl.dispatchEvent(evt);
             });
 
-            chrome.runtime.getBackgroundPage(function clearPreviousHarvest(bgWindow) {
-                bgWindow.Digger.previouslyHarvestedUriMap = {};                
-            });
+            clearPreviousUriMap();
         });
 
 
@@ -99,11 +128,9 @@ document.addEventListener("DOMContentLoaded", function init() {
                     var evt = new MouseEvent('click');
                     cbEl.dispatchEvent(evt);
                 }
-
-                chrome.runtime.getBackgroundPage(function clearPreviousHarvest(bgWindow) {
-                    bgWindow.Digger.previouslyHarvestedUriMap = {};                
-                });
             });
+
+            clearPreviousUriMap();
         });
 
 
@@ -113,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function init() {
          */
         document.getElementById('clearFileListButton').addEventListener('click', function clearFileList() {
             chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
-                bgWindow.Digger.previouslyHarvestedUriMap = [];
+                clearPreviousUriMap();
                 
                 var out = new bgWindow.Output(window.document);
                 out.clearFilesDug();
