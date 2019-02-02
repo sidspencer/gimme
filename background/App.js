@@ -260,7 +260,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             return Promise.resolve([]);
         }
 
-        me.galleryMap = harvestedMap;
+        Object.assign(me.galleryMap, harvestedMap);
         
         var thumbUris = Object.keys(harvestedMap);
         var length = thumbUris.length;

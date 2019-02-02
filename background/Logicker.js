@@ -179,7 +179,7 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/(\/logo\.|\/header\.jpg|premium_|preview\.png)|preview\.jpg/i).test(src))
+        if ((/(\/logo\.|\/loading\/header\.jpg|premium_|preview\.png)|preview\.jpg/i).test(src))
         {
             isBad = true;
         }
