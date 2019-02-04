@@ -35,6 +35,14 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         blessings: [],
     };
 
+    me.initOptions = function initOptions() {
+        // read the options spec.
+        setTimeout(function() {
+            readSpec();
+        });
+    }
+    App.initOptions = me.initOptions;
+
 
     /**
      Read storage for the spec json.
@@ -185,6 +193,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         
         me.galleryMap = harvestedMap;
 
+        Digger.redrawOutputFileOpts(harvestedMap);
+
         if (!harvestedMap || length < 1) {
             console.log('[App] No files to download.');
             Output.toOut('No URLs to download.');
@@ -215,7 +225,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             }
 
             // Make the destination file path.
-            var destFilePath = me.downloadsDir + '/' + uri.replace(/^.+\//, '').replace(/\?(.+?)$/, '');
+            var destFilePath = me.downloadsDir + '/g_' + uri.replace(/^.+\//, '').replace(/\?(.+?)$/, '');
             
             // Update the UI, download the file. Note the downloadPromise *always* resolves.
             // In an immediately-invoked function expression because of the closure on idx.
@@ -305,6 +315,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             Output.addFileOption(fileOption);
             fileOptionzzz.push(fileOption);
         }
+        
+
 
         chrome.browserAction.setBadgeText({ text: '' + me.fileOptions.length + '' });
         chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
@@ -457,7 +469,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             .then(function doScraping(locDoc) {
                 // Based upon the Logicker's special rules for sites, either just
                 // resolve with the ContentPeeper's processed uri info, or do a scrape.
-                if (me.digOpts.doScrape === false) {                    
+                if (me.digOpts.doScrape === false) {
+                    Digger.redrawOutputFileOpts(me.galleryMap);                    
                     console.log('[App] Downloading ContentPeeper uris, not scraping.');
                     return Promise.resolve(me.galleryMap);
                 }
@@ -505,6 +518,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             processContentPage()
             .then(function doScraping(locDoc) {
                 if (me.digOpts.doScrape === false) {
+                    Digger.redrawOutputFileOpts(me.galleryMap);
                     console.log('[App] Downloading ContentPeeper uris, not scraping.');
                     return Promise.resolve(me.galleryMap);
                 }
@@ -554,6 +568,7 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 // Based upon the Logicker's special rules for sites, either just
                 // resolve with the ContentPeeper's processed uri info, or do the dig.
                 if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                    Digger.redrawOutputFileOpts(me.galleryMap);
                     console.log('[App] Downloading ContentPeeper uris');
                     return Promise.resolve(me.galleryMap);
                 }
@@ -603,6 +618,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
             .then(function goDig(locDoc) {
                 // Just download from here if all of our linkHrefs should already point directly at a valid imgUrl.
                 if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                    Digger.redrawOutputFileOpts(me.galleryMap);
+
                     console.log('[App] Downloading ContentHelper uris');
                     
                     chrome.storage.local.set({
@@ -730,6 +747,8 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
                 return p;
             })
             .then(function() {
+                Digger.redrawOutputFileOpts(combinedMap);
+
                 console.log('[App] Received combinedMap.');
                 Output.toOut('Received file list of length: ' + Object.keys(combinedMap).length);
 
@@ -753,11 +772,6 @@ var App = (function App(Output, Digger, Scraper, Logicker, Utils) {
         );
     };
 
-
-    // read the options spec.
-    setTimeout(function() {
-        readSpec();
-    });
 
     // return the instance.
     return me;
