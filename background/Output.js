@@ -128,6 +128,11 @@ var Output = (function Output(dokken) {
         var nameLabel = me.doc.createElement('label');
         nameLabel.setAttribute('for', checkbox.name);
         var fileName = fileOpt.filePath.substring(fileOpt.filePath.lastIndexOf('/') + 1);
+
+        if (fileName.trim() === '') {
+            fileName = 'g_img.jpg';
+        }
+
         var nameContent = document.createTextNode(fileName);
         nameLabel.appendChild(nameContent);
 
