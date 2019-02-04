@@ -46,6 +46,7 @@ function goDigFileOptions(parentDocument) {
     var scraper = Scraper(Utils, Logicker, output);
     var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
+    App.initOptions();
 
     app.digFileOptions();
 }
