@@ -84,13 +84,43 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             chrome.storage.local.set({
                     prevUriMap: me.harvestedUriMap,
                 },
-                function storageSet() {
+                function storageSet() {                    
                     console.log('[Digger] Set prevUriMap in storage');
                     console.log('[Digger] ---Returning dig harvest -> ' + Object.keys(me.harvestedUriMap).length + '------');
                     resolve(me.harvestedUriMap);
                 }
             );
         }));
+    }
+
+
+    me.redrawOutputFileOpts = function redrawOutputFileOpts(uriMap) {
+        Output.clearFilesDug();
+        var dir = App.getSaltedDirectoryName();
+
+        var idx = 0;
+        for (var thumbUri in uriMap) { 
+            var uri = uriMap[thumbUri];
+            var queryPos = uri.lastIndexOf('?');
+
+            if (queryPos === -1) {
+                queryPos = uri.length;
+            }
+
+            me.outputIdMap[thumbUri] = idx;
+                        
+            Output.addFileOption({ 
+                id: (idx++), 
+                uri: uri, 
+                thumbUri: thumbUri,
+                filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
+                onSelect: App.downloadFile, 
+            });
+        }
+
+        chrome.browserAction.setBadgeText({ text: '' + idx + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
+
     }
 
 
@@ -239,6 +269,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var fromKeys = Object.keys(from);
         var nextId = fromKeys.length + Object.keys(to).length;
 
+        me.redrawOutputFileOpts(me.galleryMap);
+
+        /*
         // Apply the optionally-set me.urisToDig
         fromKeys.forEach(function setNewLinkHrefs(thumbUri) {
             // Store the old value, if there was one, and override with our new one.
@@ -258,7 +291,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             to[thumbUri] = newPageUri;
             ids[newPageUri] = id;
             Output.addNewEntry(id, thumbUri);            
-        });        
+        });
+        */        
     }
 
 
