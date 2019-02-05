@@ -5,6 +5,7 @@
  */
 document.addEventListener("DOMContentLoaded", function init() {
     setFileOptionList();
+    readSpec();
     connectEventHandlers();    
     
 
@@ -73,6 +74,45 @@ document.addEventListener("DOMContentLoaded", function init() {
                 console.log('[Popup] Cleared prev uri map');
             }
         );    
+    }
+
+
+    /**
+     Read storage for the spec json.
+     */
+    function readSpec() {
+        chrome.storage.sync.get({
+            spec: {
+                config: {
+                    minZoomWidth: '300',
+                    minZoomHeight: '300',
+                    dlChannels: '3',
+                    dlBatchSize: '5',
+                },
+                messages: [],
+                processings: [],
+                blessings: [],
+            }
+        }, 
+        function storageRetrieved(store) {
+            chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
+                bgWindow.Digger.BATCH_SIZE = store.spec.config.dlBatchSize;
+                bgWindow.Digger.CHANNELS = store.spec.config.dlChannels;
+
+                bgWindow.Logicker.MIN_ZOOM_HEIGHT = store.spec.config.minZoomHeight;
+                bgWindow.Logicker.MIN_ZOOM_WIDTH = store.spec.config.minZoomWidth;
+
+                bgWindow.Logicker.messages = [].concat(store.spec.messages);
+                bgWindow.Logicker.processings = [].concat(store.spec.processings);
+                bgWindow.Logicker.blessings = [].concat(store.spec.blessings);
+
+                console.log("Logicker:");
+                console.log(bgWindow.Logicker);
+
+                console.log("Digger:");
+                console.log(bgWindow.Digger);
+            });
+        });
     }
 
 
