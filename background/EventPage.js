@@ -137,9 +137,8 @@ function goScrape(parentDocument) {
 
     var output = Output(parentDocument);
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
-
 
     app.scrape(options);
 }
@@ -162,7 +161,7 @@ function goScrapeFileOptions(parentDocument) {
 
     var output = Output(parentDocument);
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
 
 
@@ -185,7 +184,7 @@ function goScrapeImages(parentDocument) {
 
     var output = Output(parentDocument);
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
 
 
@@ -208,7 +207,7 @@ function goScrapeVideos(parentDocument) {
 
     var output = Output(parentDocument);
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
 
 

@@ -225,7 +225,7 @@
 
                 // Get the href by going through each key til we hit the 
                 // href value at the end.
-                var value = tag;                        
+                var value = tag;
                 for (var i=0; i < hrefPropArr.length; i++) {
                     if (value) {
                         value = value[hrefPropArr[i]];

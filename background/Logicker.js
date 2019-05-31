@@ -382,6 +382,13 @@ var Logicker = (function Logicker(Utils) {
                             //console.log('[Logicker] thumbUri matched. Replacing.');
 
                             thumbUri2 = thumbUri.replace(matchey, act.new);
+
+                            if (thumbUri2.indexOf('/previews/') !== -1) {
+                                thumbUri2 = thumbUri2.replace('previews/', '');
+                            }
+                            if (thumbUri2.indexOf('?') !== -1) {
+                                thumbUri2 = thumbUri.substring(0, thumbUri.indexOf('?'));
+                            }
                             newGalleryMap[thumbUri] = thumbUri2; 
                         }
                         else if (act.noun === 'href' && galleryMap[thumbUri].match(matchey)) {
