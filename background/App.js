@@ -336,7 +336,7 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
 
         if (me.contentScriptSelection) {
             var d = Logicker.getMessageDescriptorForUrl(tab.url);
-            Object.assign(message, d);
+            message = Object.assign({}, d);
         }
                 
         var tabMessage = u.createTabMessage(tab, message); 
@@ -510,22 +510,19 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
         // Begin by communicating with the ContentPeeper for information 
         // about the target page. Then use the Scraper to form a galleryMap
         // of its findings, and present the user with options of what to download.
+        //
+        // NOTE: this ALWAYS scrapes anew. opts.doScraping=false only means to rely on 
+        //       ContentPeeper for building a dig gallery map. Scrapes always want alllll
+        //       the images on the page, not just gallery thumbs.
         return (
             processContentPage()
             .then(function doScraping(locDoc) {
-                if (me.digOpts.doScrape === false) {
-                    digger.redrawOutputFileOpts(me.galleryMap);
-                    console.log('[App] Downloading ContentPeeper uris, not scraping.');
-                    return Promise.resolve(me.galleryMap);
-                }
-                else {
-                    console.log('[App] Scraping with the scraper.')
-                    return scraper.scrape({
-                        node: locDoc.doc, 
-                        loc: locDoc.loc, 
-                        opts: options,
-                    });
-                }
+                console.log('[App] Scraping with the scraper.')
+                return scraper.scrape({
+                    node: locDoc.doc, 
+                    loc: locDoc.loc, 
+                    opts: options,
+                });
             })
             .then(me.presentFileOptions)            
             .catch(function handleError(errorMessage) {
