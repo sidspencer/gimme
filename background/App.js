@@ -720,7 +720,7 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                         return digger.digGallery({
                             doc: lDoc.doc,
                             loc: lDoc.loc,
-                            digOpts: { doScrape: true, doDig: me.digOpts.doDig },
+                            digOpts: { doScrape: true, doDig: true },
                             galleryMap: {},
                         })
                         .then(function receiveGalleryMap(gMap) {
