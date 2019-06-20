@@ -193,7 +193,7 @@ var Logicker = (function Logicker(Utils) {
      * Any object with the "width" and "height" properties can be used.
      */
     me.isZoomSized = function isZoomSized(obj) {
-        return (obj.height > me.MIN_ZOOM_HEIGHT || obj.width > me.MIN_ZOOM_WIDTH);
+        return !(obj.height < me.MIN_ZOOM_HEIGHT && obj.width < me.MIN_ZOOM_WIDTH);
     }
 
 
@@ -525,6 +525,26 @@ var Logicker = (function Logicker(Utils) {
             value = value.replace('url(', '').replace(')', '');
             value = value.replace("'", '');
             value = value.replace('"', '');
+        }
+
+        // Because we do an XHR with the "document" response type to get the thumbs and links, the inferred src/href
+        // may be set relative to the extension. This is my workaround.
+        if (value.indexOf('chrome-extension://') === 0) {
+            if (value.match('chrome-extension://' + chrome.runtime.id + '/background/')) {
+                value = value.replace(
+                    'chrome-extension://' + chrome.runtime.id + '/background/', 
+                    loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf('/')+1)
+                ); 
+            }
+            else if (value.match('chrome-extension://' + chrome.runtime.id + '/')) {
+                value = value.replace(
+                    'chrome-extension://' + chrome.runtime.id + '/', 
+                    loc.origin + '/'
+                );
+            }
+            else {
+                value = value.replace('chrome-extension:', loc.protocol);
+            }       
         }
 
         return (new URL(value, loc.origin));
