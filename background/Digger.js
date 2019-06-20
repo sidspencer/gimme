@@ -269,7 +269,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var fromKeys = Object.keys(from);
         var nextId = fromKeys.length + Object.keys(to).length;
 
-        me.redrawOutputFileOpts(me.galleryMap);
+        to = Object.assign(to, from);
+
+        //me.redrawOutputFileOpts(me.galleryMap);
 
         /*
         // Apply the optionally-set me.urisToDig
@@ -416,6 +418,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             for (var k = 1; k < uris.length; k++) {
                 var bestUri = Logicker.chooseBetterMatchingUri(src, bestUri, uris[k]);
             }
+
+            // There's a bug. This works around it.
+            if (bestUri.indexOf('chrome-extension://') !== -1) {
+                bestUri = bestUri.replace(/chrome-extension:\/\/.+?\//, loc.origin + '/');
+            }
             
             console.log(
                 '[Digger] New pair added to gallery click-map:\n ' +
@@ -481,7 +488,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // This merges, and also manages the Output entries.
         if (!!me.startingGalleryMap && !!Object.keys(me.startingGalleryMap).length) {
-            mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
+            galleryMap = Object.assign({}, galleryMap, me.galleryMap);
+            //mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
         }
 
         // Begin digging, or stop if instructed to.
