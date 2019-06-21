@@ -179,7 +179,7 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/(\/logo\.|\/loading|\/header\.jpg|premium_|preview\.png)|preview\.jpg/i).test(src))
+        if ((/(\/logo\.|\/loading|\/header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg)|preview\.jpg/i).test(src))
         {
             isBad = true;
         }
@@ -496,17 +496,28 @@ var Logicker = (function Logicker(Utils) {
         // Iterate through the path of properties to get the value.
         var pathParts = propPath.split('.');
         var iterator = tag;
+        var lastIterator = undefined;
         for(var i = 0; (!!iterator && iterator !== null && typeof iterator !== 'undefined') && i < pathParts.length; i++) {
             if (!!iterator && iterator !== null) {
+                lastIterator = iterator;
                 iterator = iterator[pathParts[i]];
             }
         }
         var value = iterator;
         if (!value) { return ''; };
 
+        var lastPart = pathParts[pathParts.length-1];
+
         // Special processing for srcset props.
-        if (pathParts[pathParts.length-1] === 'srcset') {
+        if (lastPart === 'srcset') {
             value = value.split(',')[0].split(' ')[0];
+        }
+        
+        // Count the '..'s in relative uris. This is needed for the cases where we have to change from a 
+        // 'chrome-extension://' reported uri. 
+        var dotdotCount = 0;
+        if (lastIterator && lastIterator.getAttribute && lastIterator.getAttribute(lastPart)) {
+            dotdotCount = (lastIterator.getAttribute(lastPart).match(/\.\./g) || []).length;
         }
 
         // Do a url extraction from functions or javascript hrefs.
@@ -528,7 +539,8 @@ var Logicker = (function Logicker(Utils) {
         }
 
         // Because we do an XHR with the "document" response type to get the thumbs and links, the inferred src/href
-        // may be set relative to the extension. This is my workaround.
+        // may be set relative to the extension (as the origin of the fetched document is in the extension's space).
+        // We need to transform these weird src/href values back into having the correct base uri -- the one of the page.
         if (value.indexOf('chrome-extension://') === 0) {
             if (value.match('chrome-extension://' + chrome.runtime.id + '/background/')) {
                 value = value.replace(
@@ -537,9 +549,14 @@ var Logicker = (function Logicker(Utils) {
                 ); 
             }
             else if (value.match('chrome-extension://' + chrome.runtime.id + '/')) {
+                var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/'));
+                for (var d = 0; d < dotdotCount; d++) {
+                    trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf('/'));
+                }
+
                 value = value.replace(
                     'chrome-extension://' + chrome.runtime.id + '/', 
-                    loc.origin + '/'
+                    loc.origin + trimmedPath + '/'
                 );
             }
             else {
