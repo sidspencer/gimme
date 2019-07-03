@@ -34,12 +34,20 @@ var Output = (function Output(dokken) {
      * Set the main message area's content.
      */
     me.toOut = function toOut(newContent) {
-        me.out.innerHTML = newContent;
+        try {
+            me.out = me.doc.getElementById('output');
+            me.out.innerHTML = newContent;
+        }
+        catch(error) {
+            console.log('[Output] Could not write to doc, it is a Dead Object.');
+            console.log('[Output] tried to say: ' + newContent);
+        }
     };
 
 
     /**
-     * 
+     * Update the document object Output is using for output.
+     * In FF, every time the popup closes me.doc becomes a Dead Object.
      */
     me.setDoc = function setDoc(dok) {
         me.doc = dok;
@@ -63,7 +71,16 @@ var Output = (function Output(dokken) {
         me.dugUris = [];
         me.failedUris = [];
 
-        while (me.filesDug.childNodes.length > 0) {
+        var childNodes = undefined;
+        try {
+            childNodes = me.filesDug.childNodes;
+        }
+        catch(err) {
+            console.log('[Output] Cannot clear file entries, doc reference is a Dead Object.');
+            return;
+        }
+
+        while (childNodes.length > 0) {
             me.filesDug.removeChild(me.filesDug.firstChild);
         }
     };
@@ -72,8 +89,15 @@ var Output = (function Output(dokken) {
     /**
      * Set the corresponding <li> in the filesDug <ul> to the downloading class.
      */
-    me.setEntryAsDownloading = function setEntryAsDownloading(idx) {        
-        var entry = me.doc.getElementById('fileEntry' + idx);
+    me.setEntryAsDownloading = function setEntryAsDownloading(idx) {   
+        var entry = undefined;
+
+        try {
+            entry = me.doc.getElementById('fileEntry' + idx);
+        }
+        catch(error) {
+            console.log('[Output] Cannot set entry as downloading. doc reference is a Dead Object.');
+        }
         
         if (entry) { 
             entry.className = 'downloading';
@@ -85,7 +109,14 @@ var Output = (function Output(dokken) {
      * Find an entry, update its text and classname. 
      */
     function setEntryToState(id, entry, state) {
-        var fEntry = me.doc.getElementById('fileEntry' + id);
+        var fEntry = undefined;
+        
+        try {
+            fEntry = me.doc.getElementById('fileEntry' + id);
+        }
+        catch(error) {
+            console.log('[Output] Cannot change file entry state. doc ref is a Dead Object.');
+        }
         
         if (fEntry) {
             if (entry) { 
@@ -120,10 +151,22 @@ var Output = (function Output(dokken) {
         me.fileOptMap[id+''] = uri;
         
         return new Promise(function(resolve, reject) { 
-            setTimeout(function asyncAddNewEntry() {        
-                var newLi = me.doc.createElement('li');
+            setTimeout(function asyncAddNewEntry() {
+                var newLi = undefined; 
+                
+                try {
+                    newLi = me.doc.createElement('li');
+                }
+                catch(error) {
+                    console.log('[Output] Could not create new file entry. doc reference is a Dead Object.');
+                    resolve({
+                        id: -1,
+                        uri: '',
+                    });
+                    return;
+                }
 
-                var newContent = document.createTextNode(uri);
+                var newContent = me.doc.createTextNode(uri);
                 newLi.id = 'fileEntry' + id;
                 newLi.className = 'found';
                 newLi.dataset.initialUri = uri;
@@ -144,7 +187,14 @@ var Output = (function Output(dokken) {
      * Delete a previously created file entry in the UI.
      */
     me.deleteEntry = function deleteEntry(id) {    
-        var fileLi = me.doc.querySelector('#fileEntry' + id);
+        var fileLi = undefined;
+        
+        try {
+            fileLi = me.doc.querySelector('#fileEntry' + id);
+        }
+        catch(error) {
+            console.log('[Output] Could not delete entry. doc reference is a Dead Object.');
+        }
 
         if (fileLi) {
             me.filesDug.removeChild(fileLi);
@@ -157,7 +207,17 @@ var Output = (function Output(dokken) {
      * in the label. 
      */
     me.addFileOption = function addFileOption(fileOpt) {
-        var checkbox = me.doc.createElement('input');
+        var checkbox = undefined;
+        
+        try {
+            checkbox = me.doc.createElement('input');
+        }
+        catch(error) {
+            console.log('[Output] Could not create file option checkbox. doc reference is a Dead Object.');
+            return;
+        }
+        
+        
         checkbox.type = 'checkbox';
         checkbox.name = 'cbFile' + fileOpt.id;
         checkbox.id = checkbox.name;
@@ -178,7 +238,7 @@ var Output = (function Output(dokken) {
             fileName = 'g_img.jpg';
         }
 
-        var nameContent = document.createTextNode(fileName);
+        var nameContent = me.doc.createTextNode(fileName);
         nameLabel.appendChild(nameContent);
 
         var newLi = me.doc.createElement('li');
@@ -214,6 +274,9 @@ var Output = (function Output(dokken) {
     };
 
 
+    /**
+     * Track which file options have been checked.
+     */
     function setFileOptUriChecked(uri) {
         me.checkedFileOptUris.push(uri);
     }
@@ -223,7 +286,12 @@ var Output = (function Output(dokken) {
      * hide the digging/scraping buttons.
      */
     me.hideDigScrapeButtons = function hideDigScrapeButtons() {
-        me.doc.getElementById(me.BUTTON_HOLDER_ID).style.display = 'none';
+        try {
+            me.doc.getElementById(me.BUTTON_HOLDER_ID).style.display = 'none';
+        }
+        catch(error) {
+            console.log('[Output] Could not hide dig/scrape buttons. doc ref is a Dead Object.');
+        }
     };
 
 
@@ -231,7 +299,12 @@ var Output = (function Output(dokken) {
      * hide the downloading buttons.
      */
     me.hideActionButtons = function hideActionButtons() {
-        me.doc.getElementById(me.ACTION_HOLDER_ID).style.display = 'none';        
+        try {
+            me.doc.getElementById(me.ACTION_HOLDER_ID).style.display = 'none';       
+        }
+        catch(error) {
+            console.log('[Output] Could not hide action buttons. doc ref is a Dead Object.');
+        } 
     };
 
 
@@ -240,7 +313,13 @@ var Output = (function Output(dokken) {
      */
     me.showDigScrapeButtons = function showDigScrapeButtons() {
         me.hideActionButtons();
-        me.doc.getElementById(me.BUTTON_HOLDER_ID).style.display = 'block';        
+
+        try {
+            me.doc.getElementById(me.BUTTON_HOLDER_ID).style.display = 'block';
+        }
+        catch(error) {
+            console.log('[Output] Could not show dig/scrape buttons. doc ref is a Dead Object.');
+        }        
     };
 
     /**
@@ -248,13 +327,19 @@ var Output = (function Output(dokken) {
      */
     me.showActionButtons = function showActionButtons() {
         me.hideDigScrapeButtons();
-        me.doc.getElementById(me.ACTION_HOLDER_ID).style.display = 'block';
-        me.doc.getElementById(me.GET_ALL_JPG_OPTS_ID).focus();
+
+        try {
+            me.doc.getElementById(me.ACTION_HOLDER_ID).style.display = 'block';
+            me.doc.getElementById(me.GET_ALL_JPG_OPTS_ID).focus();
+        }
+        catch(error) {
+            console.log('[Output] Could not show action buttons. doc ref is a Dead Object.');
+        }
     };
 
 
     /**
-     * 
+     * Set flag letting the Output know digging is going on.
      */
     me.setIsDigging = function setIsDigging(isDigging) {
         me.appIsDigging = isDigging;
@@ -262,7 +347,7 @@ var Output = (function Output(dokken) {
 
 
     /**
-     * 
+     * Set flag letting the Output know scraping is going on.
      */
     me.setIsScraping = function setIsScraping(isScraping) {
         me.appIsScraping = isScraping;
@@ -270,7 +355,7 @@ var Output = (function Output(dokken) {
 
 
     /**
-     * 
+     * Restore file list on the popup when we are digging/scraping still.
      */
     me.restoreFileList = function restoreFileList() {
         console.log('[Output] restoreFileList was called.');
@@ -285,11 +370,14 @@ var Output = (function Output(dokken) {
                 pChain = pChain.then(func).then(restoreEntryStatus);
             }
 
-            console.log('[Output] set up the promise chaining.');
+            console.log('[Output] set up the restore-file-list promise chaining.');
         }
     };
 
     
+    /**
+     * Helper to avoid unintentional closures.
+     */
     function buildEntryAdder(id, uri) {
         return (
             function() {
@@ -299,6 +387,9 @@ var Output = (function Output(dokken) {
     }
 
 
+    /**
+     * Set the state of entries in the file list. Used by the popup to restore screen data.
+     */
     function restoreEntryStatus(entryObj) {
         return new Promise(function(resolve, reject) {
             setTimeout(function() {
