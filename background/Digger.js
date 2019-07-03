@@ -26,10 +26,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // aliases
     var u = Utils;
 
-    // Parameterized values, tunable via the Options page.
-    me.BATCH_SIZE = 3;
-    me.CHANNELS = 11;
-
     // constants
     var OPT = {
         IMGS: 'imgs',
@@ -147,7 +143,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var promises = [];
         var subMaps = [];
         var thumbUris = Object.keys(galleryMap);
-        var thumbsPerChannel = Math.floor(thumbUris.length / (me.CHANNELS - 1)) || 1;
+        var thumbsPerChannel = Math.floor(thumbUris.length / (Digger.prototype.CHANNELS - 1)) || 1;
 
         console.log('[Digger] Digging ' + thumbUris.length + ' scraped thumbnails.');
         Output.toOut('Now digging ' + thumbUris.length + ' thumbnails found in gallery.');
@@ -175,12 +171,12 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function digNextBatch(galleryMap) {
         var diggingBatch = [];
-        var startingOutputId = (++me.batchCount) * me.BATCH_SIZE;
+        var startingOutputId = (++me.batchCount) * Digger.prototype.BATCH_SIZE;
 
         // Set up the output entry, and enter the uriPair's digDeep() execution
         // into the promise batch's array. Skip nulls. 
         var allThumbUris = Object.keys(galleryMap);    
-        for (var i = 0; i < me.BATCH_SIZE && allThumbUris.length > 0; i++) {
+        for (var i = 0; i < Digger.prototype.BATCH_SIZE && allThumbUris.length > 0; i++) {
             // Pop a thumb/link pair from the map.
             var thumbUri = allThumbUris[i];
             var zoomPageUri = galleryMap[thumbUri];
@@ -902,3 +898,31 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // Return the Digger instance.
     return me;
 });
+Digger.prototype.BATCH_SIZE = 3;
+Digger.prototype.CHANNELS = 11;
+
+Digger.prototype.setBatchSize = function setBatchSize(size) {
+    console.log('[Digger] Attempt to set BATCH_SIZE to ' + size);
+
+    if (!!size) {
+        var numSize = parseInt(size+'', 10);
+
+        if (!isNaN(numSize)) {
+            console.log('[Digger] Sucessfully set BATCH_SIZE to ' + numSize + '');
+            Digger.prototype.BATCH_SIZE = numSize;
+        }
+    }
+};
+
+Digger.prototype.setChannels = function setChannels(size) {
+    console.log('[Digger] Attempt to set CHANNELS to ' + size);
+
+    if (!!size) {
+        var numSize = parseInt(size+'', 10);
+
+        if (!isNaN(numSize)) {
+            console.log('[Digger] Sucessfully set CHANNELS to ' + numSize + '');
+            Digger.prototype.CHANNELS = numSize;
+        }
+    }
+};
