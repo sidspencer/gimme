@@ -11,11 +11,24 @@ var Output = (function Output(dokken) {
         FILES_DUG_ID: 'filesDug',
         GET_ALL_FILE_OPTS_ID: 'getAllFileOptsButton',
         GET_ALL_JPG_OPTS_ID: 'getAllJpgOptsButton',
+        appIsDigging: false,
+        appIsScraping: false,
+        fileOptMap: {},
+        failedUris: [],
+        dugUris: [],
+        checkedFileOptUris: [],
     };
     me.doc = dokken;
     me.filesDug = me.doc.getElementById('filesDug');
     me.out = me.doc.getElementById('output');
 
+    if (Array.isArray(me.doc.checkedFileOptUris)) {
+        me.checkedFileOptUris = me.doc.checkedFileOptUris;
+    }
+    else {
+        me.doc.checkedFileOptUris = me.checkedFileOptUris;
+    }
+    
 
     /**
      * Set the main message area's content.
@@ -23,12 +36,33 @@ var Output = (function Output(dokken) {
     me.toOut = function toOut(newContent) {
         me.out.innerHTML = newContent;
     };
+
+
+    /**
+     * 
+     */
+    me.setDoc = function setDoc(dok) {
+        me.doc = dok;
+        me.filesDug = me.doc.getElementById('filesDug');
+        me.out = me.doc.getElementById('output');
+
+        if (Array.isArray(dok.checkedFileOptUris)) {
+            me.checkedFileOptUris = dok.checkedFileOptUris;
+        }
+        else {
+            dok.checkedFileOptUris = me.checkedFileOptUris;
+        }
+    }
     
 
     /**
      * Clear the filesDug <ul> of any child nodes.
      */
-    me.clearFilesDug = function clearFilesDug() {        
+    me.clearFilesDug = function clearFilesDug() { 
+        me.fileOptMap = {};
+        me.dugUris = [];
+        me.failedUris = [];
+
         while (me.filesDug.childNodes.length > 0) {
             me.filesDug.removeChild(me.filesDug.firstChild);
         }
@@ -62,18 +96,20 @@ var Output = (function Output(dokken) {
     }
 
     /**
-     * Find an entry by it's id. Update its text to the found zoomUri
+     * Find an entry by its id. Update its text to the found zoomUri
      */
-    me.setEntryAsDug = function setEntryAsDug(id, entry) {        
-       setEntryToState(id, entry, 'dug');
+    me.setEntryAsDug = function setEntryAsDug(id, entry) {
+        me.dugUris.push(id+'');
+        setEntryToState(id, entry, 'dug');
     };
 
 
     /**
-     * Find an entry by it's id. Update its text, generally to '[failed]'
+     * Find an entry by its id. Update its text, generally to '[failed]'
      */
-    me.setEntryAsFailed = function setEntryAsFailed(id, entry) {        
-        setEntryToState('failed');
+    me.setEntryAsFailed = function setEntryAsFailed(id, entry) {
+        me.failedUris.push(id+'');        
+        setEntryToState(id, entry, 'failed');
     };
 
 
@@ -81,17 +117,26 @@ var Output = (function Output(dokken) {
      * Create a new <li> for the entry, name it with the id, and append it to the filesDug <ul>.
      */
     me.addNewEntry = function addNewEntry(id, uri) {
-        setTimeout(function asyncAddNewEntry() {        
-            var newLi = me.doc.createElement('li');
+        me.fileOptMap[id+''] = uri;
+        
+        return new Promise(function(resolve, reject) { 
+            setTimeout(function asyncAddNewEntry() {        
+                var newLi = me.doc.createElement('li');
 
-            var newContent = document.createTextNode(uri);
-            newLi.id = 'fileEntry' + id;
-            newLi.className = 'found';
-            newLi.dataset.initialUri = uri;
-            newLi.appendChild(newContent);
-            
-            me.filesDug.appendChild(newLi);
-        }, 1);
+                var newContent = document.createTextNode(uri);
+                newLi.id = 'fileEntry' + id;
+                newLi.className = 'found';
+                newLi.dataset.initialUri = uri;
+                newLi.appendChild(newContent);
+                
+                me.filesDug.appendChild(newLi);
+
+                resolve({ 
+                    id: id+'', 
+                    uri: uri 
+                });
+            }, 1);
+        });
     };
 
 
@@ -150,11 +195,28 @@ var Output = (function Output(dokken) {
 
             if (!!cb.dataset.filePath) {
                 event.currentTarget.disabled = true;
-                fileOpt.onSelect(cb.value, cb.dataset.filePath);
-                cb.dataset.filePath = '';
+                var ret = fileOpt.onSelect(cb.value, cb.dataset.filePath, me);
+                
+                if (!!ret && !!ret.then) {
+                    ret.then(function(uri) {
+                        cb.dataset.filePath = '';
+                        cb.ownerDocument.checkedFileOptUris.push(cb.value);
+                        setFileOptUriChecked(cb.value);
+                    });
+                }
+                else {
+                    cb.dataset.filePath = '';
+                    cb.ownerDocument.checkedFileOptUris.push(cb.value);
+                    setFileOptUriChecked(cb.value);
+                }
             }
         });
     };
+
+
+    function setFileOptUriChecked(uri) {
+        me.checkedFileOptUris.push(uri);
+    }
 
 
     /**
@@ -190,6 +252,69 @@ var Output = (function Output(dokken) {
         me.doc.getElementById(me.GET_ALL_JPG_OPTS_ID).focus();
     };
 
+
+    /**
+     * 
+     */
+    me.setIsDigging = function setIsDigging(isDigging) {
+        me.appIsDigging = isDigging;
+    };
+
+
+    /**
+     * 
+     */
+    me.setIsScraping = function setIsScraping(isScraping) {
+        me.appIsScraping = isScraping;
+    };
+
+
+    /**
+     * 
+     */
+    me.restoreFileList = function restoreFileList() {
+        console.log('[Output] restoreFileList was called.');
+
+        if (me.appIsDigging || me.appIsScraping) {
+            console.log('[Output] detected digging/scraping going on.');
+
+            var pChain = Promise.resolve(true);
+
+            for (var k in me.fileOptMap) {
+                var func = buildEntryAdder(k, me.fileOptMap[k]);
+                pChain = pChain.then(func).then(restoreEntryStatus);
+            }
+
+            console.log('[Output] set up the promise chaining.');
+        }
+    };
+
+    
+    function buildEntryAdder(id, uri) {
+        return (
+            function() {
+                return me.addNewEntry(id, uri);
+            }
+        );
+    }
+
+
+    function restoreEntryStatus(entryObj) {
+        return new Promise(function(resolve, reject) {
+            setTimeout(function() {
+                console.log('[Output] restoring entry status.');
+
+                if (me.dugUris.indexOf(entryObj.id) !== -1) {
+                    me.setEntryAsDug(entryObj.id, entryObj.uri);
+                }
+                else if (me.failedUris.indexOf(entryObj.id) !== -1) {
+                    me.setEntryAsFailed(entryObj.id, entryObj.uri);
+                }
+
+                resolve(true);
+            }, 1);
+        });
+    }
 
     // return the instance
     return me;

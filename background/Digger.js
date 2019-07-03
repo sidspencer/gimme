@@ -31,7 +31,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     me.CHANNELS = 11;
 
     // constants
-    var DIG_SAVE = 'DIG_SAVE';
     var OPT = {
         IMGS: 'imgs',
         CSS_BGS: 'cssBgs',
@@ -45,7 +44,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         LARGEST_IMAGE: 2,
         INSPECT: 3,
         DIG_DEEPER: 4,
-    }
+    };
     var SCRAPING_TOOLS = {};
     SCRAPING_TOOLS[OPT.IMGS] = Scraper.getAllImgUrls;
     SCRAPING_TOOLS[OPT.CSS_BGS] = Scraper.getAllCssBackgroundUrls;
@@ -96,7 +95,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
     me.redrawOutputFileOpts = function redrawOutputFileOpts(uriMap) {
         Output.clearFilesDug();
-        var dir = App.getSaltedDirectoryName();
+        var dir = u.getSaltedDirectoryName();
 
         var idx = 0;
         for (var thumbUri in uriMap) { 
@@ -114,13 +113,12 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 uri: uri, 
                 thumbUri: thumbUri,
                 filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
-                onSelect: App.downloadFile, 
+                onSelect: u.downloadFile, 
             });
         }
 
         chrome.browserAction.setBadgeText({ text: '' + idx + '' });
         chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
-
     }
 
 
@@ -380,6 +378,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 return; 
             }
 
+            if (Logicker.isKnownBadImg(src)) {
+                console.log('[Digger] Skipping known bad src: ' + src);
+                return;
+            }
+
             // Iterate through parent elements up the DOM until we find one that
             // has at least one clickable prop on it. It itself might even be clickable.
             // also check to make sure there isn't a link inside this tag. It's a
@@ -418,11 +421,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             for (var k = 1; k < uris.length; k++) {
                 var bestUri = Logicker.chooseBetterMatchingUri(src, bestUri, uris[k]);
             }
-
-            // There's a bug. This works around it.
-            if (bestUri.indexOf('chrome-extension://') !== -1) {
-                bestUri = bestUri.replace(/chrome-extension:\/\/.+?\//, loc.origin + '/');
-            }
             
             console.log(
                 '[Digger] New pair added to gallery click-map:\n ' +
@@ -451,7 +449,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             loc,
             { 
                 selector: 'img', 
-                propPaths: ['src', 'currentSrc', 'srcset'], 
+                propPaths: ['src', 'currentSrc', 'srcset', 'dataset.src'], 
             }
         );
 
@@ -488,7 +486,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // This merges, and also manages the Output entries.
         if (!!me.startingGalleryMap && !!Object.keys(me.startingGalleryMap).length) {
-            galleryMap = Object.assign({}, galleryMap, me.galleryMap);
+            galleryMap = Object.assign({}, me.startingGalleryMap, galleryMap);
             //mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
         }
 
@@ -564,18 +562,18 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // Follow the options. If we're told:
         //  no scrape & no dig -- just call the callback. 
         //  yes scrape -- do it all normally through the default digDeep() behavior.
-        if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-            return (new Promise(function(resolve, reject) {
-                chrome.storage.local.set({
-                        prevUriMap: me.harvestedUriMap,
-                    },
-                    function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
-                        resolve(me.harvestedUriMap);
-                    }
-                );
-            }));
-        }
+        // if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
+        //     return (new Promise(function(resolve, reject) {
+        //         chrome.storage.local.set({
+        //                 prevUriMap: me.startingGalleryMap,
+        //             },
+        //             function storageSet() {
+        //                 console.log('[Digger] Set prevUriMap in storage');
+        //                 resolve(me.startingGalleryMap);
+        //             }
+        //         );
+        //     }));
+        // }
         if (me.digOpts.doScrape) {
             return discoverGallery(doc, loc);
         }
