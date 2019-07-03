@@ -18,7 +18,25 @@ var Logicker = (function Logicker(Utils) {
     };
 
     // aliases
-    var u = Utils;   
+    var u = Utils; 
+
+
+    me.setMessages = function setMessages(messages) {
+        me.messages = JSON.parse(JSON.stringify(messages));
+    }
+    me.setProcessings = function setProcessings(processings) {
+        me.processings = JSON.parse(JSON.stringify(processings));
+    }
+    me.setBlessings = function setBlessings(blessings) {
+        me.blessings = JSON.parse(JSON.stringify(blessings));
+    }
+    me.setMinZoomHeight = function setMinZoomHeight(height) {
+        me.MIN_ZOOM_HEIGHT = height + 0;
+    }
+    me.setMinZoomWidth = function setMinZoomWidth(width) {
+        me.MIN_ZOOM_WIDTH = width + 0;
+    }
+
 
     /**
      * Find the right uri for the zoomed media item pointed to by the gallery thumb.
