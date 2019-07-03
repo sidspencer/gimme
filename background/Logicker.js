@@ -179,7 +179,7 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/(\/logo\.|\/loading|\/header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg)|preview\.jpg/i).test(src))
+        if ((/(\/logo\.|\/loading|\/header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|preview\.jpg)/i).test(src))
         {
             isBad = true;
         }
@@ -548,7 +548,7 @@ var Logicker = (function Logicker(Utils) {
                     loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf('/')+1)
                 ); 
             }
-            else if (value.match('chrome-extension://' + chrome.runtime.id + '/')) {
+            else if (value.match('chrome-extension://' + chrome.runtime.id + '/') && dotdotCount > 0) {
                 var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/'));
                 for (var d = 0; d < dotdotCount; d++) {
                     trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf('/'));
@@ -558,6 +558,9 @@ var Logicker = (function Logicker(Utils) {
                     'chrome-extension://' + chrome.runtime.id + '/', 
                     loc.origin + trimmedPath + '/'
                 );
+            }
+            else if (value.match('chrome-extension://' + chrome.runtime.id + '/')) {
+                value = value.replace('chrome-extension://' + chrome.runtime.id + '/', loc.origin + '/');
             }
             else {
                 value = value.replace('chrome-extension:', loc.protocol);
