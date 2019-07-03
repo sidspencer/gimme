@@ -1,5 +1,6 @@
 'use strict';
 
+
 /**
  * Set up event handlers for the UI. All actual work is done in the background scripts.
  */
@@ -23,12 +24,46 @@ document.addEventListener("DOMContentLoaded", function init() {
                 // If there were non-downloaded files from last time, show that list.
                 var length = Object.values(uriMap).length;
                 chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
+                    var out = bgWindow.outputController;
+
+                    if (!!out) {
+                        console.log('set the document on the OUtput');
+                        out.setDoc(document);
+                        
+                        if (Array.isArray(document.checkedFileOptUris)) {
+                            console.log('got checkedFileOptUris: ' + JSON.stringify(document.checkedFileOptUris));
+                        }
+                    }
+
+                    if (!!out && (out.appIsDigging || out.appIsScraping)) { 
+                        if (out.appIsScraping) {
+                            chrome.browserAction.setBadgeText({ text: '' });
+                            out.toOut('Currently scraping...');
+                            out.restoreFileList();
+                            return;
+                        }
+                        else if (out.appIsDigging) {
+                            chrome.browserAction.setBadgeText({ text: '' });
+                            out.toOut('Currently digging...');
+                            out.restoreFileList();
+                            return;
+                        }
+                    }
+                    
                     if (length) {
                         console.log("[Popup] Got persisted uris:");
                         console.log(JSON.stringify(uriMap));
+                        var cbUris = document.checkedFileOptUris;
 
-                        var out = new bgWindow.Output(window.document);
-                        var dir = bgWindow.App.getSaltedDirectoryName();
+                        if (!out) {
+                            out = new bgWindow.Output(window.document);
+                            out.checkedFileOptUris = cbUris;
+                        }
+
+                        var dir = bgWindow.Utils.getSaltedDirectoryName();
+                
+                        out.clearFilesDug();
+                        bgWindow.Utils.resetDownloader();
 
                         var idx = 0;
                         for (var thumbUri in uriMap) { 
@@ -38,20 +73,35 @@ document.addEventListener("DOMContentLoaded", function init() {
                             if (queryPos === -1) {
                                 queryPos = uri.length;
                             }
-                                        
+
+                            var filePath = dir + '/' + uri.substring(uri.lastIndexOf('/') + 1, queryPos)
+                            var optId = (idx++);
+
                             out.addFileOption({ 
-                                id: (idx++), 
+                                id: optId + '', 
                                 uri: uri, 
                                 thumbUri: thumbUri,
-                                filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
-                                onSelect: bgWindow.App.downloadFile, 
+                                filePath: filePath,
+                                onSelect: bgWindow.Utils.downloadFile, 
                             });
 
+                            var cb = document.getElementById('cbFile' + optId);
+                            if (!!cb) {
+                                if (Array.isArray(cbUris) && cbUris.indexOf(cb.value) !== -1) {   
+                                    console.log('checkbox was previously checked!');                             
+                                    cb.dataset.filePath = '';
+                                    cb.disabled = true;
+                                    cb.checked = true;
+                                }
+                            }
                         }
-                     
+
                         out.hideDigScrapeButtons();
-                        out.toOut('Please select which of the ' + length + ' files you wish to download.')
+                        out.toOut('Please select which of the ' + length + ' files you wish to download.');
                         out.showActionButtons();
+                        chrome.browserAction.setBadgeText({ text: '' + idx + '' });
+                        chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
+
                     }
                     else {
                         chrome.browserAction.setBadgeText({ text: '' });
@@ -73,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function init() {
             function storageSet() {
                 console.log('[Popup] Cleared prev uri map');
             }
-        );    
+        );
     }
 
 
@@ -152,8 +202,6 @@ document.addEventListener("DOMContentLoaded", function init() {
                 var evt = new MouseEvent('click');
                 cbEl.dispatchEvent(evt);
             });
-
-            clearPreviousUriMap();
         });
 
 
@@ -169,8 +217,6 @@ document.addEventListener("DOMContentLoaded", function init() {
                     cbEl.dispatchEvent(evt);
                 }
             });
-
-            clearPreviousUriMap();
         });
 
 
@@ -182,9 +228,12 @@ document.addEventListener("DOMContentLoaded", function init() {
             chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
                 clearPreviousUriMap();
                 
-                var out = new bgWindow.Output(window.document);
+                var out = (
+                    bgWindow.outputController ? bgWindow.outputController : bgWindow.Output(window.document)
+                );                
                 out.clearFilesDug();
                 out.showDigScrapeButtons();
+                out.toOut('Hit a button to begin.');
             });
         });
 
