@@ -141,6 +141,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                     minZoomHeight: '300',
                     dlChannels: '11',
                     dlBatchSize: '3',
+                    knownBadImgRegex: '/\\/(logo\.|loading|header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|spinner\.svg|preview\.jpg)/i',
                 },
                 messages: [],
                 processings: [],
@@ -154,6 +155,7 @@ document.addEventListener("DOMContentLoaded", function init() {
 
                 bgWindow.Logicker.setMinZoomHeight(store.spec.config.minZoomHeight);
                 bgWindow.Logicker.setMinZoomWidth(store.spec.config.minZoomWidth);
+                bgWindow.Logicker.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
 
                 bgWindow.Logicker.setMessages(store.spec.messages);
                 bgWindow.Logicker.setProcessings(store.spec.processings);

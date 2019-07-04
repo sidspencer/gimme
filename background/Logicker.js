@@ -12,6 +12,7 @@ var Logicker = (function Logicker(Utils) {
         MIN_ZOOM_HEIGHT: 250,
         MIN_ZOOM_WIDTH: 250,
 
+        knownBadImgRegex: /\/(logo\.|loading|header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|spinner\.svg|preview\.jpg)/i,
         messages: [],
         processings: [],
         blessings: [],
@@ -31,10 +32,15 @@ var Logicker = (function Logicker(Utils) {
         me.blessings = JSON.parse(JSON.stringify(blessings));
     }
     me.setMinZoomHeight = function setMinZoomHeight(height) {
-        me.MIN_ZOOM_HEIGHT = height + 0;
+        me.MIN_ZOOM_HEIGHT = parseInt(height + '', 10);
     }
     me.setMinZoomWidth = function setMinZoomWidth(width) {
-        me.MIN_ZOOM_WIDTH = width + 0;
+        me.MIN_ZOOM_WIDTH = parseInt(width + '', 10);
+    }
+    me.setKnownBadImgRegex = function setKnownBadImgRegex(regexString) {
+        if (!!regex) {
+            me.knownBadImgRegex =  new RegExp(regexString);
+        }
     }
 
 
@@ -197,9 +203,10 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/\/(logo\.|loading|header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|spinner\.svg|preview\.jpg)/i).test(src))
-        {
-            isBad = true;
+        if (!!me.knownBadImgRegex) {
+            if (me.knownBadImgRegex.test(src)) {
+                isBad = true;
+            }
         }
 
         return isBad;

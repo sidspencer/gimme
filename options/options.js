@@ -21,7 +21,8 @@ var Constance = (function() {
             minZoomWidth: 'min zoom-item width',
             minZoomHeight: 'min zoom-item height',
             dlChannels: '# of download channels',
-            dlBatchSize: '# of downloads per batch', 
+            dlBatchSize: '# of downloads per batch',
+            knownBadImgRegex: 'Regular expression that matches and blocks processing on known bad image-names.', 
         },
         MESSAGES: {
             match: 'uri-matcher',
@@ -53,6 +54,7 @@ var Constance = (function() {
         minZoomHeight: '300',
         dlChannels: '5',
         dlBatchSize: '5',
+        knownBadImgRegex: '/\/(logo\.|loading|header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|spinner\.svg|preview\.jpg)/i'
     };
     var cannedProcessings = [
         {
