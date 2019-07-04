@@ -387,6 +387,10 @@ var Utils = (function Utils() {
         return (
             function() {
                 output.toOut('Downloading file ' + num);
+
+                chrome.browserAction.setBadgeText({ text: '' + num + '' });
+                chrome.browserAction.setBadgeBackgroundColor({ color: '#009900' });
+
                 return me.dlInChain(uri, destFilename);
             }
         );
