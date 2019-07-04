@@ -489,6 +489,8 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
         );
 
         console.log('[Scraper] harvested map of length: ' + harvestedUris.length);
+        chrome.browserAction.setBadgeText({ text: '' + harvestedUris.length + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: '#9999FF' });
         
         return (new Promise(function(resolve, reject) {
             chrome.storage.local.set({
@@ -502,7 +504,7 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
         }));
     };
 
-
+    
     // return the singleton
     return me;
 })
