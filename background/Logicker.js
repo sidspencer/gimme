@@ -32,13 +32,21 @@ var Logicker = (function Logicker(Utils) {
         me.blessings = JSON.parse(JSON.stringify(blessings));
     }
     me.setMinZoomHeight = function setMinZoomHeight(height) {
-        me.MIN_ZOOM_HEIGHT = parseInt(height + '', 10);
+        var zoomHeight = parseInt(height + '', 10);
+
+        if (!isNaN(zoomHeight)) {
+            me.MIN_ZOOM_HEIGHT = zoomHeight;
+        }
     }
     me.setMinZoomWidth = function setMinZoomWidth(width) {
-        me.MIN_ZOOM_WIDTH = parseInt(width + '', 10);
+        var zoomWidth = parseInt(width + '', 10);
+
+        if (!isNaN(zoomWidth)) {
+            me.MIN_ZOOM_WIDTH = zoomWidth;
+        }
     }
     me.setKnownBadImgRegex = function setKnownBadImgRegex(regexString) {
-        if (!!regex) {
+        if (!!regexString) {
             me.knownBadImgRegex =  new RegExp(regexString);
         }
     }
