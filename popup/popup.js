@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                 prevUriMap: {}
             }, 
             function storageRetrieved(store) {
-                var uriMap = store.prevUriMap;
+                var uriMap = store.prevUriMap
 
                 // If we're still in the digging/scraping stages, restore the textual file-list.
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
@@ -35,8 +35,8 @@ document.addEventListener("DOMContentLoaded", function init() {
                         }
 
                         if (out.appIsScraping || out.appIsDigging) {
-                            chrome.browserAction.setBadgeText({ text: '' });
-                            out.toOut('Currently ' + (out.appIsScraping ? 'scraping' : 'digging') + '...');
+                            var descriptionOfWork = out.appIsScraping ? 'scraping...' : 'digging...';
+                            out.toOut('Currently ' + descriptionOfWork);
                             out.restoreFileList();
                             return;
                         }
@@ -51,6 +51,8 @@ document.addEventListener("DOMContentLoaded", function init() {
                             out = new bgWindow.Output(window.document);
                             out.checkedFileOptUris = cbUris;
                         }
+                        out.hideDigScrapeButtons();
+                        out.showActionButtons();
 
                         var dir = bgWindow.Utils.getSaltedDirectoryName();
                 
@@ -58,6 +60,10 @@ document.addEventListener("DOMContentLoaded", function init() {
                         bgWindow.Utils.resetDownloader();
 
                         var uriMapLength = Object.keys(uriMap).length;
+                        var alreadyCheckedItemsLength = (
+                            Array.isArray(document.checkedFileOptUris) ? document.checkedFileOptUris.length : 0
+                        );
+
                         var idx = uriMapLength - 1;
 
                         for (var thumbUri in uriMap) { 
@@ -90,11 +96,15 @@ document.addEventListener("DOMContentLoaded", function init() {
                             }
                         }
 
-                        out.hideDigScrapeButtons();
-                        out.toOut('Please select which of the ' + length + ' files you wish to download.');
-                        out.showActionButtons();
-                        chrome.browserAction.setBadgeText({ text: '' + (uriMapLength - idx) + '' });
+                        chrome.browserAction.setBadgeText({ text: '' + (uriMapLength - alreadyCheckedItemsLength) + '' });
                         chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
+
+                        if (!!cbUris && cbUris.length > 0) {
+                            out.toOut('Please select which of the ' + (uriMapLength - alreadyCheckedItemsLength) + ' remaining files you wish to download.');
+                        }
+                        else {
+                            out.toOut('Please select which of the total ' + uriMapLength + ' files you wish to download.');
+                        }
                     }
                     else {
                         chrome.browserAction.setBadgeText({ text: '' });
@@ -223,6 +233,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                     bgWindow.outputController ? bgWindow.outputController : bgWindow.Output(window.document)
                 );                
                 out.clearFilesDug();
+                document.checkedFileOptUris = [];
                 out.showDigScrapeButtons();
                 out.toOut('Hit a button to begin.');
             });
