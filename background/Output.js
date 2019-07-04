@@ -70,6 +70,7 @@ var Output = (function Output(dokken) {
         me.fileOptMap = {};
         me.dugUris = [];
         me.failedUris = [];
+        me.checkedFileOptUris = [];
 
         var childNodes = undefined;
         try {
@@ -393,7 +394,7 @@ var Output = (function Output(dokken) {
     function restoreEntryStatus(entryObj) {
         return new Promise(function(resolve, reject) {
             setTimeout(function() {
-                console.log('[Output] restoring entry status.');
+                console.log('[Output] restoring entry status for: ' + entryObj.uri);
 
                 if (me.dugUris.indexOf(entryObj.id) !== -1) {
                     me.setEntryAsDug(entryObj.id, entryObj.uri);
