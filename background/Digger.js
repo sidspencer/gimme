@@ -264,31 +264,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var nextId = fromKeys.length + Object.keys(to).length;
 
         to = Object.assign(to, from);
-
-        //me.redrawOutputFileOpts(me.galleryMap);
-
-        /*
-        // Apply the optionally-set me.urisToDig
-        fromKeys.forEach(function setNewLinkHrefs(thumbUri) {
-            // Store the old value, if there was one, and override with our new one.
-            var newPageUri = from[thumbUri];            
-            var oldPageUri = to[thumbUri];
-            var id = nextId;
-
-            if (!!oldPageUri) {
-                id = ids[oldPageUri];
-                Output.deleteEntry(id);
-                delete ids[oldPageUri];
-            }
-            else {
-                nextId++;
-            }
-            
-            to[thumbUri] = newPageUri;
-            ids[newPageUri] = id;
-            Output.addNewEntry(id, thumbUri);            
-        });
-        */        
     }
 
 
@@ -311,11 +286,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
                 // Create the associations, but do not add duplicates.
                 if (thumbUri in map) {
-                    // console.log(
-                    //     '[Digger] Found two zoomUris for thumb: ' + thumbUri + 
-                    //     '\n       keeping original: ' + map[thumbUri] + 
-                    //     '\n       discarding dupe:  ' + zoomUri
-                    // );
+                    return;
                 }
                 else {
                     var newId = Object.keys(map).length;
@@ -326,7 +297,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             }
         }
     }
-
 
 
 
@@ -483,7 +453,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // This merges, and also manages the Output entries.
         if (!!me.startingGalleryMap && !!Object.keys(me.startingGalleryMap).length) {
             galleryMap = Object.assign({}, me.startingGalleryMap, galleryMap);
-            //mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
         }
 
         // Begin digging, or stop if instructed to.
@@ -516,7 +485,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             Output.setEntryAsDug(id, zoomedImgUri);
         } 
         
-        Output.toOut('Completed ' + (++me.completedXhrCount) + ' media fetches...');        
+        Output.toOut('Completed ' + (++me.completedXhrCount) + ' media fetches...');
+        chrome.browserAction.setBadgeText({ text: '' + me.completedXhrCount + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: '#111111' });
     }
 
 
@@ -555,21 +526,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         me.harvestedUriMap = {};
         me.outputIdMap = {};
 
-        // Follow the options. If we're told:
-        //  no scrape & no dig -- just call the callback. 
-        //  yes scrape -- do it all normally through the default digDeep() behavior.
-        // if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-        //     return (new Promise(function(resolve, reject) {
-        //         chrome.storage.local.set({
-        //                 prevUriMap: me.startingGalleryMap,
-        //             },
-        //             function storageSet() {
-        //                 console.log('[Digger] Set prevUriMap in storage');
-        //                 resolve(me.startingGalleryMap);
-        //             }
-        //         );
-        //     }));
-        // }
         if (me.digOpts.doScrape) {
             return discoverGallery(doc, loc);
         }
@@ -898,9 +854,16 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // Return the Digger instance.
     return me;
 });
+
+// These are put on the Digger prototype so that the popup can easily set these values,
+// and they are available to all diggers.
 Digger.prototype.BATCH_SIZE = 3;
 Digger.prototype.CHANNELS = 11;
 
+
+/*
+ * Set the gallerygallerydig batch size from the options.
+ */
 Digger.prototype.setBatchSize = function setBatchSize(size) {
     console.log('[Digger] Attempt to set BATCH_SIZE to ' + size);
 
@@ -914,6 +877,10 @@ Digger.prototype.setBatchSize = function setBatchSize(size) {
     }
 };
 
+
+/*
+ * Set the gallerygallerydig number of channels from the options.
+ */
 Digger.prototype.setChannels = function setChannels(size) {
     console.log('[Digger] Attempt to set CHANNELS to ' + size);
 
