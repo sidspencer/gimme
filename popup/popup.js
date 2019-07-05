@@ -148,12 +148,6 @@ document.addEventListener("DOMContentLoaded", function init() {
                 bgWindow.Logicker.setMessages(store.spec.messages);
                 bgWindow.Logicker.setProcessings(store.spec.processings);
                 bgWindow.Logicker.setBlessings(store.spec.blessings);
-
-                console.log("Logicker:");
-                console.log(bgWindow.Logicker);
-
-                console.log("Digger:");
-                console.log(bgWindow.Digger);
             });
         });
     }
