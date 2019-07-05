@@ -105,14 +105,8 @@ var Utils = (function Utils() {
     /**
      * Does it match a regex in our list of blacklist regexes?
      */
-    me.isBannedUri = function isBannedUri(uri) {
+    me.isBannedZoomUri = function isBannedZoomUri(uri) {
         if (typeof uri === 'undefined') {
-            return true;
-        }
-        else if (/\/zip\.php\?/.test(uri)) {
-            return true;
-        }
-        else if (/\.zip/.test(uri)) {
             return true;
         }
         else {
@@ -126,7 +120,7 @@ var Utils = (function Utils() {
      */
     me.isKnownMediaType = function isKnownMediaType(name) {
         return (
-            !me.isBannedUri(name) &&
+            !me.isBannedZoomUri(name) &&
             (me.isAllowedImageType(name) || me.isAllowedVideoType(name) || me.isAllowedAudioType(name))  
         );
     };
@@ -361,10 +355,12 @@ var Utils = (function Utils() {
      * Add its downloading to one of the DL_CHAIN_COUNT download promise chains.
      */
     me.downloadFile = function downloadFile(uri, destFilename, output) {
-        if (uri.lastIndexOf('/') === uri.length - 1) { return; };
+        if (uri.lastIndexOf('/') === uri.length - 1) { 
+            return Promise.resolve(me.createDownloadSig(0, uri, destFilename)); 
+        };
 
-        // If it's a PHP file, guess and give it a .jpg.
-        if (!/\.(jpg|jpeg|png|gif|tiff|mpg|mp4|flv)$/i.test(destFilename)) {
+        // If it's not an expected file type, slap jpg on the end.
+        if (!/\.(jpg|jpeg|png|gif|tiff|mpg|mp4|flv|avi|zip|tar|gz|mp3|ogg|aac|m4a)$/i.test(destFilename)) {
             destFilename = destFilename + '.jpg';
         }
 
@@ -387,6 +383,10 @@ var Utils = (function Utils() {
         return (
             function() {
                 output.toOut('Downloading file ' + num);
+
+                chrome.browserAction.setBadgeText({ text: '' + num + '' });
+                chrome.browserAction.setBadgeBackgroundColor({ color: '#009900' });
+
                 return me.dlInChain(uri, destFilename);
             }
         );

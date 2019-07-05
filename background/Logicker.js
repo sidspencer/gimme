@@ -12,6 +12,7 @@ var Logicker = (function Logicker(Utils) {
         MIN_ZOOM_HEIGHT: 250,
         MIN_ZOOM_WIDTH: 250,
 
+        knownBadImgRegex: /^SUPER_FAKE_NOT_FOUND_IN_NATURE_ONLY_ZOOL$/,
         messages: [],
         processings: [],
         blessings: [],
@@ -31,10 +32,23 @@ var Logicker = (function Logicker(Utils) {
         me.blessings = JSON.parse(JSON.stringify(blessings));
     }
     me.setMinZoomHeight = function setMinZoomHeight(height) {
-        me.MIN_ZOOM_HEIGHT = height + 0;
+        var zoomHeight = parseInt(height + '', 10);
+
+        if (!isNaN(zoomHeight)) {
+            me.MIN_ZOOM_HEIGHT = zoomHeight;
+        }
     }
     me.setMinZoomWidth = function setMinZoomWidth(width) {
-        me.MIN_ZOOM_WIDTH = width + 0;
+        var zoomWidth = parseInt(width + '', 10);
+
+        if (!isNaN(zoomWidth)) {
+            me.MIN_ZOOM_WIDTH = zoomWidth;
+        }
+    }
+    me.setKnownBadImgRegex = function setKnownBadImgRegex(regexString) {
+        if (!!regexString) {
+            me.knownBadImgRegex =  new RegExp(regexString);
+        }
     }
 
 
@@ -197,9 +211,10 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/(\/logo\.|\/loading|\/header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|spinner\.svg|preview\.jpg)/i).test(src))
-        {
-            isBad = true;
+        if (!!me.knownBadImgRegex) {
+            if (me.knownBadImgRegex.test(src)) {
+                isBad = true;
+            }
         }
 
         return isBad;

@@ -502,7 +502,7 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
 
                 // make a simple chain of 
                 var id = 0;
-                
+                var galleryCount = 0;
                 Object.values(mapOfGalleryLinks).forEach(function(uri) { 
                     if (!!uri && !!uri.trim()) {                   
                         p = p.then(function() { 
@@ -510,6 +510,8 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                             .then(function pushDoc(d) {
                                 console.log('[App] Executed load of gallery page ' + uri);
                                 output.toOut('Loading gallery page ' + uri);
+                                chrome.browserAction.setBadgeText({ text: '' + (++galleryCount) + '' });
+                                chrome.browserAction.setBadgeBackgroundColor({ color: '#4444ff' });
 
                                 locDocs.push({
                                     loc: new URL(uri),
@@ -520,6 +522,7 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                                 console.log('[App] Failed to load gallery doc ' + uri)
                                 console.log('      Error: ' + e);
                                 output.toOut('Failed to load gallery page ' + uri);
+                                galleryCount--;
 
                                 return Promise.resolve(true);
                             });
@@ -530,7 +533,6 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                 return p;
             })
             .then(function docsLoaded() {
-                var promises = [];
                 var p = Promise.resolve(true);
 
                 locDocs.forEach(function(lDoc) {
