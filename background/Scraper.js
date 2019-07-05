@@ -132,7 +132,7 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
                     }
 
                     // Only grab video srcs. turn the src into a uri, push it if it worked.
-                    if (vidSrc && vidSrc.match(/\.(mpg|mp4|mov|avi|wmv|flv)\.[\?](.+?)$/)) {
+                    if (vidSrc && vidSrc.match(/\.(mpg|mp4|mov|avi|wmv|flv)/i)) {
                         var cleansedUrl = u.srcToUrl(vidSrc, (loc || BLANK_LOC));
 
                         if (u.exists(cleansedUrl)) {
