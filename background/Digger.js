@@ -277,7 +277,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // Create entries in the gallery map, the XHR tracking array, and the UI.
         if (u.exists(thumbUri) && u.exists(zoomUri)) {
-            if (!u.isBannedUri(zoomUri)) {
+            if (!u.isBannedZoomUri(zoomUri)) {
                 console.log(
                     '[Digger] Adding to map:\n' + 
                     '         thumbUri: ' + thumbUri + '\n' + 
