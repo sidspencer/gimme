@@ -8,6 +8,9 @@ var Output = (function Output(dokken) {
     var me = {
         ACTION_HOLDER_ID: 'actionHolder',
         BUTTON_HOLDER_ID: 'buttonHolder',
+        MAIN_BUTTONS_HOLDER_ID: 'mainButtonsHolder',
+        SCRAPING_BUTTONS_HOLDER_ID: 'scrapingButtonsHolder',
+        DIGGING_BUTTONS_HOLDER_ID: 'diggingButtonsHolder',
         FILES_DUG_ID: 'filesDug',
         GET_ALL_FILE_OPTS_ID: 'getAllFileOptsButton',
         GET_ALL_JPG_OPTS_ID: 'getAllJpgOptsButton',
@@ -18,17 +21,11 @@ var Output = (function Output(dokken) {
         dugUris: [],
         checkedFileOptUris: [],
     };
+
     me.doc = dokken;
     me.filesDug = me.doc.getElementById('filesDug');
     me.out = me.doc.getElementById('output');
 
-    if (Array.isArray(me.doc.checkedFileOptUris)) {
-        me.checkedFileOptUris = me.doc.checkedFileOptUris;
-    }
-    else {
-        me.doc.checkedFileOptUris = me.checkedFileOptUris;
-    }
-    
 
     /**
      * Set the main message area's content.
@@ -53,13 +50,6 @@ var Output = (function Output(dokken) {
         me.doc = dok;
         me.filesDug = me.doc.getElementById('filesDug');
         me.out = me.doc.getElementById('output');
-
-        if (Array.isArray(dok.checkedFileOptUris)) {
-            me.checkedFileOptUris = dok.checkedFileOptUris;
-        }
-        else {
-            dok.checkedFileOptUris = me.checkedFileOptUris;
-        }
     }
     
 
@@ -67,12 +57,8 @@ var Output = (function Output(dokken) {
      * Clear the filesDug <ul> of any child nodes.
      */
     me.clearFilesDug = function clearFilesDug() { 
-        me.fileOptMap = {};
-        me.dugUris = [];
-        me.failedUris = [];
-        me.checkedFileOptUris = [];
+        var childNodes = [];
 
-        var childNodes = undefined;
         try {
             childNodes = me.filesDug.childNodes;
         }
@@ -85,6 +71,17 @@ var Output = (function Output(dokken) {
             me.filesDug.removeChild(me.filesDug.firstChild);
         }
     };
+
+    
+    /*
+     * Reset the output to blank file data.
+     */
+    me.resetFileData = function resetFileData() {
+        me.fileOptMap = {};
+        me.dugUris.splice(0);
+        me.failedUris.splice(0);
+        me.checkedFileOptUris.splice(0);
+    }
 
 
     /**
@@ -255,19 +252,23 @@ var Output = (function Output(dokken) {
             var cb = event.currentTarget;
 
             if (!!cb.dataset.filePath) {
-                event.currentTarget.disabled = true;
+                cb.disabled = true;
+                cb.checked = true;
+
                 var ret = fileOpt.onSelect(cb.value, cb.dataset.filePath, me);
                 
                 if (!!ret && !!ret.then) {
-                    ret.then(function(uri) {
+                    ret.then(function(dlSig) {
                         cb.dataset.filePath = '';
-                        cb.ownerDocument.checkedFileOptUris.push(cb.value);
+                        cb.checked = true;
+                        cb.disabled = true;
                         setFileOptUriChecked(cb.value);
                     });
                 }
                 else {
                     cb.dataset.filePath = '';
-                    cb.ownerDocument.checkedFileOptUris.push(cb.value);
+                    cb.checked = true;
+                    cb.disabled = true;
                     setFileOptUriChecked(cb.value);
                 }
             }
@@ -279,7 +280,9 @@ var Output = (function Output(dokken) {
      * Track which file options have been checked.
      */
     function setFileOptUriChecked(uri) {
-        me.checkedFileOptUris.push(uri);
+        if (me.checkedFileOptUris.indexOf(uri) === -1) {
+            me.checkedFileOptUris.push(uri);
+        }
     }
 
 
@@ -317,6 +320,7 @@ var Output = (function Output(dokken) {
 
         try {
             me.doc.getElementById(me.BUTTON_HOLDER_ID).style.display = 'block';
+            me.doc.getElementById(me.MAIN_BUTTONS_HOLDER_ID).style.display = 'block';
         }
         catch(error) {
             console.log('[Output] Could not show dig/scrape buttons. doc ref is a Dead Object.');
@@ -394,15 +398,12 @@ var Output = (function Output(dokken) {
     function restoreEntryStatus(entryObj) {
         return new Promise(function(resolve, reject) {
             setTimeout(function() {
-                console.log('[Output] restoring entry status for: ' + entryObj.uri);
-
                 if (me.dugUris.indexOf(entryObj.id) !== -1) {
                     me.setEntryAsDug(entryObj.id, entryObj.uri);
                 }
                 else if (me.failedUris.indexOf(entryObj.id) !== -1) {
                     me.setEntryAsFailed(entryObj.id, entryObj.uri);
                 }
-
                 resolve(true);
             }, 1);
         });

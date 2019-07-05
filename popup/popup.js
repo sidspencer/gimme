@@ -25,33 +25,23 @@ document.addEventListener("DOMContentLoaded", function init() {
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
                 var length = Object.values(uriMap).length;
                 chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
-                    var out = bgWindow.outputController;
+                    var out = bgWindow.output;
+                    out.setDoc(document);
 
-                    if (!!out) {
-                        out.setDoc(document);
-                        
-                        if (Array.isArray(document.checkedFileOptUris)) {
-                            console.log('got checkedFileOptUris: ' + JSON.stringify(document.checkedFileOptUris));
-                        }
-
-                        if (out.appIsScraping || out.appIsDigging) {
-                            var descriptionOfWork = out.appIsScraping ? 'scraping...' : 'digging...';
-                            out.toOut('Currently ' + descriptionOfWork);
-                            out.restoreFileList();
-                            return;
-                        }
+                    if (out.appIsScraping || out.appIsDigging) {
+                        var descriptionOfWork = out.appIsScraping ? 'scraping...' : 'digging...';
+                        out.toOut('Currently ' + descriptionOfWork);
+                        out.restoreFileList();
+                        return;
                     }
                     
                     if (length) {
                         console.log("[Popup] Got persisted uris:");
                         console.log(JSON.stringify(uriMap));
-                        var cbUris = document.checkedFileOptUris;
 
-                        if (!out) {
-                            out = new bgWindow.Output(window.document);
-                            out.checkedFileOptUris = cbUris;
-                        }
-                        out.hideDigScrapeButtons();
+                        console.log('[Popup] Got checked uris: ');
+                        console.log(JSON.stringify(out.checkedFileOptUris));
+
                         out.showActionButtons();
 
                         var dir = bgWindow.Utils.getSaltedDirectoryName();
@@ -59,12 +49,8 @@ document.addEventListener("DOMContentLoaded", function init() {
                         out.clearFilesDug();
                         bgWindow.Utils.resetDownloader();
 
-                        var uriMapLength = Object.keys(uriMap).length;
-                        var alreadyCheckedItemsLength = (
-                            Array.isArray(document.checkedFileOptUris) ? document.checkedFileOptUris.length : 0
-                        );
-
-                        var idx = uriMapLength - 1;
+                        var checkedItemCount = 0;
+                        var idx = length - 1;
 
                         for (var thumbUri in uriMap) { 
                             var uri = uriMap[thumbUri];
@@ -87,27 +73,29 @@ document.addEventListener("DOMContentLoaded", function init() {
 
                             var cb = document.getElementById('cbFile' + optId);
                             if (!!cb) {
-                                if (Array.isArray(cbUris) && cbUris.indexOf(cb.value) !== -1) {   
-                                    console.log('checkbox was previously checked!');                             
+                                if (out.checkedFileOptUris.indexOf(cb.value) !== -1) {
+                                    checkedItemCount++;   
                                     cb.dataset.filePath = '';
-                                    cb.disabled = true;
                                     cb.checked = true;
+                                    cb.disabled = true;
                                 }
                             }
                         }
 
-                        chrome.browserAction.setBadgeText({ text: '' + (uriMapLength - alreadyCheckedItemsLength) + '' });
+                        chrome.browserAction.setBadgeText({ text: '' + (length - checkedItemCount) + '' });
                         chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
 
-                        if (!!cbUris && cbUris.length > 0) {
-                            out.toOut('Please select which of the ' + (uriMapLength - alreadyCheckedItemsLength) + ' remaining files you wish to download.');
+                        if (checkedItemCount > 0) {
+                            out.toOut('Please select which of the ' + (length - checkedItemCount) + ' remaining files you wish to download.');
                         }
                         else {
-                            out.toOut('Please select which of the total ' + uriMapLength + ' files you wish to download.');
+                            out.toOut('Please select which of the total ' + length + ' files you wish to download.');
                         }
                     }
                     else {
                         chrome.browserAction.setBadgeText({ text: '' });
+                        out.showDigScrapeButtons();
+                        out.toOut('hit a button to begin.');
                     }
                 });
             }
@@ -231,12 +219,12 @@ document.addEventListener("DOMContentLoaded", function init() {
             chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
                 clearPreviousUriMap();
                 
-                var out = (
-                    bgWindow.outputController ? bgWindow.outputController : bgWindow.Output(window.document)
-                );                
+                var out = bgWindow.output;
+                out.setDoc(document);           
                 out.clearFilesDug();
-                document.checkedFileOptUris = [];
+                out.resetFileData();
                 out.showDigScrapeButtons();
+
                 out.toOut('Hit a button to begin.');
             });
         });
