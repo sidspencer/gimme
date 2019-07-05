@@ -307,7 +307,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     // These CLICK_PROPS are in priority order of which to pay attention to.
     var DEAULT_CLICK_PROPS = [ 'onclick', 'href' ];
-    var DEFAULT_PROP_PATHS = [ 'src', 'href' ];
+    var DEFAULT_PROP_PATHS = [ 'src', 'href', 'currentSrc' ];
     var DEFAULT_SELECTOR = ':scope *';
     function getClickUriMap(node, loc, spec) {
         // Throw errors if no node (usually document) or loc.
@@ -767,8 +767,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * TODO: Put more here. 
      */
     function skimZoomPage(doc, thumbUrl, zoomPageUrl) {
-        var zoomFilename = u.extractFilename(zoomPageUrl.href);
-
         // First look in the special rules for a strategy that's already 
         // been figured out by me. See if we can just get the Uri from there.
         var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);                    
@@ -785,10 +783,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 zoomUri: doc.images[0].src,
             });
         }
-        else {
-            // TODO: Create more skim-worthy search strategies.        
-            return Promise.reject('Skimming found nothing');
-        }
+
+        // TODO: Create more skim-worthy search strategies.        
+        return Promise.reject('Skimming found nothing');
     }
 
     
@@ -802,13 +799,15 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // For each enabled investigation option, try to find the zoom media item.
         Object.keys(me.options).forEach(function checkUris(optName) {
-            if (!zoomUri && me.options[optName] === true) {
+            if (!!zoomUri) { return; };
+
+            if (me.options[optName] === true) {
                 zoomUri = findZoomUri(doc, thumbUrl, zoomPageUrl, optName);
             }
         });
 
         // Resolve if we found something that works. Otherwise, reject.
-        if (zoomUri) {
+        if (!!zoomUri) {
             return Promise.resolve({
                 thumbUri: thumbUrl.href,
                 zoomUri: zoomUri
@@ -830,6 +829,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var zUri = false;
 
         Output.toOut('Sifting through ' + optionName + ' content on detail page.');
+        console.log('Sifting through ' + optionName + ' content on ' + u.extractFilename(zpUrl.href));
 
         // If this is the only option enabled, and there's only one type of the media on the document, 
         // use it.
@@ -839,8 +839,13 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // Otherwise, use the Logicker's filename-matching on each object we find. Use the first match.
         else {
             urls.forEach(function checkForZoomUrl(url) {
-                if (!zUri && u.exists(url) && url.pathname) {                                    
-                    if (Logicker.isPossiblyZoomedFile(tUrl, url)) {
+                if (!!zUri) { return; };
+
+                if (u.exists(url) && url.pathname) {
+                    if (optionName === OPT.VIDEOS && urls.length === 1) {
+                        zUri = url.href;
+                    }                                    
+                    else if (Logicker.isPossiblyZoomedFile(tUrl, url)) {
                         zUri = url.href;
                     }
                 }
