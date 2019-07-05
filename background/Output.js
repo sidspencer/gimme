@@ -250,27 +250,20 @@ var Output = (function Output(dokken) {
 
         me.doc.getElementById(checkbox.id).addEventListener('click', function whenFileOptClicked(event) {
             var cb = event.currentTarget;
+            cb.checked = true;
+            cb.disabled = true;
 
             if (!!cb.dataset.filePath) {
-                cb.disabled = true;
-                cb.checked = true;
-
-                var ret = fileOpt.onSelect(cb.value, cb.dataset.filePath, me);
+                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+'', me);
                 
-                if (!!ret && !!ret.then) {
-                    ret.then(function(dlSig) {
-                        cb.dataset.filePath = '';
-                        cb.checked = true;
-                        cb.disabled = true;
+                if (!!p && !!p.then) {
+                    p.then(function() {
                         setFileOptUriChecked(cb.value);
                     });
                 }
-                else {
-                    cb.dataset.filePath = '';
-                    cb.checked = true;
-                    cb.disabled = true;
-                    setFileOptUriChecked(cb.value);
-                }
+            }
+            else {
+                setFileOptUriChecked(cb.value);
             }
         });
     };
