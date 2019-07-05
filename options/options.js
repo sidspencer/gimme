@@ -18,33 +18,33 @@ var Constance = (function() {
     // Enumeration of the labels to use for the spec form elements.
     me.LABELS = {
         CONFIG: {
-            minZoomWidth: 'min zoom-item width',
-            minZoomHeight: 'min zoom-item height',
-            dlChannels: '# of download channels',
-            dlBatchSize: '# of downloads per batch',
-            knownBadImgRegex: 'file exclusion regex', 
+            minZoomWidth: 'min full-sized image width',
+            minZoomHeight: 'minimum full-sized image height',
+            dlChannels: 'number of download channels for gallery-gallery-digs',
+            dlBatchSize: 'number of downloads in a batch for gallery-gallery-digs',
+            knownBadImgRegex: 'regex to match image uris that are never what we are looking for', 
         },
         MESSAGES: {
-            match: 'uri-matcher',
-            link: 'link selector',
-            href: 'link uri property',
-            thumb: 'thumbnail sub-selector',
-            src: 'thumbnail uri property',
+            match: 'regex to match the site uri',
+            link: 'css selector for getting the link element pointing to the full-sized image page',
+            href: 'javascript property path for getting the proper link uri from the link element',
+            thumb: 'css scoped sub-selector of the thumbnail image element relative to the link element',
+            src: 'javascript property path for getting the proper thumbnail source uri from the thumbnail element',
         },
         PROCESSINGS: {
-            match: 'uri-matcher',
-            actions: 'action',
-            actions_noun: 'use property',
-            actions_verb: 'what to do',
-            actions_match: 'conditional matcher',
-            actions_new: 'new value',
-            dig: 'do digging?',
-            scrape: 'do scraping?',
+            match: 'regex to match the site uri',
+            actions: 'list of transformations to do on the matched uri',
+            actions_noun: 'do matching on the thumbnail image uri (src), or the link uri (href)',
+            actions_verb: 'the type of uri treansformation to do (ie "replace")',
+            actions_match: 'regex for what text in the selected src/href to replace/transform',
+            actions_new: 'new text for replacing/transforming the matched text of the uri',
+            dig: 'always use dig-engine discovery of full-sized images',
+            scrape: 'always use scrape-engine discovery of thumbnail images',
         },
         BLESSINGS: {
-            match: 'uri-matcher',
-            zoom: 'zoom-item selector',
-            src: 'zoom-item uri prop',
+            match: 'regex to match the site uri of detail pages containing the full-sized image',
+            zoom: 'css selector for the full-sized image element on the page',
+            src: 'javascript property path for getting the full-sized image source uri from the image element',
         },
     };
     
@@ -54,7 +54,7 @@ var Constance = (function() {
         minZoomHeight: '300',
         dlChannels: '5',
         dlBatchSize: '5',
-        knownBadImgRegex: '/\\/(logo\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i'
+        knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
     };
     var cannedProcessings = [
         {
