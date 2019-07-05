@@ -6,4 +6,4 @@ The code is there to download video and audio files as well, but is not currentl
 
 Two terms are used for the automatic media-finding: Dig and Scrape. Dig is for galleries, and galleries of galleries -- sites where one must dig into the detail pages to find the original media. Scrape is for just getting whatever is on the page. 
 
-It is currently available for firefox at https://addons.mozilla.org/en-US/firefox/addon/gimmegimmegimme/
+It is currently available from the Firefox add-on store and the Chrome web store, and will also work with the latest builds of the chromium-based Edge.
