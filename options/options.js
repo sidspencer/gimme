@@ -38,8 +38,8 @@ var Constance = (function() {
             actions_verb: 'the type of uri treansformation to do (ie "replace")',
             actions_match: 'regex for what text in the selected src/href to replace/transform',
             actions_new: 'new text for replacing/transforming the matched text of the uri',
-            dig: 'always use dig-engine discovery of full-sized images',
-            scrape: 'always use scrape-engine discovery of thumbnail images',
+            dig: 'force always use dig-engine discovery of full-sized images',
+            scrape: 'force always use scrape-engine discovery of thumbnail images',
         },
         BLESSINGS: {
             match: 'regex to match the site uri of detail pages containing the full-sized image',
