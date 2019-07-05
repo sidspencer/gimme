@@ -12,7 +12,7 @@ var Logicker = (function Logicker(Utils) {
         MIN_ZOOM_HEIGHT: 250,
         MIN_ZOOM_WIDTH: 250,
 
-        knownBadImgRegex: /\/(logo\.|loading|header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|spinner\.svg|preview\.jpg)/i,
+        knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
         messages: [],
         processings: [],
         blessings: [],
