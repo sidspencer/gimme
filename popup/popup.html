@@ -9,7 +9,7 @@
         <h1>gimme gimme gimme. need summore...</h1>
 
         <div id="buttonHolder">
-            <div class="doublewide">
+            <div id="mainButtonsHolder" class="doublewide" style="display:none">
                 <button id="digFileOptionsButton">dig file list</button>
                 <button id="scrapeFileOptionsButton">scrape file list</button>
                 <button id="toggleVoyeur">toggle voyeur</button>
@@ -17,13 +17,13 @@
                 
             </div>
 
-            <div class="buttonColumn">
+            <div id="scrapingButtonsHolder" class="buttonColumn">
                 <button id="scrapeImagesButton">scrape page images</button>
                 <button id="scrapeVideosButton">scrape page videos</button>
                 <button id="scrapeButton">scrape</button>
             </div>
 
-            <div class="buttonColumn">
+            <div id="diggingButtonsHolder" class="buttonColumn">
                 <button id="digImageGalleryButton">dig Image Gallery</button>
                 <button id="digVideoGalleryButton">dig Video Gallery</button>
                 <button id="digButton">dig</button>
@@ -31,7 +31,7 @@
         </div>
 
         <div id="outputHolder">
-            <span id="output">Hit a button to begin.</span>
+            <span id="output">...</span>
         </div>
         
         <div id="actionHolder" style="display: none;">
