@@ -158,8 +158,8 @@ var Output = (function Output(dokken) {
                 catch(error) {
                     console.log('[Output] Could not create new file entry. doc reference is a Dead Object.');
                     resolve({
-                        id: -1,
-                        uri: '',
+                        id: id+'',
+                        uri: uri,
                     });
                     return;
                 }
@@ -174,7 +174,7 @@ var Output = (function Output(dokken) {
 
                 resolve({ 
                     id: id+'', 
-                    uri: uri 
+                    uri: uri, 
                 });
             }, 1);
         });
