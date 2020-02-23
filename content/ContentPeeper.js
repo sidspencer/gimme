@@ -91,7 +91,7 @@
             'error': '',
             
             'locator': Object.assign({}, loc),
-            'docInnerHtml': doc.documentElement.outerHtml,
+            'docInnerHtml': doc.documentElement.outerHTML,
             'galleryMap': {},
 
             'inputs': Object.assign({}, req),
@@ -145,7 +145,12 @@
         resPayload = proc(resPayload, req);
         peepingAround = false;
         
-        console.log('[ContentPeeper] Sending response');
+
+        // console.log('[ContentPeeper] -----------------------------');
+        // console.log(req);
+        // console.log(resPayload);
+        // console.log('[ContentPeeper] -----------------------------')
+        // console.log('[ContentPeeper] Sending response');
 
         res(resPayload);
         return false;
@@ -200,11 +205,11 @@
         // If we were asked for it, return an array of propValues for the propname and selector.
         var linkSelector = req.linkSelector;
         var hrefProp = req.linkHrefProp;
-        var hrefPropArr = (hrefProp ? hrefProp.split('.') : []);
+        var hrefPropArr = (hrefProp ? hrefProp.split('.') : [hrefProp]);
         
         var thumbSubselector = req.thumbSubselector;
         var srcProp = req.thumbSrcProp;
-        var srcPropArr = (srcProp ? srcProp.split('.') : []);
+        var srcPropArr = (srcProp ? srcProp.split('.') : [srcProp]);
         
         var useRawValues = req.useRawValues;
 
@@ -220,7 +225,7 @@
 
                 // Get the href by going through each key til we hit the 
                 // href value at the end.
-                var value = tag;                        
+                var value = tag;
                 for (var i=0; i < hrefPropArr.length; i++) {
                     if (value) {
                         value = value[hrefPropArr[i]];

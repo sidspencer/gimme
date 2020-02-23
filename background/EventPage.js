@@ -1,6 +1,8 @@
 'use strict'
 
 
+var output = Output(document);
+
 //
 // Digging
 //
@@ -19,7 +21,9 @@ function goDig(parentDocument) {
         js: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
     var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
@@ -42,11 +46,13 @@ function goDigFileOptions(parentDocument) {
         js: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
     var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
-
+    
     app.digFileOptions();
 }
 
@@ -63,7 +69,9 @@ function goDigImageGallery(parentDocument) {
         js: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
     var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
@@ -84,7 +92,9 @@ function goDigVideoGallery(parentDocument) {
         js: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
     var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
@@ -104,7 +114,9 @@ function goDigGalleryGallery(parentDocument) {
         js: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
     var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
@@ -135,11 +147,12 @@ function goScrape(parentDocument) {
         qs: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
-
 
     app.scrape(options);
 }
@@ -160,9 +173,11 @@ function goScrapeFileOptions(parentDocument) {
         qs: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
 
 
@@ -183,9 +198,11 @@ function goScrapeImages(parentDocument) {
         qs: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
 
 
@@ -206,9 +223,11 @@ function goScrapeVideos(parentDocument) {
         qs: true,
     };
 
-    var output = Output(parentDocument);
+    output.setDoc(parentDocument);
+    output.resetFileData();
+    
     var scraper = Scraper(Utils, Logicker, output);
-    var digger = {};
+    var digger = Digger(scraper, output, Logicker, Utils, options);
     var app = App(output, digger, scraper, Logicker, Utils);
 
 

@@ -26,12 +26,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // aliases
     var u = Utils;
 
-    // Parameterized values, tunable via the Options page.
-    me.BATCH_SIZE = 3;
-    me.CHANNELS = 11;
-
     // constants
-    var DIG_SAVE = 'DIG_SAVE';
     var OPT = {
         IMGS: 'imgs',
         CSS_BGS: 'cssBgs',
@@ -45,7 +40,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         LARGEST_IMAGE: 2,
         INSPECT: 3,
         DIG_DEEPER: 4,
-    }
+    };
     var SCRAPING_TOOLS = {};
     SCRAPING_TOOLS[OPT.IMGS] = Scraper.getAllImgUrls;
     SCRAPING_TOOLS[OPT.CSS_BGS] = Scraper.getAllCssBackgroundUrls;
@@ -84,13 +79,42 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             chrome.storage.local.set({
                     prevUriMap: me.harvestedUriMap,
                 },
-                function storageSet() {
+                function storageSet() {                    
                     console.log('[Digger] Set prevUriMap in storage');
                     console.log('[Digger] ---Returning dig harvest -> ' + Object.keys(me.harvestedUriMap).length + '------');
                     resolve(me.harvestedUriMap);
                 }
             );
         }));
+    }
+
+
+    me.redrawOutputFileOpts = function redrawOutputFileOpts(uriMap) {
+        Output.clearFilesDug();
+        var dir = u.getSaltedDirectoryName();
+
+        var idx = 0;
+        for (var thumbUri in uriMap) { 
+            var uri = uriMap[thumbUri];
+            var queryPos = uri.lastIndexOf('?');
+
+            if (queryPos === -1) {
+                queryPos = uri.length;
+            }
+
+            me.outputIdMap[thumbUri] = idx;
+                        
+            Output.addFileOption({ 
+                id: (idx++), 
+                uri: uri, 
+                thumbUri: thumbUri,
+                filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
+                onSelect: u.downloadFile, 
+            });
+        }
+
+        chrome.browserAction.setBadgeText({ text: '' + idx + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
     }
 
 
@@ -119,7 +143,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var promises = [];
         var subMaps = [];
         var thumbUris = Object.keys(galleryMap);
-        var thumbsPerChannel = Math.floor(thumbUris.length / (me.CHANNELS - 1)) || 1;
+        var thumbsPerChannel = Math.floor(thumbUris.length / (Digger.prototype.CHANNELS - 1)) || 1;
 
         console.log('[Digger] Digging ' + thumbUris.length + ' scraped thumbnails.');
         Output.toOut('Now digging ' + thumbUris.length + ' thumbnails found in gallery.');
@@ -147,12 +171,12 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     function digNextBatch(galleryMap) {
         var diggingBatch = [];
-        var startingOutputId = (++me.batchCount) * me.BATCH_SIZE;
+        var startingOutputId = (++me.batchCount) * Digger.prototype.BATCH_SIZE;
 
         // Set up the output entry, and enter the uriPair's digDeep() execution
         // into the promise batch's array. Skip nulls. 
         var allThumbUris = Object.keys(galleryMap);    
-        for (var i = 0; i < me.BATCH_SIZE && allThumbUris.length > 0; i++) {
+        for (var i = 0; i < Digger.prototype.BATCH_SIZE && allThumbUris.length > 0; i++) {
             // Pop a thumb/link pair from the map.
             var thumbUri = allThumbUris[i];
             var zoomPageUri = galleryMap[thumbUri];
@@ -239,26 +263,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var fromKeys = Object.keys(from);
         var nextId = fromKeys.length + Object.keys(to).length;
 
-        // Apply the optionally-set me.urisToDig
-        fromKeys.forEach(function setNewLinkHrefs(thumbUri) {
-            // Store the old value, if there was one, and override with our new one.
-            var newPageUri = from[thumbUri];            
-            var oldPageUri = to[thumbUri];
-            var id = nextId;
-
-            if (!!oldPageUri) {
-                id = ids[oldPageUri];
-                Output.deleteEntry(id);
-                delete ids[oldPageUri];
-            }
-            else {
-                nextId++;
-            }
-            
-            to[thumbUri] = newPageUri;
-            ids[newPageUri] = id;
-            Output.addNewEntry(id, thumbUri);            
-        });        
+        to = Object.assign(to, from);
     }
 
 
@@ -272,7 +277,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // Create entries in the gallery map, the XHR tracking array, and the UI.
         if (u.exists(thumbUri) && u.exists(zoomUri)) {
-            if (!u.isBannedUri(zoomUri)) {
+            if (!u.isBannedZoomUri(zoomUri)) {
                 console.log(
                     '[Digger] Adding to map:\n' + 
                     '         thumbUri: ' + thumbUri + '\n' + 
@@ -281,11 +286,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
                 // Create the associations, but do not add duplicates.
                 if (thumbUri in map) {
-                    // console.log(
-                    //     '[Digger] Found two zoomUris for thumb: ' + thumbUri + 
-                    //     '\n       keeping original: ' + map[thumbUri] + 
-                    //     '\n       discarding dupe:  ' + zoomUri
-                    // );
+                    return;
                 }
                 else {
                     var newId = Object.keys(map).length;
@@ -299,7 +300,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
 
 
-
     /**
      * Find the uri that might be gone to if the element was clicked, whether it is the
      * target, or some ancestor is the target. 
@@ -307,7 +307,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      */
     // These CLICK_PROPS are in priority order of which to pay attention to.
     var DEAULT_CLICK_PROPS = [ 'onclick', 'href' ];
-    var DEFAULT_PROP_PATHS = [ 'src', 'href' ];
+    var DEFAULT_PROP_PATHS = [ 'src', 'href', 'currentSrc' ];
     var DEFAULT_SELECTOR = ':scope *';
     function getClickUriMap(node, loc, spec) {
         // Throw errors if no node (usually document) or loc.
@@ -342,6 +342,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             if (!src) {
                 console.log('[Digger] No src found for tag.'); 
                 return; 
+            }
+
+            if (Logicker.isKnownBadImg(src)) {
+                console.log('[Digger] Skipping known bad src: ' + src);
+                return;
             }
 
             // Iterate through parent elements up the DOM until we find one that
@@ -410,7 +415,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             loc,
             { 
                 selector: 'img', 
-                propPaths: ['src', 'currentSrc', 'srcset'], 
+                propPaths: ['src', 'currentSrc', 'srcset', 'dataset.src'], 
             }
         );
 
@@ -447,7 +452,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // This merges, and also manages the Output entries.
         if (!!me.startingGalleryMap && !!Object.keys(me.startingGalleryMap).length) {
-            mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
+            galleryMap = Object.assign({}, me.startingGalleryMap, galleryMap);
         }
 
         // Begin digging, or stop if instructed to.
@@ -480,7 +485,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             Output.setEntryAsDug(id, zoomedImgUri);
         } 
         
-        Output.toOut('Completed ' + (++me.completedXhrCount) + ' media fetches...');        
+        Output.toOut('Completed ' + (++me.completedXhrCount) + ' media fetches...');
+        chrome.browserAction.setBadgeText({ text: '' + me.completedXhrCount + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: '#111111' });
     }
 
 
@@ -519,21 +526,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         me.harvestedUriMap = {};
         me.outputIdMap = {};
 
-        // Follow the options. If we're told:
-        //  no scrape & no dig -- just call the callback. 
-        //  yes scrape -- do it all normally through the default digDeep() behavior.
-        if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-            return (new Promise(function(resolve, reject) {
-                chrome.storage.local.set({
-                        prevUriMap: me.harvestedUriMap,
-                    },
-                    function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
-                        resolve(me.harvestedUriMap);
-                    }
-                );
-            }));
-        }
         if (me.digOpts.doScrape) {
             return discoverGallery(doc, loc);
         }
@@ -775,8 +767,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
      * TODO: Put more here. 
      */
     function skimZoomPage(doc, thumbUrl, zoomPageUrl) {
-        var zoomFilename = u.extractFilename(zoomPageUrl.href);
-
         // First look in the special rules for a strategy that's already 
         // been figured out by me. See if we can just get the Uri from there.
         var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);                    
@@ -793,10 +783,9 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 zoomUri: doc.images[0].src,
             });
         }
-        else {
-            // TODO: Create more skim-worthy search strategies.        
-            return Promise.reject('Skimming found nothing');
-        }
+
+        // TODO: Create more skim-worthy search strategies.        
+        return Promise.reject('Skimming found nothing');
     }
 
     
@@ -810,13 +799,15 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // For each enabled investigation option, try to find the zoom media item.
         Object.keys(me.options).forEach(function checkUris(optName) {
-            if (!zoomUri && me.options[optName] === true) {
+            if (!!zoomUri) { return; };
+
+            if (me.options[optName] === true) {
                 zoomUri = findZoomUri(doc, thumbUrl, zoomPageUrl, optName);
             }
         });
 
         // Resolve if we found something that works. Otherwise, reject.
-        if (zoomUri) {
+        if (!!zoomUri) {
             return Promise.resolve({
                 thumbUri: thumbUrl.href,
                 zoomUri: zoomUri
@@ -838,6 +829,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var zUri = false;
 
         Output.toOut('Sifting through ' + optionName + ' content on detail page.');
+        console.log('Sifting through ' + optionName + ' content on ' + u.extractFilename(zpUrl.href));
 
         // If this is the only option enabled, and there's only one type of the media on the document, 
         // use it.
@@ -847,8 +839,13 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // Otherwise, use the Logicker's filename-matching on each object we find. Use the first match.
         else {
             urls.forEach(function checkForZoomUrl(url) {
-                if (!zUri && u.exists(url) && url.pathname) {                                    
-                    if (Logicker.isPossiblyZoomedFile(tUrl, url)) {
+                if (!!zUri) { return; };
+
+                if (u.exists(url) && url.pathname) {
+                    if (optionName === OPT.VIDEOS && urls.length === 1) {
+                        zUri = url.href;
+                    }                                    
+                    else if (Logicker.isPossiblyZoomedFile(tUrl, url)) {
                         zUri = url.href;
                     }
                 }
@@ -862,3 +859,42 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // Return the Digger instance.
     return me;
 });
+
+// These are put on the Digger prototype so that the popup can easily set these values,
+// and they are available to all diggers.
+Digger.prototype.BATCH_SIZE = 3;
+Digger.prototype.CHANNELS = 11;
+
+
+/*
+ * Set the gallerygallerydig batch size from the options.
+ */
+Digger.prototype.setBatchSize = function setBatchSize(size) {
+    console.log('[Digger] Attempt to set BATCH_SIZE to ' + size);
+
+    if (!!size) {
+        var numSize = parseInt(size+'', 10);
+
+        if (!isNaN(numSize)) {
+            console.log('[Digger] Sucessfully set BATCH_SIZE to ' + numSize + '');
+            Digger.prototype.BATCH_SIZE = numSize;
+        }
+    }
+};
+
+
+/*
+ * Set the gallerygallerydig number of channels from the options.
+ */
+Digger.prototype.setChannels = function setChannels(size) {
+    console.log('[Digger] Attempt to set CHANNELS to ' + size);
+
+    if (!!size) {
+        var numSize = parseInt(size+'', 10);
+
+        if (!isNaN(numSize)) {
+            console.log('[Digger] Sucessfully set CHANNELS to ' + numSize + '');
+            Digger.prototype.CHANNELS = numSize;
+        }
+    }
+};
