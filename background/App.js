@@ -22,97 +22,6 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
     // Aliases
     var u = Utils;
 
-    // These are the default spec values, used if there is nothing in storage yet.
-    var DEFAULT_SPEC = {
-        config: {
-            minZoomWidth: '300',
-            minZoomHeight: '300',
-            dlChannels: '3',
-            dlBatchSize: '5',
-        },
-        messages: [],
-        processings: [],
-        blessings: [],
-    };
-
-
-    /**
-     Read storage for the spec json.
-     */
-    function readSpec() {
-        return (new Promise(function(resolve, reject) {
-            setTimeout(function() {
-                chrome.storage.sync.get({
-                    spec: DEFAULT_SPEC
-                }, 
-                function storageRetrieved(store) {
-                    setOptConfig(store.spec.config);
-                    setOptMessages(store.spec.messages);
-                    setOptProcessings(store.spec.processings);
-                    setOptBlessings(store.spec.blessings);
-                
-                    resolve();
-                });
-            });
-        }));
-    }
-
-    /**
-     * Set the general configuration values from the Options page.
-     * Currently this is the min dimensions for a zoom image, and
-     * download performance tuning of the channels and batch size.
-     */
-    function setOptConfig(config) {
-        if (!config) {
-            return;
-        }
-
-        // Set the download channels / batch-sizes for doing digs.
-        digger.BATCH_SIZE = config.dlBatchSize;
-        digger.CHANNELS = config.dlChannels;
-
-        // Set minimum dimensions for something to be considered a Zoom item.
-        Logicker.MIN_ZOOM_HEIGHT = config.minZoomHeight;
-        Logicker.MIN_ZOOM_WIDTH = config.minZoomWidth;
-    }
-
-
-    /**
-     * Set up the mappings for special instructions on finding galleries through pre-discovered
-     * CSS selectors, and set up on the Options page. 
-     */
-    function setOptMessages(messages) {
-        if (!messages || !messages.length) {
-            return;
-        }
-
-        Logicker.messages = Object.assign({}, messages);
-    }
-
-
-    /**
-     * Set up processing hints for digging and scraping of matched uris.
-     */
-    function setOptProcessings(processings) {
-        if (!processings || !processings.length) {
-            return;
-        }
-
-        Logicker.processings = Object.assign({}, processings);
-    }
-
-
-    /**
-     * 
-     */
-    function setOptBlessings(blessings) {
-        if (!blessings || !blessings.length) {
-            return;
-        }
-
-        Logicker.blessings = Object.assign({}, blessings);
-    }
-
 
     /**
      * Once we have the dug uris from the response, this callback downloads them.
@@ -593,7 +502,7 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
 
                 // make a simple chain of 
                 var id = 0;
-                
+                var galleryCount = 0;
                 Object.values(mapOfGalleryLinks).forEach(function(uri) { 
                     if (!!uri && !!uri.trim()) {                   
                         p = p.then(function() { 
@@ -601,6 +510,8 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                             .then(function pushDoc(d) {
                                 console.log('[App] Executed load of gallery page ' + uri);
                                 output.toOut('Loading gallery page ' + uri);
+                                chrome.browserAction.setBadgeText({ text: '' + (++galleryCount) + '' });
+                                chrome.browserAction.setBadgeBackgroundColor({ color: '#4444ff' });
 
                                 locDocs.push({
                                     loc: new URL(uri),
@@ -611,6 +522,7 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                                 console.log('[App] Failed to load gallery doc ' + uri)
                                 console.log('      Error: ' + e);
                                 output.toOut('Failed to load gallery page ' + uri);
+                                galleryCount--;
 
                                 return Promise.resolve(true);
                             });
@@ -621,7 +533,6 @@ var App = (function App(output, digger, scraper, Logicker, Utils) {
                 return p;
             })
             .then(function docsLoaded() {
-                var promises = [];
                 var p = Promise.resolve(true);
 
                 locDocs.forEach(function(lDoc) {

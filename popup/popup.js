@@ -19,53 +19,39 @@ document.addEventListener("DOMContentLoaded", function init() {
                 prevUriMap: {}
             }, 
             function storageRetrieved(store) {
-                var uriMap = store.prevUriMap;
+                var uriMap = store.prevUriMap
 
-                // If there were non-downloaded files from last time, show that list.
+                // If we're still in the digging/scraping stages, restore the textual file-list.
+                // If we're in the file option download stage, show the list of file option checkboxes instead.
                 var length = Object.values(uriMap).length;
                 chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
-                    var out = bgWindow.outputController;
+                    var out = bgWindow.output;
+                    out.setDoc(document);
 
-                    if (!!out) {
-                        console.log('set the document on the OUtput');
-                        out.setDoc(document);
-                        
-                        if (Array.isArray(document.checkedFileOptUris)) {
-                            console.log('got checkedFileOptUris: ' + JSON.stringify(document.checkedFileOptUris));
-                        }
-                    }
-
-                    if (!!out && (out.appIsDigging || out.appIsScraping)) { 
-                        if (out.appIsScraping) {
-                            chrome.browserAction.setBadgeText({ text: '' });
-                            out.toOut('Currently scraping...');
-                            out.restoreFileList();
-                            return;
-                        }
-                        else if (out.appIsDigging) {
-                            chrome.browserAction.setBadgeText({ text: '' });
-                            out.toOut('Currently digging...');
-                            out.restoreFileList();
-                            return;
-                        }
+                    if (out.appIsScraping || out.appIsDigging) {
+                        var descriptionOfWork = out.appIsScraping ? 'scraping...' : 'digging...';
+                        out.toOut('Currently ' + descriptionOfWork);
+                        out.restoreFileList();
+                        return;
                     }
                     
                     if (length) {
                         console.log("[Popup] Got persisted uris:");
                         console.log(JSON.stringify(uriMap));
-                        var cbUris = document.checkedFileOptUris;
 
-                        if (!out) {
-                            out = new bgWindow.Output(window.document);
-                            out.checkedFileOptUris = cbUris;
-                        }
+                        console.log('[Popup] Got checked uris: ');
+                        console.log(JSON.stringify(out.checkedFileOptUris));
+
+                        out.showActionButtons();
 
                         var dir = bgWindow.Utils.getSaltedDirectoryName();
                 
                         out.clearFilesDug();
                         bgWindow.Utils.resetDownloader();
 
-                        var idx = 0;
+                        var checkedItemCount = 0;
+                        var idx = length - 1;
+
                         for (var thumbUri in uriMap) { 
                             var uri = uriMap[thumbUri];
                             var queryPos = uri.lastIndexOf('?');
@@ -75,7 +61,7 @@ document.addEventListener("DOMContentLoaded", function init() {
                             }
 
                             var filePath = dir + '/' + uri.substring(uri.lastIndexOf('/') + 1, queryPos)
-                            var optId = (idx++);
+                            var optId = (idx--);
 
                             out.addFileOption({ 
                                 id: optId + '', 
@@ -87,24 +73,29 @@ document.addEventListener("DOMContentLoaded", function init() {
 
                             var cb = document.getElementById('cbFile' + optId);
                             if (!!cb) {
-                                if (Array.isArray(cbUris) && cbUris.indexOf(cb.value) !== -1) {   
-                                    console.log('checkbox was previously checked!');                             
+                                if (out.checkedFileOptUris.indexOf(cb.value) !== -1) {
+                                    checkedItemCount++;   
                                     cb.dataset.filePath = '';
-                                    cb.disabled = true;
                                     cb.checked = true;
+                                    cb.disabled = true;
                                 }
                             }
                         }
 
-                        out.hideDigScrapeButtons();
-                        out.toOut('Please select which of the ' + length + ' files you wish to download.');
-                        out.showActionButtons();
-                        chrome.browserAction.setBadgeText({ text: '' + idx + '' });
+                        chrome.browserAction.setBadgeText({ text: '' + (length - checkedItemCount) + '' });
                         chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
 
+                        if (checkedItemCount > 0) {
+                            out.toOut('Please select which of the ' + (length - checkedItemCount) + ' remaining files you wish to download.');
+                        }
+                        else {
+                            out.toOut('Please select which of the total ' + length + ' files you wish to download.');
+                        }
                     }
                     else {
                         chrome.browserAction.setBadgeText({ text: '' });
+                        out.showDigScrapeButtons();
+                        out.toOut('hit a button to begin.');
                     }
                 });
             }
@@ -136,8 +127,9 @@ document.addEventListener("DOMContentLoaded", function init() {
                 config: {
                     minZoomWidth: '300',
                     minZoomHeight: '300',
-                    dlChannels: '3',
-                    dlBatchSize: '5',
+                    dlChannels: '11',
+                    dlBatchSize: '3',
+                    knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
                 },
                 messages: [],
                 processings: [],
@@ -146,21 +138,16 @@ document.addEventListener("DOMContentLoaded", function init() {
         }, 
         function storageRetrieved(store) {
             chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
-                bgWindow.Digger.BATCH_SIZE = store.spec.config.dlBatchSize;
-                bgWindow.Digger.CHANNELS = store.spec.config.dlChannels;
+                bgWindow.Digger.prototype.setBatchSize(store.spec.config.dlBatchSize);
+                bgWindow.Digger.prototype.setChannels(store.spec.config.dlChannels);
 
-                bgWindow.Logicker.MIN_ZOOM_HEIGHT = store.spec.config.minZoomHeight;
-                bgWindow.Logicker.MIN_ZOOM_WIDTH = store.spec.config.minZoomWidth;
+                bgWindow.Logicker.setMinZoomHeight(store.spec.config.minZoomHeight);
+                bgWindow.Logicker.setMinZoomWidth(store.spec.config.minZoomWidth);
+                bgWindow.Logicker.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
 
-                bgWindow.Logicker.messages = [].concat(store.spec.messages);
-                bgWindow.Logicker.processings = [].concat(store.spec.processings);
-                bgWindow.Logicker.blessings = [].concat(store.spec.blessings);
-
-                console.log("Logicker:");
-                console.log(bgWindow.Logicker);
-
-                console.log("Digger:");
-                console.log(bgWindow.Digger);
+                bgWindow.Logicker.setMessages(store.spec.messages);
+                bgWindow.Logicker.setProcessings(store.spec.processings);
+                bgWindow.Logicker.setBlessings(store.spec.blessings);
             });
         });
     }
@@ -195,7 +182,6 @@ document.addEventListener("DOMContentLoaded", function init() {
         /**
          * This button is in the "action buttons" group. They act upon the list of file download options. This
          * fires all the checkboxes' click events, causing them all the download.
-         * Note: Also clears the previouslyHarvestedUriMap.
          */
         document.getElementById('getAllFileOptsButton').addEventListener('click', function getAllFileOpts() {
             document.querySelectorAll('input[type="checkbox"]').forEach(function initiateDownload(cbEl) {
@@ -208,7 +194,6 @@ document.addEventListener("DOMContentLoaded", function init() {
         /**
          * This button is in the "action buttons" group. They act upon the list of file download options. This
          * fires the checkboxes' click events for all jpg files only.
-         * Note: Also clears the previouslyHarvestedUriMap.
          */
         document.getElementById('getAllJpgOptsButton').addEventListener('click', function getAllJpgOpts() {
             document.querySelectorAll('input[type="checkbox"]').forEach(function initiateJpgDownload(cbEl) {
@@ -228,11 +213,12 @@ document.addEventListener("DOMContentLoaded", function init() {
             chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
                 clearPreviousUriMap();
                 
-                var out = (
-                    bgWindow.outputController ? bgWindow.outputController : bgWindow.Output(window.document)
-                );                
+                var out = bgWindow.output;
+                out.setDoc(document);           
                 out.clearFilesDug();
+                out.resetFileData();
                 out.showDigScrapeButtons();
+
                 out.toOut('Hit a button to begin.');
             });
         });
