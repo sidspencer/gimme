@@ -3,7 +3,7 @@
 
   "name": "GimmeGimmeGimme",
   "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
-  "version": "0.1.6",
+  "version": "0.4.0",
   "offline_enabled": true,
 
   "applications": {

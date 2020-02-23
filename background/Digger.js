@@ -31,7 +31,6 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     me.CHANNELS = 11;
 
     // constants
-    var DIG_SAVE = 'DIG_SAVE';
     var OPT = {
         IMGS: 'imgs',
         CSS_BGS: 'cssBgs',
@@ -45,7 +44,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         LARGEST_IMAGE: 2,
         INSPECT: 3,
         DIG_DEEPER: 4,
-    }
+    };
     var SCRAPING_TOOLS = {};
     SCRAPING_TOOLS[OPT.IMGS] = Scraper.getAllImgUrls;
     SCRAPING_TOOLS[OPT.CSS_BGS] = Scraper.getAllCssBackgroundUrls;
@@ -84,13 +83,42 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             chrome.storage.local.set({
                     prevUriMap: me.harvestedUriMap,
                 },
-                function storageSet() {
+                function storageSet() {                    
                     console.log('[Digger] Set prevUriMap in storage');
                     console.log('[Digger] ---Returning dig harvest -> ' + Object.keys(me.harvestedUriMap).length + '------');
                     resolve(me.harvestedUriMap);
                 }
             );
         }));
+    }
+
+
+    me.redrawOutputFileOpts = function redrawOutputFileOpts(uriMap) {
+        Output.clearFilesDug();
+        var dir = u.getSaltedDirectoryName();
+
+        var idx = 0;
+        for (var thumbUri in uriMap) { 
+            var uri = uriMap[thumbUri];
+            var queryPos = uri.lastIndexOf('?');
+
+            if (queryPos === -1) {
+                queryPos = uri.length;
+            }
+
+            me.outputIdMap[thumbUri] = idx;
+                        
+            Output.addFileOption({ 
+                id: (idx++), 
+                uri: uri, 
+                thumbUri: thumbUri,
+                filePath: dir + '/' + uri.substring(uri.lastIndexOf('/'), queryPos),
+                onSelect: u.downloadFile, 
+            });
+        }
+
+        chrome.browserAction.setBadgeText({ text: '' + idx + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
     }
 
 
@@ -239,6 +267,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var fromKeys = Object.keys(from);
         var nextId = fromKeys.length + Object.keys(to).length;
 
+        to = Object.assign(to, from);
+
+        //me.redrawOutputFileOpts(me.galleryMap);
+
+        /*
         // Apply the optionally-set me.urisToDig
         fromKeys.forEach(function setNewLinkHrefs(thumbUri) {
             // Store the old value, if there was one, and override with our new one.
@@ -258,7 +291,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             to[thumbUri] = newPageUri;
             ids[newPageUri] = id;
             Output.addNewEntry(id, thumbUri);            
-        });        
+        });
+        */        
     }
 
 
@@ -344,6 +378,11 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
                 return; 
             }
 
+            if (Logicker.isKnownBadImg(src)) {
+                console.log('[Digger] Skipping known bad src: ' + src);
+                return;
+            }
+
             // Iterate through parent elements up the DOM until we find one that
             // has at least one clickable prop on it. It itself might even be clickable.
             // also check to make sure there isn't a link inside this tag. It's a
@@ -410,7 +449,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             loc,
             { 
                 selector: 'img', 
-                propPaths: ['src', 'currentSrc', 'srcset'], 
+                propPaths: ['src', 'currentSrc', 'srcset', 'dataset.src'], 
             }
         );
 
@@ -447,7 +486,8 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
 
         // This merges, and also manages the Output entries.
         if (!!me.startingGalleryMap && !!Object.keys(me.startingGalleryMap).length) {
-            mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
+            galleryMap = Object.assign({}, me.startingGalleryMap, galleryMap);
+            //mergeGalleryMaps(me.startingGalleryMap, galleryMap, me.outputIdMap);
         }
 
         // Begin digging, or stop if instructed to.
@@ -522,18 +562,18 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         // Follow the options. If we're told:
         //  no scrape & no dig -- just call the callback. 
         //  yes scrape -- do it all normally through the default digDeep() behavior.
-        if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
-            return (new Promise(function(resolve, reject) {
-                chrome.storage.local.set({
-                        prevUriMap: me.harvestedUriMap,
-                    },
-                    function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
-                        resolve(me.harvestedUriMap);
-                    }
-                );
-            }));
-        }
+        // if ((me.digOpts.doScrape === false) && (me.digOpts.doDig === false)) {
+        //     return (new Promise(function(resolve, reject) {
+        //         chrome.storage.local.set({
+        //                 prevUriMap: me.startingGalleryMap,
+        //             },
+        //             function storageSet() {
+        //                 console.log('[Digger] Set prevUriMap in storage');
+        //                 resolve(me.startingGalleryMap);
+        //             }
+        //         );
+        //     }));
+        // }
         if (me.digOpts.doScrape) {
             return discoverGallery(doc, loc);
         }

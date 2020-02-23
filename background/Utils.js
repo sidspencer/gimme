@@ -6,11 +6,15 @@
  */
 var Utils = (function Utils() {
     var me = {
+        dlChains: [],
+        dlCounter: 0,
+        dlCallbacks: {},
     };
 
     // Public Constants
     me.LISTENER_TIMED_OUT = 'Listener timed out';
     me.GIMME_ID = 'gimme'; 
+    me.DL_CHAIN_COUNT = 10;
 
 
     /**
@@ -326,28 +330,164 @@ var Utils = (function Utils() {
 
 
     /**
+     * Reset the download helper objects to their initial state.
+     */
+    me.resetDownloader = function resetDownloader() {
+        me.DL_CHAIN_COUNT = 10;
+        me.dlChains = [];
+        me.dlCounter = 0;
+
+        for (var prp in me.dlCallbacks) {
+            delete me.dlCallbacks[prp];
+        }
+    
+        for (var i1 = 0; i1 < me.DL_CHAIN_COUNT; i1++) {
+            me.dlChains.push(
+                Promise.resolve(true).then(function() {
+                    return new Promise(function(resolve, reject) {
+                        setTimeout(function() { 
+                            resolve(true); 
+                        }, 300);
+                    });
+                })
+            );
+        }
+    }
+    me.resetDownloader();
+
+
+    /**
+     * Download a single uri to the filename (well, path) provided.
+     * Add its downloading to one of the DL_CHAIN_COUNT download promise chains.
+     */
+    me.downloadFile = function downloadFile(uri, destFilename, output) {
+        if (uri.lastIndexOf('/') === uri.length - 1) { return; };
+
+        // If it's a PHP file, guess and give it a .jpg.
+        if (!/\.(jpg|jpeg|png|gif|tiff|mpg|mp4|flv)$/i.test(destFilename)) {
+            destFilename = destFilename + '.jpg';
+        }
+
+        var dlIndex = me.dlCounter % me.DL_CHAIN_COUNT;
+        me.dlCounter++;
+        var num = me.dlCounter + 0;
+        
+        me.dlChains[dlIndex] = me.dlChains[dlIndex].then(
+            buildDlChain(uri, destFilename, output, num)
+        );
+
+        return me.dlChains[dlIndex];
+    }
+
+
+    /**
+     * Helper to avoid unwanted closures.
+     */
+    function buildDlChain(uri, destFilename, output, num) {
+        return (
+            function() {
+                output.toOut('Downloading file ' + num);
+                return me.dlInChain(uri, destFilename);
+            }
+        );
+    }
+
+
+    /**
+     * Build a salted directory name based on me.loc. 
+     */
+    me.getSaltedDirectoryName = function getSaltedDirectoryName(loc) {
+        // Stash loc for later
+        if (!loc || !loc.hostname) {
+            loc = me.LAST_LOC;
+        }
+        else {
+            me.LAST_LOC = { 
+                hostname: loc.hostname, 
+                pathname: loc.pathname 
+            };
+        }
+
+        // Create a salted directory for the images to live in.
+        var hackedPageName = '';
+        var slashIndex = loc.pathname.lastIndexOf('/');
+        var dotIndex = loc.pathname.lastIndexOf('.');
+
+        if (slashIndex != -1 && dotIndex != -1) {
+            hackedPageName = loc.pathname.substring(
+                loc.pathname.lastIndexOf('/')+1, 
+                loc.pathname.lastIndexOf('.')-1
+            );
+        }
+        else {
+            hackedPageName = "gallery";
+        }
+
+        return ('Gimme-' + loc.hostname + '__' + hackedPageName + '__' + (new Date()).getTime());
+    }
+    me.LAST_LOC = { hostname: 'localhost', pathname: '/gallery' };    
+
+
+    /**
      * Start the download. Wrapper around chrome.downloads.download.
      */
-    me.download = function download(uri, destFilename) {
-        return new Promise(function doDownload(resolve, reject) {
-            chrome.downloads.download(
-            {
-                url: uri,
-                filename: destFilename,
-                conflictAction: 'uniquify',
-                saveAs: false,
-                method: 'GET'
-            },
-            function downloadCallback(downloadId) {
-                if (downloadId) {
-                    resolve(me.createDownloadSig(downloadId, uri, destFilename));
-                }
-                else {
-                    reject('[Utils] No downloadId for uri ' + uri);
-                }
-            });
+    me.dlInChain = function dlInChain(uri, destFilename) {
+        return new Promise(function(resolve, reject) {
+            setTimeout(function() { 
+                chrome.downloads.download(
+                {
+                    url: uri,
+                    filename: destFilename,
+                    conflictAction: 'uniquify',
+                    saveAs: false,
+                    method: 'GET'
+                },
+                function downloadCallback(downloadId) {
+                    if (downloadId) {
+                        me.dlCallbacks[downloadId] = buildDlCallback(downloadId, uri, destFilename, resolve);
+                        chrome.downloads.onChanged.addListener(me.dlCallbacks[downloadId]);
+                    }
+                    else {
+                        console.log('[Utils] no downloadId for uri ' + uri);
+                        console.log('[Utils] download error was: ' + chrome.runtime.lastError);
+                        resolve(me.createDownloadSig(0, uri, destFilename));
+                    }
+                });
+            }, 300);
         });
     };
+
+
+    /**
+     * Helper to build the onChange callbacks, avoiding unwanted closures.
+     */
+    function buildDlCallback(dlId, dlUri, dlFile, res) {
+        return (function(dlDelta) {
+            if (dlDelta.id !== dlId) { return; }
+
+            if (!!dlDelta.state && dlDelta.state.current !== 'in_progress') {
+                chrome.downloads.onChanged.removeListener(me.dlCallbacks[dlId]);
+                delete me.dlCallbacks[dlId];
+
+                res(me.createDownloadSig(dlId, dlUri, dlFile));
+                return;
+            }
+            else if (!!dlDelta.endTime && !!dlDelta.endTime.current) {
+                chrome.downloads.onChanged.removeListener(me.dlCallbacks[dlId]);
+                delete me.dlCallbacks[dlId];
+
+                res(me.createDownloadSig(dlId, dlUri, dlFile));
+                return;
+            }
+            else if (!!dlDelta.exists && !!dlDelta.exists.current) {
+                chrome.downloads.onChanged.removeListener(me.dlCallbacks[dlId]);
+                delete me.dlCallbacks[dlId];
+
+                res(me.createDownloadSig(dlId, dlUri, dlFile));
+                return;
+            }
+        });
+    }
 
 
 
@@ -412,7 +552,8 @@ var Utils = (function Utils() {
                         resolve(downloadItems);
                     }
                     else {
-                        reject('[Utils] Error starting download: ' + chrome.runtime.lastError);
+                        console.log('[Utils] Error starting download: ' + chrome.runtime.lastError);
+                        resolve(downloadItems);
                     }
                 }
             );

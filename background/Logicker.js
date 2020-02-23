@@ -179,7 +179,7 @@ var Logicker = (function Logicker(Utils) {
     me.isKnownBadImg = function isKnownBadImg(src) {
         var isBad = false;
 
-        if ((/(\/logo\.|\/header\.jpg|premium_|preview\.png)|preview\.jpg/i).test(src))
+        if ((/(\/logo\.|\/loading|\/header\.jpg|premium_|preview\.png|holder-trailer-home\.jpg|logo-mobile-w\.svg|logo\.svg|logo-desktop-w\.svg|user\.svg|speech\.svg|folder\.svg|layers\.svg|tag\.svg|video\.svg|favorites\.svg|preview\.jpg)/i).test(src))
         {
             isBad = true;
         }
@@ -193,7 +193,7 @@ var Logicker = (function Logicker(Utils) {
      * Any object with the "width" and "height" properties can be used.
      */
     me.isZoomSized = function isZoomSized(obj) {
-        return (obj.height > me.MIN_ZOOM_HEIGHT || obj.width > me.MIN_ZOOM_WIDTH);
+        return !(obj.height < me.MIN_ZOOM_HEIGHT && obj.width < me.MIN_ZOOM_WIDTH);
     }
 
 
@@ -382,6 +382,13 @@ var Logicker = (function Logicker(Utils) {
                             //console.log('[Logicker] thumbUri matched. Replacing.');
 
                             thumbUri2 = thumbUri.replace(matchey, act.new);
+
+                            if (thumbUri2.indexOf('/previews/') !== -1) {
+                                thumbUri2 = thumbUri2.replace('previews/', '');
+                            }
+                            if (thumbUri2.indexOf('?') !== -1) {
+                                thumbUri2 = thumbUri.substring(0, thumbUri.indexOf('?'));
+                            }
                             newGalleryMap[thumbUri] = thumbUri2; 
                         }
                         else if (act.noun === 'href' && galleryMap[thumbUri].match(matchey)) {
@@ -489,17 +496,28 @@ var Logicker = (function Logicker(Utils) {
         // Iterate through the path of properties to get the value.
         var pathParts = propPath.split('.');
         var iterator = tag;
+        var lastIterator = undefined;
         for(var i = 0; (!!iterator && iterator !== null && typeof iterator !== 'undefined') && i < pathParts.length; i++) {
             if (!!iterator && iterator !== null) {
+                lastIterator = iterator;
                 iterator = iterator[pathParts[i]];
             }
         }
         var value = iterator;
         if (!value) { return ''; };
 
+        var lastPart = pathParts[pathParts.length-1];
+
         // Special processing for srcset props.
-        if (pathParts[pathParts.length-1] === 'srcset') {
+        if (lastPart === 'srcset') {
             value = value.split(',')[0].split(' ')[0];
+        }
+        
+        // Count the '..'s in relative uris. This is needed for the cases where we have to change from a 
+        // 'chrome-extension://' reported uri. 
+        var dotdotCount = 0;
+        if (lastIterator && lastIterator.getAttribute && lastIterator.getAttribute(lastPart)) {
+            dotdotCount = (lastIterator.getAttribute(lastPart).match(/\.\./g) || []).length;
         }
 
         // Do a url extraction from functions or javascript hrefs.
@@ -518,6 +536,35 @@ var Logicker = (function Logicker(Utils) {
             value = value.replace('url(', '').replace(')', '');
             value = value.replace("'", '');
             value = value.replace('"', '');
+        }
+
+        // Because we do an XHR with the "document" response type to get the thumbs and links, the inferred src/href
+        // may be set relative to the extension (as the origin of the fetched document is in the extension's space).
+        // We need to transform these weird src/href values back into having the correct base uri -- the one of the page.
+        if (value.indexOf('chrome-extension://') === 0) {
+            if (value.match('chrome-extension://' + chrome.runtime.id + '/background/')) {
+                value = value.replace(
+                    'chrome-extension://' + chrome.runtime.id + '/background/', 
+                    loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf('/')+1)
+                ); 
+            }
+            else if (value.match('chrome-extension://' + chrome.runtime.id + '/') && dotdotCount > 0) {
+                var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/'));
+                for (var d = 0; d < dotdotCount; d++) {
+                    trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf('/'));
+                }
+
+                value = value.replace(
+                    'chrome-extension://' + chrome.runtime.id + '/', 
+                    loc.origin + trimmedPath + '/'
+                );
+            }
+            else if (value.match('chrome-extension://' + chrome.runtime.id + '/')) {
+                value = value.replace('chrome-extension://' + chrome.runtime.id + '/', loc.origin + '/');
+            }
+            else {
+                value = value.replace('chrome-extension:', loc.protocol);
+            }       
         }
 
         return (new URL(value, loc.origin));
