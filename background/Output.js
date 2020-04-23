@@ -405,3 +405,6 @@ var Output = (function Output(dokken) {
     // return the instance
     return me;
 });
+
+window.output = new Output(window.document);
+export default Output;
