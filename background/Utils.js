@@ -1,5 +1,3 @@
-'use strict'
-
 /**
  * Utils service/singleton for Gimme. It holds all the random bric-a-brac
  * functions that make our lives easier.
@@ -692,3 +690,7 @@ var Utils = (function Utils() {
     // return the singleton
     return me;
 })();
+
+window['Utils'] = Utils;
+
+export default Utils;
