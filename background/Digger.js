@@ -1,11 +1,14 @@
-'use strict'
+import { default as Scraper } from './Scraper.js';
+import { default as Output } from './Output.js';
+import { default as Logicker } from './Logicker.js';
+import { default as Utils } from './Utils.js';
 
 /** 
  * Factory Function.
  * Worker bee for GimmeGimmieGimmie. Looks through various types of linked media, returns
  * the URLs to the popup.
  */
-var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
+const Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     // instance object
     var me = {
         startingGalleryMap: {},
@@ -38,6 +41,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     var SEARCH_DEPTH = {
         SKIM: 1,
         LARGEST_IMAGE: 2,
+        TF_MATCH: 2.5,
         INSPECT: 3,
         DIG_DEEPER: 4,
     };
@@ -717,6 +721,13 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             Output.toOut('Looking for the largest Image on ' + zoomFilename);
             return Logicker.getPairWithLargestImage(thumbUrl.href, doc);
         })
+        // 2.5 - Use TensorFlow's Mobilenet pre-trained ML model.
+        .catch(function maybeUseTfClassification(previousError) {
+            errors.push(previousError);
+            if (searchDepth < SEARCH_DEPTH.TF_MATCH) { return Promise.resolve(null); }
+
+            return Logicker.tfClassificationMatch(thumbUrl.href, doc);
+        })
         // 3 - Use document inspection, using each options-defined type of scrape.
         .catch(function maybeInspectDocument(previousError) {
             errors.push(previousError);                        
@@ -815,6 +826,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         }
         else {
             Output.toOut('Inspection found nothing good on ' + u.extractFilename(zoomPageUrl.href));
+            console.log('[Digger] Inspection found nothing good on ' + u.extractFilename(zoomPageUrl.href));
             return Promise.reject('Inspection found no zoom-item on ' + zoomPageUrl.href);
         }
     }
@@ -829,7 +841,7 @@ var Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
         var zUri = false;
 
         Output.toOut('Sifting through ' + optionName + ' content on detail page.');
-        console.log('Sifting through ' + optionName + ' content on ' + u.extractFilename(zpUrl.href));
+        console.log('[Digger] Sifting through ' + optionName + ' content on ' + u.extractFilename(zpUrl.href));
 
         // If this is the only option enabled, and there's only one type of the media on the document, 
         // use it.
@@ -869,7 +881,7 @@ Digger.prototype.CHANNELS = 11;
 /*
  * Set the gallerygallerydig batch size from the options.
  */
-Digger.prototype.setBatchSize = function setBatchSize(size) {
+Digger.setBatchSize = function setBatchSize(size) {
     console.log('[Digger] Attempt to set BATCH_SIZE to ' + size);
 
     if (!!size) {
@@ -886,7 +898,7 @@ Digger.prototype.setBatchSize = function setBatchSize(size) {
 /*
  * Set the gallerygallerydig number of channels from the options.
  */
-Digger.prototype.setChannels = function setChannels(size) {
+Digger.setChannels = function setChannels(size) {
     console.log('[Digger] Attempt to set CHANNELS to ' + size);
 
     if (!!size) {
@@ -898,3 +910,7 @@ Digger.prototype.setChannels = function setChannels(size) {
         }
     }
 };
+
+window.digger = Digger;
+
+export default Digger;
