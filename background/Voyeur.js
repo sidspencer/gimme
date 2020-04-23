@@ -1,4 +1,4 @@
-'use strict'
+import { default as Utils } from './Utils.js';
 
 /** 
  * Singleton.
@@ -39,3 +39,5 @@ var Voyeur = (function Voyeur(Utils) {
     // Return our singleton.
     return me;
 })(Utils);
+
+export default Voyeur;
