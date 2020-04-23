@@ -3,7 +3,7 @@
 
   "name": "GimmeGimmeGimme",
   "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "offline_enabled": true,
 
   "applications": {
@@ -29,7 +29,7 @@
         "<all_urls>"
       ],
       "js": [
-        "content/ContentPeeper.js"
+        "content/bundle.js"
       ],
       "all_frames": true
     }
@@ -60,5 +60,23 @@
     "file:///*/*"
   ],
 
-  "content_security_policy": "script-src 'self' https://ajax.googleapis.com; object-src 'self'"
+  "web_accessible_resources": [
+    "content/bundle.js",
+    "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js",
+    "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js.map",
+    "node_modules/@tensorflow/tfjs/dist/tf.esm.js.map",
+    "node_modules/@tensorflow/tfjs/dist/tf.esm.js",
+    "node_modules/@tensorflow/tfjs/dist/tf.js",
+    "node_modules/@tensorflow/tfjs/dist/tf.js.map",
+    "node_modules/@tensorflow/tfjs-data/dist/tf-data.esm.js",
+    "node_modules/@tensorflow/tfjs-data/dist/tf-data.esm.js.map",
+    "node_modules/@tensorflow/tfjs-layers/dist/tf-layers.esm.js",
+    "node_modules/@tensorflow/tfjs-layers/dist/tf-layers.esm.js.map",
+    "node_modules/@tensorflow/tfjs-converter/dist/tf-converter.esm.js",
+    "node_modules/@tensorflow/tfjs-converter/dist/tf-converter.esm.js.map",
+    "node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm.js",
+    "node_modules/jszip/dist/jszip.js"
+  ],
+
+  "content_security_policy": "script-src 'self' 'unsafe-eval' https://ajax.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com/; object-src 'self'"
 }
