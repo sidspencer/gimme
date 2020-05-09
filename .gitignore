@@ -1,1 +1,10 @@
-node_modules
+node_modules/
+background/bundle.js
+background/bundle.js.map
+content/bundle.js
+content/bundle.js.map
+options/bundle.js
+options/bundle.js.map
+popup/bundle.js
+popup/bundle.js.map
+*~
