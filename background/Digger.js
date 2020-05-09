@@ -41,9 +41,9 @@ const Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
     var SEARCH_DEPTH = {
         SKIM: 1,
         LARGEST_IMAGE: 2,
-        TF_MATCH: 2.5,
         INSPECT: 3,
-        DIG_DEEPER: 4,
+        TF_MATCH: 4,
+        DIG_DEEPER: 5,
     };
     var SCRAPING_TOOLS = {};
     SCRAPING_TOOLS[OPT.IMGS] = Scraper.getAllImgUrls;
@@ -721,13 +721,6 @@ const Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             Output.toOut('Looking for the largest Image on ' + zoomFilename);
             return Logicker.getPairWithLargestImage(thumbUrl.href, doc);
         })
-        // 2.5 - Use TensorFlow's Mobilenet pre-trained ML model.
-        .catch(function maybeUseTfClassification(previousError) {
-            errors.push(previousError);
-            if (searchDepth < SEARCH_DEPTH.TF_MATCH) { return Promise.resolve(null); }
-
-            return Logicker.tfClassificationMatch(thumbUrl.href, doc);
-        })
         // 3 - Use document inspection, using each options-defined type of scrape.
         .catch(function maybeInspectDocument(previousError) {
             errors.push(previousError);                        
@@ -736,7 +729,14 @@ const Digger = (function Digger(Scraper, Output, Logicker, Utils, Options) {
             Output.toOut('Inspecting all media on ' + zoomFilename);
             return inspectZoomPage(doc, thumbUrl, zoomPageUrl);                    
         })
-        // 4 - Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs.
+         // 4 - Use TensorFlow's Mobilenet pre-trained ML model.
+        .catch(function maybeUseTfClassification(previousError) {
+            errors.push(previousError);
+            if (searchDepth < SEARCH_DEPTH.TF_MATCH) { return Promise.resolve(null); }
+
+            return Logicker.tfClassificationMatch(thumbUrl.href, doc);
+        })
+        // 5- Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs.
         .catch(function maybeDigDeeper(previousError) {
             errors.push(previousError);                        
             if (searchDepth < SEARCH_DEPTH.DIG_DEEPER) { return Promise.resolve(null); };
