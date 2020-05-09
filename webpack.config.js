@@ -1,6 +1,7 @@
 module.exports = {
     mode: 'development',
-    context: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',
+    // WINDOWS: context: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',
+    context: '/Users/dis/Source/sidspencer/gimme',
     entry: {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
@@ -8,7 +9,8 @@ module.exports = {
         popup: './popup/popup.js'
     },
     output: {
-        path: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',
+        // WINDOWS: path: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',
+        path: '/Users/dis/Source/sidspencer/gimme',
         filename: './[name]/bundle.js',
         publicPath: "./",
         libraryTarget: 'umd',
