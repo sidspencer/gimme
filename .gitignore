@@ -1,4 +1,6 @@
 node_modules/
+distro/
+lib/
 background/bundle.js
 background/bundle.js.map
 content/bundle.js
