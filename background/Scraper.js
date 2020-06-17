@@ -1,4 +1,6 @@
-'use strict'
+import { default as Output } from './Output.js';
+import { default as Logicker } from './Logicker.js';
+import { default as Utils } from './Utils.js';
 
 /**
  * Factory function for the Scraper for Gimme. It holds all the
@@ -507,4 +509,6 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     
     // return the singleton
     return me;
-})
+});
+
+export default Scraper;
