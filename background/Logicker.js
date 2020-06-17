@@ -1,10 +1,30 @@
-'use strict'
+import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm';
+import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
+import { default as Utils } from './Utils.js';
+
+const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
+const MOBILENET_TF_PATH = 'https://tfhub.dev/google/imagenet/mobilenet_v1_050_160/feature_vector/4';
+const IMAGE_SIZE = 224;
+const CLASSIFICATIONS = 20;
+const PRED_CUTOFF = 0.2;
+const USE_TENSORFLOW = true;
+
+const MODEL_CONFIG = {
+    version: 2,
+    alpha: 0.25,
+    modelUrl: MOBILENET_MODEL_PATH,
+}
+const TF_MODEL_CONFIG = {
+    version: 2,
+    alpha: 0.25,
+    fromTFHub: true,
+}
 
 /**
  * Logicker service/singleton for stateless rules about how to 
  * find things on pages in general, and for specific sites.
  */
-var Logicker = (function Logicker(Utils) {
+let Logicker = (function Logicker(Utils) {
     // service object
     var me = {
         hasSpecialRules: false,
@@ -16,6 +36,8 @@ var Logicker = (function Logicker(Utils) {
         messages: [],
         processings: [],
         blessings: [],
+
+        mnModel: undefined,
     };
 
     // aliases
@@ -49,6 +71,91 @@ var Logicker = (function Logicker(Utils) {
         if (!!regexString) {
             me.knownBadImgRegex =  new RegExp(regexString);
         }
+    }
+
+
+    /**
+     * Load the mobilenet image-matching model, and do it only once per instance.
+     * Returns a promise resolving to our copy of this model.
+     */
+    me.loadModel = function loadModel() {
+        return new Promise(async (resolve, reject) => {
+            if (!!me.mnModel) {
+                console.log('[Logicker] returning cached copy of model.');
+                resolve(me.mnModel);
+            }
+            else {
+                console.log('[Logicker] Loading model...');
+                const startTime = performance.now();
+
+                //me.mnModel = await tf.loadLayersModel(MOBILENET_MODEL_PATH, MODEL_CONFIG);
+                me.mnModel = await mobilenet.load();
+
+                if (!!me.mnModel) {
+                    resolve(me.mnModel);
+                }
+                else {
+                    reject('Mobilenet model came back null.')
+                }   
+
+                const totalTime = Math.floor(performance.now() - startTime);
+                console.log(`[Logicker] Model loaded and initialized in ${totalTime}ms...`);
+            }             
+        });
+    };
+
+
+    /**
+     * Using the TF Mobilenet model, get a classification vector for the image.
+     */
+    me.classifyImage = function classifyImage(imgElement) {
+        let p = new Promise(async (resolve, reject) => {
+            var originalHeight = imgElement.height;
+            var originalWidth = imgElement.width;
+    
+            imgElement.height = IMAGE_SIZE;
+            imgElement.width = IMAGE_SIZE;
+
+            let imgClassifications = await me.mnModel.classify(imgElement, CLASSIFICATIONS);
+
+            imgElement.height = originalHeight;
+            imgElement.width = originalWidth;
+
+            if (Array.isArray(imgClassifications)) {
+                // imgClassifications.forEach((pred, idx) => {
+                //     console.log(`** Classification ${idx} -- class name: "${pred.className}", probability: "${pred.probability}"`);
+                // });
+                resolve(imgClassifications);  
+            }
+            else {
+                reject('[Logicker] Classifications came back null');
+            }
+        });
+
+        return p;
+    }
+
+    
+    /**
+     * Load an image via the Image() object, sized so tf can analyse it.
+     */
+    me.loadImage = function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            var img = new Image();
+            img.src = src;
+            img.crossOrigin = "anonymous";
+
+            img.onerror = function(e) {
+                resolve(null);
+            };
+
+            // Set image size for tf!
+            img.onload = function(evt) {
+                resolve(img);
+            }
+
+            img.src = src;
+        });
     }
 
 
@@ -231,12 +338,168 @@ var Logicker = (function Logicker(Utils) {
 
 
     /**
+     * Try to find the best matching image in the doc by using tensorFlow image classification using
+     * Mobilenet, and just comparing classification vectors.
+     */
+    me.tfClassificationMatch = function tfClassificationMatch(thumbUri, doc) {
+        // Make sure the model is loaded.
+        let p = me.loadModel().then((mobilenetModel) => {
+            return new Promise((resolve, reject) => {
+                me.loadImage(thumbUri).then((thumbImg) => {
+                    if (!!thumbImg) {
+                        resolve(me.classifyImage(thumbImg));
+                    }
+                    else {
+                        console.log(`[Logicker] ThumbUri will not load, rejecting: ${thumbUri}`);
+                        reject('ThumbUri will not load: ' + thumbUri);
+                    }
+                });
+            });
+        })
+        // Process all the images in the doc for scores.
+        .then((thumbClassifications) => {
+            return new Promise((topLevelResolve, topLevelReject) => {
+                var imgs = doc.querySelectorAll('img');
+                var imgPromises = [];
+                var largestImgSrc = undefined;
+                var largestDims = { 
+                    height: this.MIN_ZOOM_HEIGHT, 
+                    width: this.MIN_ZOOM_WIDTH 
+                };
+
+                // Check every image for similarities.
+                //console.log(`[Logicker] Checking ${imgs.length} images for TF similarity to the test image.`);
+                imgs.forEach((img) => {                
+                    var imgSrc = img.src;
+                    var originalDims = {
+                        height: (!!this.naturalHeight ? this.naturalHeight : this.height),
+                        width: (!!this.naturalWidth ? this.naturalWidth : this.width),
+                    }
+                    var zeroResponse = {
+                        thumbUri: thumbUri,
+                        zoomUri: (new URL(imgSrc)).href,
+                        score: 0,
+                    };
+
+                    // Load all the images in the document, wrapping their onload/onerror in promises. Score them.
+                    imgPromises.push(
+                        new Promise((resolve, reject) => {
+                            let testImg = new Image(IMAGE_SIZE, IMAGE_SIZE);
+
+                            testImg.onload = async function onload() {
+                                //console.log('[Logicker] Loaded document image for TF scoring: ' + imgSrc);
+
+                                if (me.isKnownBadImg(this.src)) {
+                                    console.log('[Logicker] Known bad image name. Skipping...');
+                                    resolve(zeroResponse);
+                                    return;
+                                } 
+                                else {
+                                    // Skip the image if it is not big enough.
+                                    if (!me.isZoomSized(originalDims)) {
+                                        console.log('[Logicker] Image too small. Skipping...');
+                                        resolve(zeroResponse);
+                                        return;
+                                    } 
+                                    else {
+                                        if (originalDims.height > largestDims.height && originalDims.width > largestDims.width) {
+                                            largestImg = this;
+                                            largestImgSrc = this.src;
+                                            largestDims = originalDims;
+                                        }
+                                    }
+                                }
+
+                                // Do the scoring.
+                                let classifications = await me.classifyImage(this);
+
+                                if (!Array.isArray(classifications)) {
+                                    console.log(`[Logicker] got no classifications for img ${imgSrc}`);
+                                    resolve(zeroResponse);
+                                    return;
+                                }
+                                
+                                //console.log(`[Logicker] got classifications for img ${imgSrc}`);
+
+                                var classAgreements = [];
+                                var totalClassesCount = classifications.length;
+                
+                                // For each of the class-match classifications, see how they compare to the thumbnail's classifications.
+                                classifications.forEach((cls) => {
+                                    if (thumbClassifications.indexOf(cls.className) != -1) {
+                                        if (Math.abs(cls.probability - thumbClassifications.probability) < PRED_CUTOFF) {
+                                            classAgreements.push(cls.className);
+                                        } 
+                                    }
+                                });
+
+                                // Create a simple percentage score of the class matches. Resolve with the same object structure
+                                // that getPairWithLargestImage() does.
+                                var score = classAgreements.length / totalClassesCount;
+                                console.log(`[Logicker] cantidate ${imgSrc} has a match score to ${thumbUri} of: ${score}`);
+
+                                resolve({
+                                    thumbUri: thumbUri,
+                                    zoomUri: (new URL(imgSrc)).href,
+                                    score: score,
+                                });
+                            };
+
+                            // On error, still resolve. (Waiting on support for Promise.allSettled())
+                            testImg.onerror = function onerror() {
+                                console.log('[Logicker] Error loading image for TF classifying. Resolving with score of 0.');
+                                resolve(zeroResponse);
+                            };
+
+                            testImg.src = imgSrc;
+                        })
+                    )
+                });
+
+                // Go through the img scores and pick the best one.
+                Promise.all(imgPromises).then((imgScores) => {
+                    var topImgScoreObj = { 
+                        thumbUri: thumbUri,
+                        zoomUri: '',
+                        score: 0,
+                    };
+
+                    imgScores.forEach((s) => {
+                        if (s.score > topImgScoreObj.score) {
+                            topImgScoreObj = s;
+                        }
+                        else if (s.score === topImgScoreObj.score) {
+                            if (s.zoomUri.indexOf(largestImgSrc) !== -1) {
+                                topImgScoreObj = s;
+                            }
+                            else {
+                                // Keep the existing topImgScoreObj
+                            }
+                        }
+                    });
+
+                    console.log(`[Logicker] TF Mobilenet's most likely match ->\n -Score: ${topImgScoreObj.score}, Uri: ${topImgScoreObj.zoomImgUri}`);
+                    topLevelResolve(topImgScoreObj);
+                });
+            });
+        });
+
+        // p resolves with the top image score object for the thumbnail.
+        return p;
+    }
+
+
+    /**
      * Find the largest image in a document. It can't be by dimensions, because the documents returned
      * by the XHRs are not "live", and no elements have dimensions because there was no rendering. SO,
      * we create Image objects and get the dimensions from those. 
      */
     me.getPairWithLargestImage = function getPairWithLargestImage(thumbUri, doc) {
-        return new Promise(function findLargestImage(resolve, reject) {
+        // if (USE_TENSORFLOW) {
+        //     return me.tfClassificationMatch(thumbUri, doc);
+        // }
+
+        let p = new Promise(function findLargestImage(resolve, reject) {
             var largestImg = false;
             var largestImgSrc = false;
             var largestDims = {
@@ -324,6 +587,8 @@ var Logicker = (function Logicker(Utils) {
                 return;
             }
         });
+        
+        return p;
     };
 
 
@@ -607,3 +872,7 @@ var Logicker = (function Logicker(Utils) {
     // return the singleton
     return me;
 })(Utils);
+
+window.logicker = Logicker;
+
+export default Logicker;
