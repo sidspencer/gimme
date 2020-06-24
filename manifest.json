@@ -3,7 +3,7 @@
 
   "name": "GimmeGimmeGimme",
   "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "offline_enabled": true,
 
   "applications": {
@@ -78,5 +78,5 @@
     "node_modules/jszip/dist/jszip.js"
   ],
 
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://ajax.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com/; object-src 'self'"
+  "content_security_policy": "script-src 'self' https://ajax.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com/; object-src 'self'"
 }
