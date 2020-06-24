@@ -5,10 +5,14 @@ Two terms are used for the automatic media-finding: Dig and Scrape. Dig is for g
 
 As mentioned before, code is there to download video and audio files as well, but is not currently exposed and has not been tested much. Feel free to un-hide the extra buttons in popup/style.css to download the other media types. The event handlers and back-end are all set up, just the buttons are hidden.
 
-This extension works with Chrome, Firefox, and Edge but are not on the extension/add-on stores currently due to using some banned APIs. I'm working on fixing that.
+This extension works with Chrome, Firefox, and Edge. You can find GimmeGimmeGimme v0.4.7 on the Chrome Web Store currently, and v0.4.8 (got rid of some baaaad webpack configuration that generated eval statements and Function constructors in the bundled code) released on the FireFox Add-On Store. (The Edge extension submissions process is taking forever.) 
 
 # v0.4.7
 This release contains JS code modernization, and most importantly image matching with TensorFlow's pre-trained Mobilenet model at the second-to-last search depth (4) for Digging a gallery. Being at search depth 4 means that the TF matching will only execute after the configured and built-in heuristics fail to find anything good, but before using the very heavyweight method of loading zoom pages in hidden iframes and attempting to wait for the zoom page's onload JS to be done.
 
 # building
 Execute "npm run pack" in the base directory to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files only
+
+
+# v0.4.8
+The Mozilla add-ons process has some great code analysis tools that picked up on eval usage, Function constructors, and my using innerHTML when textContent or even using a DOMParser object was actually the way to go. While the innerHTML was my lazy (and easily fixed) fault, the unsafe generated code and my loose CSP were actually artifacts of poor webpack and babel setup. v0.4.8 will be PR'd to master shortly.
