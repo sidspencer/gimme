@@ -60,6 +60,7 @@ class App {
        /** 
         * Do some things with the tab response, resolve with the location.
         */
+        var domParser = new DOMParser();
         this.processTabMessageResponse = (resp) => {
             // Get the locator from the response. Create the downloads directory name.
             var loc = resp.locator;
@@ -69,9 +70,8 @@ class App {
             this.peeperMap = Object.assign({}, resp.galleryMap);
 
             // Create our own copy of the document we're looking at.
-            var peeperDoc = chrome.extension.getBackgroundPage().document.implementation.createHTMLDocument("peeperdoc");
-            peeperDoc.documentElement.innerHTML = resp.docInnerHtml;
-
+            var peeperDoc = domParser.parseFromString(resp.docInnerHtml, "text/html");
+            
             // Fallback to getting the document via XHR if we have to. (worse, because scripts will not have run.)
             if (!peeperDoc || !resp.docInnerHtml) {
                 return getLocDoc(loc);
@@ -216,14 +216,6 @@ class App {
         return Promise.resolve([]);
     }
     
-
-
-
-
-    
-
-    
-      
 
     /**
      * Fetch the document on which we are scraping/digging.

@@ -33,7 +33,7 @@ var Output = (function Output(dokken) {
     me.toOut = function toOut(newContent) {
         try {
             me.out = me.doc.getElementById('output');
-            me.out.innerHTML = newContent;
+            me.out.textContent = newContent;
         }
         catch(error) {
             console.log('[Output] Could not write to doc, it is a Dead Object.');
@@ -118,7 +118,7 @@ var Output = (function Output(dokken) {
         
         if (fEntry) {
             if (entry) { 
-                fEntry.innerHTML = entry;
+                fEntry.textContent = entry;
             }
             fEntry.className = state;
         }
