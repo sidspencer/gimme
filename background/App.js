@@ -194,6 +194,7 @@ class App {
     startDownloading(harvestedMap) {
         var length = Object.keys(harvestedMap).length;        
         this.galleryMap = harvestedMap;
+        var me = this;
 
         this.digger.redrawOutputFileOpts(harvestedMap);
 
@@ -209,7 +210,7 @@ class App {
         console.log('STARTING DOWNLOAD')
         Utils.downloadInZip(harvestedMap.values()).then(function() {
             for (var index = 0; index < harvestedMap.values(); index++) {
-                this.output.setEntryAsDownloading(index);
+                me.output.setEntryAsDownloading(index);
             };
         });
 
@@ -295,7 +296,7 @@ class App {
             })
             .then(me.startDownloading)            
             .catch(function onDocRequestError(errorMessage) {
-                this.output.toOut('There was an internal error. Please try refreshing the page.');
+                me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -343,7 +344,7 @@ class App {
             })
             .then(me.presentFileOptions)            
             .catch(function handleError(errorMessage) {
-                this.output.toOut('There was an internal error. Please try refreshing the page.');
+                me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -398,7 +399,7 @@ class App {
             })
             .then(me.startDownloading)
             .catch(function handleError(errorMessage) {
-                this.output.toOut('There was an internal error. Please try refreshing the page.');
+                me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -411,7 +412,7 @@ class App {
                     }
                 );
 
-                this.output.setIsDigging(false);     
+                me.output.setIsDigging(false);     
             })
         );
     }
