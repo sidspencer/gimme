@@ -2,6 +2,8 @@ import { default as Digger } from '../background/Digger.js';
 import { default as Output } from '../background/Output.js';
 import { default as EventPage } from '../background/EventPage.js';
 
+const ENABLE_HALF_BAKED_VAL = '3.14159';
+
 class Popup {
     constructor() {
         /**
@@ -154,11 +156,11 @@ class Popup {
                         bgWindow.logicker.setBlessings(store.spec.blessings);
 
                         bgWindow.output.setEnableHalfBakedFeatures(
-                            (store.spec.config.enableHalfBakedFeatures === '-1')
+                            (store.spec.config.enableHalfBakedFeatures === ENABLE_HALF_BAKED_VAL)
                         );
                     });
 
-                    if (store.spec.config.enableHalfBakedFeatures === '-1') {
+                    if (store.spec.config.enableHalfBakedFeatures === ENABLE_HALF_BAKED_VAL) {
                         var bcs = document.getElementsByClassName('buttonColumn');
                         for (var b = 0; b < bcs.length; b++) {
                             bcs[b].style.display = 'inline-block';

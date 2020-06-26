@@ -23,7 +23,7 @@ var Constance = (function() {
             dlChannels: 'number of download channels for gallery-gallery-digs',
             dlBatchSize: 'number of downloads in a batch for gallery-gallery-digs',
             knownBadImgRegex: 'regex to match image uris that are never what we are looking for',
-            enableHalfBakedFeatures: 'enable all the half-baked features with a "-1" in this box', 
+            enableHalfBakedFeatures: 'enable all the half-baked features with a "3.14159" in this box', 
         },
         MESSAGES: {
             match: 'regex to match the site uri',
