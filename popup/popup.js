@@ -152,12 +152,17 @@ class Popup {
                         bgWindow.logicker.setMessages(store.spec.messages);
                         bgWindow.logicker.setProcessings(store.spec.processings);
                         bgWindow.logicker.setBlessings(store.spec.blessings);
+
+                        bgWindow.output.setEnableHalfBakedFeatures(
+                            (store.spec.config.enableHalfBakedFeatures === '-1')
+                        );
                     });
 
                     if (store.spec.config.enableHalfBakedFeatures === '-1') {
-                        document.getElementsByClassName('buttonColumn').forEach((bc) => {
-                            bc.style.display = 'inline-block';
-                        });
+                        var bcs = document.getElementsByClassName('buttonColumn');
+                        for (var b = 0; b < bcs.length; b++) {
+                            bcs[b].style.display = 'inline-block';
+                        }
                     }
                 });
             }
