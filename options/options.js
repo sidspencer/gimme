@@ -22,7 +22,8 @@ var Constance = (function() {
             minZoomHeight: 'minimum full-sized image height',
             dlChannels: 'number of download channels for gallery-gallery-digs',
             dlBatchSize: 'number of downloads in a batch for gallery-gallery-digs',
-            knownBadImgRegex: 'regex to match image uris that are never what we are looking for', 
+            knownBadImgRegex: 'regex to match image uris that are never what we are looking for',
+            enableHalfBakedFeatures: 'enable all the half-baked features with a "-1" in this box', 
         },
         MESSAGES: {
             match: 'regex to match the site uri',
@@ -55,6 +56,7 @@ var Constance = (function() {
         dlChannels: '5',
         dlBatchSize: '5',
         knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
+        enableHalfBakedFeatures: '0',
     };
     var cannedProcessings = [
         {
@@ -409,9 +411,11 @@ var Dominatrix = (function Dominatrix(doc, C) {
 
     /**
      * Return the object representing the config section of the options form.
+     * Before 0.4.9, the "lastElementChild" was missing, so we never saved
+     * config options. :(
      */
     me.getConfig = function getConfig() {
-        return getEntry(SECTION_ELEMENTS.CONFIG);
+        return getEntry(SECTION_ELEMENTS.CONFIG.lastElementChild);
     };
 
     
