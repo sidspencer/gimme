@@ -133,6 +133,7 @@ class Popup {
                             dlChannels: '11',
                             dlBatchSize: '3',
                             knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
+                            enableHalfBakedFeatures: '0',
                         },
                         messages: [],
                         processings: [],
@@ -152,6 +153,12 @@ class Popup {
                         bgWindow.logicker.setProcessings(store.spec.processings);
                         bgWindow.logicker.setBlessings(store.spec.blessings);
                     });
+
+                    if (store.spec.config.enableHalfBakedFeatures === '-1') {
+                        document.getElementsByClassName('buttonColumn').forEach((bc) => {
+                            bc.style.display = 'inline-block';
+                        });
+                    }
                 });
             }
 
