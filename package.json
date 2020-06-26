@@ -1,6 +1,6 @@
 {
   "name": "gimme",
-  "version": "0.4.7",
+  "version": "0.4.9",
   "description": "A tool for helping you download media from a page, or from the pages that are linked.",
   "main": "popup/popup.js",
   "module": "popup/popup.js",
@@ -14,6 +14,7 @@
     "@tensorflow/tfjs-core": "^1.7.4",
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-es2017": "^6.24.1",
+    "core-js": "^3.6.5",
     "jszip": "^3.5.0"
   },
   "devDependencies": {

@@ -1,3 +1,5 @@
+const webpack = require("webpack");
+
 module.exports = {
     mode: 'development',
     // WINDOWS: context: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
@@ -26,15 +28,17 @@ module.exports = {
                     loader: 'babel-loader',
                     options: {
                         presets: [
-                            ["@babel/preset-env", {
-                            "useBuiltIns": false,
+                            ['@babel/preset-env', {
+                            'useBuiltIns': 'entry',
+                            'corejs': 3
                           }],
                         ],
                         plugins: [
                             '@babel/plugin-transform-classes',
-                            ["@babel/plugin-transform-runtime", {
-                                "regenerator": true,
-                            }],
+                            ['@babel/plugin-transform-runtime', {
+                                'regenerator': false,
+                                'useESModules': true,
+                            }]
                         ]
                     }
                 }
@@ -42,8 +46,8 @@ module.exports = {
         ]
     },
     resolve: {
-        modules: [ "node_modules", "./" ]
+        modules: [ 'node_modules', './' ]
     },
-    devtool: "source-map",
-    target: "web"
+    devtool: 'source-map',
+    target: 'web'
 };

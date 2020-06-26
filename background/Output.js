@@ -20,6 +20,7 @@ var Output = (function Output(dokken) {
         failedUris: [],
         dugUris: [],
         checkedFileOptUris: [],
+        enableHalfBakedFeatures: false,
     };
 
     me.doc = dokken;
@@ -33,7 +34,7 @@ var Output = (function Output(dokken) {
     me.toOut = function toOut(newContent) {
         try {
             me.out = me.doc.getElementById('output');
-            me.out.innerHTML = newContent;
+            me.out.textContent = newContent;
         }
         catch(error) {
             console.log('[Output] Could not write to doc, it is a Dead Object.');
@@ -52,6 +53,14 @@ var Output = (function Output(dokken) {
         me.out = me.doc.getElementById('output');
     }
     
+
+    /**
+     * Enable the use of the half-baked features.
+     * @param {bool} enableThem 
+     */
+    me.setEnableHalfBakedFeatures = function setEnableHalfBakedFeatures(enableThem) {
+        me.enableHalfBakedFeatures = enableThem;
+    }
 
     /**
      * Clear the filesDug <ul> of any child nodes.
@@ -118,7 +127,7 @@ var Output = (function Output(dokken) {
         
         if (fEntry) {
             if (entry) { 
-                fEntry.innerHTML = entry;
+                fEntry.textContent = entry;
             }
             fEntry.className = state;
         }
@@ -306,7 +315,7 @@ var Output = (function Output(dokken) {
 
 
     /**
-     * Unhide the digging/scraping buttons.
+     * Unhide (show) the digging/scraping buttons.
      */
     me.showDigScrapeButtons = function showDigScrapeButtons() {
         me.hideActionButtons();
@@ -314,6 +323,11 @@ var Output = (function Output(dokken) {
         try {
             me.doc.getElementById(me.BUTTON_HOLDER_ID).style.display = 'block';
             me.doc.getElementById(me.MAIN_BUTTONS_HOLDER_ID).style.display = 'block';
+
+            if (me.enableHalfBakedFeatures) {
+                me.doc.getElementById(me.DIGGING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
+                me.doc.getElementById(me.SCRAPING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
+            }
         }
         catch(error) {
             console.log('[Output] Could not show dig/scrape buttons. doc ref is a Dead Object.');

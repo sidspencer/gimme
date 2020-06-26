@@ -627,6 +627,7 @@ var Utils = (function Utils() {
     var DEFAULT_IFRAME_ID = 'background_iframe';
     var listeners = [];
     var counter = 0;
+    var domParser = new DOMParser();
     me.loadUriDoc = function loadUriDoc(uri, id) {
         return new Promise(function doLoadUri(resolve, reject) {
             id = (!id && id !== 0) ? DEFAULT_IFRAME_ID : id;
@@ -658,8 +659,7 @@ var Utils = (function Utils() {
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(listeners[listenerId]);
 
-                    var iframeDoc = bgDoc.implementation.createHTMLDocument(uri);
-                    iframeDoc.documentElement.innerHTML = request.docInnerHtml;
+                    var iframeDoc = domParser.parseFromString(request.docInnerHtml, "text/html");
                     resolve(iframeDoc);
                     
                     iframe.remove();

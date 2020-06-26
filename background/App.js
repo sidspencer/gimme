@@ -60,6 +60,7 @@ class App {
        /** 
         * Do some things with the tab response, resolve with the location.
         */
+        var domParser = new DOMParser();
         this.processTabMessageResponse = (resp) => {
             // Get the locator from the response. Create the downloads directory name.
             var loc = resp.locator;
@@ -69,9 +70,8 @@ class App {
             this.peeperMap = Object.assign({}, resp.galleryMap);
 
             // Create our own copy of the document we're looking at.
-            var peeperDoc = chrome.extension.getBackgroundPage().document.implementation.createHTMLDocument("peeperdoc");
-            peeperDoc.documentElement.innerHTML = resp.docInnerHtml;
-
+            var peeperDoc = domParser.parseFromString(resp.docInnerHtml, "text/html");
+            
             // Fallback to getting the document via XHR if we have to. (worse, because scripts will not have run.)
             if (!peeperDoc || !resp.docInnerHtml) {
                 return getLocDoc(loc);
@@ -194,6 +194,7 @@ class App {
     startDownloading(harvestedMap) {
         var length = Object.keys(harvestedMap).length;        
         this.galleryMap = harvestedMap;
+        var me = this;
 
         this.digger.redrawOutputFileOpts(harvestedMap);
 
@@ -209,21 +210,13 @@ class App {
         console.log('STARTING DOWNLOAD')
         Utils.downloadInZip(harvestedMap.values()).then(function() {
             for (var index = 0; index < harvestedMap.values(); index++) {
-                this.output.setEntryAsDownloading(index);
+                me.output.setEntryAsDownloading(index);
             };
         });
 
         return Promise.resolve([]);
     }
     
-
-
-
-
-    
-
-    
-      
 
     /**
      * Fetch the document on which we are scraping/digging.
@@ -303,7 +296,7 @@ class App {
             })
             .then(me.startDownloading)            
             .catch(function onDocRequestError(errorMessage) {
-                this.output.toOut('There was an internal error. Please try refreshing the page.');
+                me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -351,7 +344,7 @@ class App {
             })
             .then(me.presentFileOptions)            
             .catch(function handleError(errorMessage) {
-                this.output.toOut('There was an internal error. Please try refreshing the page.');
+                me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -406,7 +399,7 @@ class App {
             })
             .then(me.startDownloading)
             .catch(function handleError(errorMessage) {
-                this.output.toOut('There was an internal error. Please try refreshing the page.');
+                me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
@@ -419,7 +412,7 @@ class App {
                     }
                 );
 
-                this.output.setIsDigging(false);     
+                me.output.setIsDigging(false);     
             })
         );
     }
