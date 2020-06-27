@@ -18,7 +18,7 @@ class EventPage {
      *  - mucks through javascript (musta been green programmers)
      */
     goDig(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: true,
@@ -29,7 +29,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
         app.digGallery();
@@ -43,7 +43,7 @@ class EventPage {
      *  - mucks through javascript (musta been green programmers)
      */
      goDigFileOptions(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: true,
@@ -54,7 +54,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
         
         app.digFileOptions();
@@ -66,7 +66,7 @@ class EventPage {
      * This includes css Background Images for bastards like FB.
      */
      goDigImageGallery(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: false,
@@ -77,7 +77,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
 
@@ -89,7 +89,7 @@ class EventPage {
      * Fire up the app, dig only for video galleries.
      */
      goDigVideoGallery(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: false,
             cssBgs: false,
             videos: true,
@@ -100,7 +100,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
         app.digGallery();
@@ -111,7 +111,7 @@ class EventPage {
      * Go dig multiple galleries from a page of gallery of galleries.
      */
      goDigGalleryGallery(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: true,
@@ -122,7 +122,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
         app.digGalleryGallery();
@@ -142,7 +142,7 @@ class EventPage {
      * query-string. Then JUST START DOWNLOADING THEM.
      */
      goScrape(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: true,
@@ -155,7 +155,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
         app.scrape(options);
@@ -168,7 +168,7 @@ class EventPage {
      * query-string. Then present options for the user to choose to download or not.
      */
      goScrapeFileOptions(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: true,
@@ -181,7 +181,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
 
@@ -193,7 +193,7 @@ class EventPage {
      * Scrape the current page for <img>s.
      */
      goScrapeImages(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: true,
             cssBgs: true,
             videos: false,
@@ -206,7 +206,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
 
@@ -218,7 +218,7 @@ class EventPage {
      * Scrape the current page for <video>s.
      */
      goScrapeVideos(parentDocument) {
-        var options = {
+        var inspectionOptions = {
             imgs: false,
             cssBgs: false,
             videos: true,
@@ -231,7 +231,7 @@ class EventPage {
         output.resetFileData();
         
         var scraper = Scraper(Utils, Logicker, output);
-        var digger = new Digger(scraper, output, Logicker, Utils, options);
+        var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
         app.scrape(options);
