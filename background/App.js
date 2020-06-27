@@ -4,6 +4,7 @@ import { default as Output } from './Output.js';
 import { default as Digger } from './Digger.js';
 import { default as Scraper } from './Scraper.js';
 
+
 /**
  * Factory function for the main "Application" backend of Gimme.
  */
@@ -192,9 +193,12 @@ class App {
      * Once we have the dug uris from the response, this callback downloads them.
      */
     startDownloading(harvestedMap) {
-        var length = Object.keys(harvestedMap).length;        
-        this.galleryMap = harvestedMap;
         var me = this;
+        var length = Object.keys(harvestedMap).length;   
+             
+        if (!!this) {
+            this.galleryMap = harvestedMap;
+        }
 
         this.digger.redrawOutputFileOpts(harvestedMap);
 
@@ -305,7 +309,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
                 
@@ -353,7 +358,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
@@ -408,7 +414,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
@@ -459,7 +466,9 @@ class App {
                     });
                 }
             })
-            .then(me.presentFileOptions)
+            .then((harvestedMap) => {
+                me.presentFileOptions(harvestedMap);
+            })
             .catch((errorMessage) => {
                 me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
@@ -470,7 +479,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
@@ -600,7 +610,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
