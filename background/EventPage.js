@@ -28,7 +28,7 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
@@ -53,7 +53,7 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
         
@@ -76,7 +76,7 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
@@ -99,7 +99,7 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
@@ -121,7 +121,7 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
@@ -154,11 +154,11 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
-        app.scrape(options);
+        app.scrape(inspectionOptions);
     }
 
 
@@ -180,12 +180,12 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
 
-        app.scrapeFileOptions(options);
+        app.scrapeFileOptions(inspectionOptions);
     }
 
 
@@ -205,12 +205,12 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
 
-        app.scrape(options);
+        app.scrape(inspectionOptions);
     }
 
 
@@ -230,11 +230,11 @@ class EventPage {
         output.setDoc(parentDocument);
         output.resetFileData();
         
-        var scraper = Scraper(Utils, Logicker, output);
+        var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
         var app = new App(output, digger, scraper, Logicker, Utils);
 
-        app.scrape(options);
+        app.scrape(inspectionOptions);
     }
 }
 
