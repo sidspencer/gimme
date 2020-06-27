@@ -352,7 +352,7 @@ class Digger {
 
         // Create entries in the gallery map, the XHR tracking array, and the UI.
         if (Utils.exists(thumbUri) && Utils.exists(zoomUri)) {
-            if (!Utils.isBannedZoomUri(zoomUri)) {
+            if (!Logicker.isKnownBadImg(zoomUri)) {
                 console.log(
                     '[Digger] Adding to map:\n' + 
                     '         thumbUri: ' + thumbUri + '\n' + 
