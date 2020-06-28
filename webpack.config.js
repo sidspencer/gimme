@@ -7,8 +7,8 @@ module.exports = {
     entry: {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
-        options: './options/options.js',
-        popup: './popup/popup.js'
+        options: './options/Options.js',
+        popup: './popup/Popup.js'
     },
     output: {
         // WINDOWS: path: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
