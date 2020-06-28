@@ -319,7 +319,6 @@ class Utils {
      * Reset the download helper objects to their initial state.
      */
     static resetDownloader() {
-        DL_CHAIN_COUNT = 10;
         Utils.dlChains = [];
         Utils.dlCounter = 0;
 
@@ -359,9 +358,9 @@ class Utils {
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
         
-        Utils.dlChains[dlIndex] = Utils.dlChains[dlIndex].then(
+        Utils.dlChains[dlIndex] = Utils.dlChains[dlIndex].then(() => {
             Utils.buildDlChain(uri, destFilename, output, num)
-        );
+        });
 
         return Utils.dlChains[dlIndex];
     }
@@ -371,16 +370,12 @@ class Utils {
      * Helper to avoid unwanted closures.
      */
     static buildDlChain(uri, destFilename, output, num) {
-        return (
-            () => {
-                output.toOut('Downloading file ' + num);
+        output.toOut('Downloading file ' + num);
 
-                chrome.browserAction.setBadgeText({ text: '' + num + '' });
-                chrome.browserAction.setBadgeBackgroundColor({ color: '#009900' });
+        chrome.browserAction.setBadgeText({ text: '' + num + '' });
+        chrome.browserAction.setBadgeBackgroundColor({ color: '#009900' });
 
-                return Utils.dlInChain(uri, destFilename);
-            }
-        );
+        return Utils.dlInChain(uri, destFilename);
     }
 
 
@@ -434,7 +429,7 @@ class Utils {
                 },
                 (downloadId) => {
                     if (downloadId) {
-                        Utils.dlCallbacks[downloadId] = buildDlCallback(downloadId, uri, destFilename, resolve);
+                        Utils.dlCallbacks[downloadId] = Utils.buildDlCallback(downloadId, uri, destFilename, resolve);
                         chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
                     }
                     else {
