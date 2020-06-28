@@ -319,7 +319,7 @@ class Utils {
      * Reset the download helper objects to their initial state.
      */
     static resetDownloader() {
-        Utils.DL_CHAIN_COUNT = 10;
+        DL_CHAIN_COUNT = 10;
         Utils.dlChains = [];
         Utils.dlCounter = 0;
 
@@ -327,7 +327,7 @@ class Utils {
             delete Utils.dlCallbacks[prp];
         }
     
-        for (var i1 = 0; i1 < Utils.DL_CHAIN_COUNT; i1++) {
+        for (var i1 = 0; i1 < DL_CHAIN_COUNT; i1++) {
             Utils.dlChains.push(
                 Promise.resolve(true).then(() => {
                     return new Promise((resolve, reject) => {
@@ -355,7 +355,7 @@ class Utils {
             destFilename = destFilename + '.jpg';
         }
 
-        var dlIndex = Utils.dlCounter % Utils.DL_CHAIN_COUNT;
+        var dlIndex = Utils.dlCounter % DL_CHAIN_COUNT;
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
         
@@ -635,7 +635,7 @@ class Utils {
                 iframe.remove();
                 delete listeners[listenerId];
 
-                reject(Utils.LISTENER_TIMED_OUT);
+                reject(LISTENER_TIMED_OUT);
             }, 7000);
 
             // Add a message listener for the ContentPeeper's loading message.
