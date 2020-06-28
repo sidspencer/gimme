@@ -7,7 +7,7 @@ module.exports = {
     entry: {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
-        options: './options/Options.js',
+        options: './options/Optionator.js',
         popup: './popup/Popup.js'
     },
     output: {
