@@ -666,7 +666,15 @@ class Optionator {
                 this.setSpec(); 
             });
         });
-    }      
+    }
+    
+
+    /**
+     * Convenience method o get the default spec off the exported Optionator object. 
+     */
+    static getDefaultConfig() {
+        return DEFAULT_SPEC.config;
+    }
 }
 Optionator.setupOptionsPageOnLoad();
 
