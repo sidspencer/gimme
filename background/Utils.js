@@ -1,24 +1,29 @@
+const LISTENER_TIMED_OUT = 'Listener timed out';
+const GIMME_ID = 'gimme'; 
+const DL_CHAIN_COUNT = 10;
+const DEFAULT_IFRAME_ID = 'background_iframe';
+
 /**
- * Utils service/singleton for Gimme. It holds all the random bric-a-brac
- * functions that make our lives easier.
+ * Utils service/singleton for GimUtils. It holds all the random bric-a-brac
+ * methods that make our coding a little easier.
  */
-var Utils = (function Utils() {
-    var me = {
-        dlChains: [],
-        dlCounter: 0,
-        dlCallbacks: {},
-    };
-
-    // Public Constants
-    me.LISTENER_TIMED_OUT = 'Listener timed out';
-    me.GIMME_ID = 'gimme'; 
-    me.DL_CHAIN_COUNT = 10;
-
+class Utils {
+    // Static vars used by Utils to store state.
+    static dlChains = [];
+    static dlCounter = 0;
+    static dlCallbacks = {};
+    static listeners = [];
+    static counter = 0;
+    static domParser = new DOMParser();
+    static lastLoc = { 
+        hostname: 'localhost', 
+        pathname: '/gallery' 
+    }; 
 
     /**
      * Check if a variable really exists.
      */
-    me.exists = function exists(obj) { 
+    static exists(obj) { 
         if (!!obj) {
             return true;
         }
@@ -30,7 +35,7 @@ var Utils = (function Utils() {
     /**
      * Is it an empty object?
      */
-    me.isEmpty = function isEmpty(obj) {
+    static isEmpty(obj) {
         for(var key in obj) {
             if(obj.hasOwnProperty(key))
                 return false;
@@ -42,7 +47,7 @@ var Utils = (function Utils() {
     /**
      * Check the src/uri/href/filename for known audio extensions.
      */
-    me.isAllowedAudioType = function isAllowedAudioType(name) {
+    static isAllowedAudioType(name) {
         var allowedRx = /(mp3|m4a|aac|wav|ogg|aiff|aif|flac)/i;
         return allowedRx.test(name);
     };
@@ -51,7 +56,7 @@ var Utils = (function Utils() {
     /**
      * Check the src/uri/href/filename for known video extensions.
      */
-    me.isAllowedVideoType = function isAllowedVideoType(name) {
+    static isAllowedVideoType(name) {
         var allowedRx = /(mp4|flv|f4v|m4v|mpg|mpeg|wmv|mov|avi|divx|webm)/i;
         return allowedRx.test(name);
     };
@@ -60,7 +65,7 @@ var Utils = (function Utils() {
     /**
      * Check the src/uri/href/filename for known image extensions.
      */
-    me.isAllowedImageType = function isAllowedImageType(name) {
+    static isAllowedImageType(name) {
         var allowedRx = /(jpg|jpeg|gif|png|tiff|tif|pdf)/i;
         return allowedRx.test(name);
     }
@@ -71,7 +76,7 @@ var Utils = (function Utils() {
      * It either builds it off the passed-in location obj, or it uses the Digger's
      * cached "locator".
      */
-    me.getBaseUri = function getBaseUri(loc) {
+    static getBaseUri(loc) {
         var baseUri = loc.href.substring(0, loc.href.lastIndexOf('/')+1);
         return baseUri;
     };
@@ -80,12 +85,12 @@ var Utils = (function Utils() {
     /**
      * Create a URL object from a src/href.
      */
-    me.srcToUrl = function srcToUrl(src, loc) {
-        if (!me.exists(src)) { 
+    static srcToUrl(src, loc) {
+        if (!Utils.exists(src)) { 
             src = 'data:'; 
         }
 
-        var cleansedUrl = new URL(src, me.getBaseUri(loc));
+        var cleansedUrl = new URL(src, Utils.getBaseUri(loc));
 
         // Use the URL object to fix all our woes.
         return cleansedUrl;
@@ -95,31 +100,17 @@ var Utils = (function Utils() {
     /**
      * Cleanse and scrub a src into a Uri string.
      */
-    me.srcToUri = function srcToUri(src, l) {
+    static srcToUri(src, l) {
         return u.srcToUrl(src, l).href;
     };
     
 
     /**
-     * Does it match a regex in our list of blacklist regexes?
-     */
-    me.isBannedZoomUri = function isBannedZoomUri(uri) {
-        if (typeof uri === 'undefined') {
-            return true;
-        }
-        else {
-            return false;
-        }
-    };
-
-
-    /**
      * Do we think we know what type this file is? And do we want it?
      */
-    me.isKnownMediaType = function isKnownMediaType(name) {
+    static isKnownMediaType(name) {
         return (
-            !me.isBannedZoomUri(name) &&
-            (me.isAllowedImageType(name) || me.isAllowedVideoType(name) || me.isAllowedAudioType(name))  
+            !!name && (Utils.isAllowedImageType(name) || Utils.isAllowedVideoType(name) || Utils.isAllowedAudioType(name))  
         );
     };
 
@@ -127,15 +118,15 @@ var Utils = (function Utils() {
     /**
      * Kind of degenerate...
      */
-    me.isKnownMediaFile = function isKnownMediaFile(name) {
-        return me.isKnownMediaType(name);
+    static isKnownMediaFile(name) {
+        return Utils.isKnownMediaType(name);
     };
 
 
     /**
      * Is this a URI that an XHR can be completed against? Does it have a valid protocol?
      */
-    me.isFetchableUri = function isFetchableUri(uri) {
+    static isFetchableUri(uri) {
         return (
             /^(http|https|data|blob|chrome|chrome-extension)\:/.test(uri)
         );
@@ -145,7 +136,7 @@ var Utils = (function Utils() {
     /**
      * Pull out the filename from a uri, or fallback to the whole thing.
      */
-    me.extractFilename = function extractFilename(uri) {
+    static extractFilename(uri) {
         var lsi = uri.lastIndexOf('/');
         var filename = uri.substring((lsi === -1) ? 0 : (lsi + 1));
 
@@ -156,7 +147,7 @@ var Utils = (function Utils() {
     /**
      * factory function for a LocDoc
      */
-    me.createLocDoc = function createLocDoc(loc, doc) {
+    static createLocDoc(loc, doc) {
         return {
             loc: loc,
             doc: doc,
@@ -167,7 +158,7 @@ var Utils = (function Utils() {
     /**
      * factory for a TabMessage
      */
-    me.createTabMessage = function createTabMessage(tab, message) {
+    static createTabMessage(tab, message) {
         return {
             tab: tab,
             message: message,
@@ -177,7 +168,7 @@ var Utils = (function Utils() {
     /**
      * factory for a DownloadSig
      */
-    me.createDownloadSig = function createDownloadSig(id, uri, fileName) {
+    static createDownloadSig(id, uri, fileName) {
         return {
             id: id,
             uri: uri,
@@ -189,7 +180,7 @@ var Utils = (function Utils() {
     /**
      * factory for FileOption
      */
-    me.createFileOption = function createFileOption(id, uri, thumbUri, filePath, onSelect) {
+    static createFileOption(id, uri, thumbUri, filePath, onSelect) {
         return {
             id: id,
             uri: uri,
@@ -203,22 +194,24 @@ var Utils = (function Utils() {
     /**
      * Promise-wrapper for doing an XHR
      */
-    me.getXhrResponse = function getXhrResponse(method, uri, responseType) {
+    static getXhrResponse(method, uri, responseType) {
         var prop = (responseType === 'document' || responseType === 'blob') ? 'responseXML' : 'response';
-        return me.sendXhr(method, uri, [prop], responseType);
+        return Utils.sendXhr(method, uri, [prop], responseType);
     }
 
     /**
      * Promise-wrapper for doing an XHR
      */
-    me.sendXhr = function sendXhr(method, uri, props, responseType) {
-        return new Promise(function buildXhr(resolve, reject) {
-            var errorHandler = function errorHandler(theStatus, theUri) {
+    static sendXhr(method, uri, props, responseType) {
+        return new Promise((resolve, reject) => {
+            var errorHandler = (theStatus, theUri) => {
                 reject(theStatus);
             };
 
             var xhr = new XMLHttpRequest();
 
+            // Left as a old-school function def so "this" will point at the xhr and not
+            // accidentally cause bad closures.
             xhr.onreadystatechange = function onXhrRSC() {
                 if (this.readyState == XMLHttpRequest.DONE) 
                 {
@@ -227,7 +220,7 @@ var Utils = (function Utils() {
                             var propMap = {};
                             var thisXhr = this;
 
-                            props.forEach(function addPropToResult(prop) {
+                            props.forEach((prop) => {
                                 propMap[prop] = thisXhr[prop];
                             });
 
@@ -260,10 +253,10 @@ var Utils = (function Utils() {
 
 
     /**
-     * 
+     * Get the active browser tab.
      */
-    me.queryActiveTab = function queryActiveTab() {
-        return me.queryTab({
+    static queryActiveTab() {
+        return Utils.queryTab({
             active: true,
             currentWindow: true,
         })
@@ -271,13 +264,13 @@ var Utils = (function Utils() {
 
 
     /**
-     * Wrapper for chrome.tabs.query.
+     * Wrapper for chrome.tabs.query. Get a tab with the specified opts.
      */
-    me.queryTab = function queryTab(opts) {
-        return new Promise(function doQueryTabs(resolve, reject) {
+    static queryTab(opts) {
+        return new Promise((resolve, reject) => {
             chrome.tabs.query(
                 opts,
-                function(tabs) {
+                (tabs) => {
                     if (tabs && tabs.length > 0) {
                         resolve(tabs[0]);             
                     }
@@ -293,9 +286,10 @@ var Utils = (function Utils() {
     /**
      * Wrapper for sending a message to a tab.
      */
-    me.sendTabMessage = function sendTabMessage(tabMessage) {
-        return new Promise(function messageSend(resolve, reject) {
-            tabMessage.message.senderId = me.GIMME_ID;
+    static sendTabMessage(tabMessage) {
+        return new Promise((resolve, reject) => {
+            tabMessage.senderId = GIMME_ID;
+            tabMessage.message.senderId = GIMME_ID;
             
             chrome.tabs.sendMessage(
                 tabMessage.tab.id,
@@ -303,8 +297,8 @@ var Utils = (function Utils() {
                 {
                     frameId: (tabMessage.frameId || 0)
                 },
-                function getMessageResponse(resp) {
-                    if (resp) {
+                (resp) => {
+                    if (!!resp) {
                         resolve(resp);                    
                     }
                     else {
@@ -324,20 +318,20 @@ var Utils = (function Utils() {
     /**
      * Reset the download helper objects to their initial state.
      */
-    me.resetDownloader = function resetDownloader() {
-        me.DL_CHAIN_COUNT = 10;
-        me.dlChains = [];
-        me.dlCounter = 0;
+    static resetDownloader() {
+        Utils.DL_CHAIN_COUNT = 10;
+        Utils.dlChains = [];
+        Utils.dlCounter = 0;
 
-        for (var prp in me.dlCallbacks) {
-            delete me.dlCallbacks[prp];
+        for (var prp in Utils.dlCallbacks) {
+            delete Utils.dlCallbacks[prp];
         }
     
-        for (var i1 = 0; i1 < me.DL_CHAIN_COUNT; i1++) {
-            me.dlChains.push(
-                Promise.resolve(true).then(function() {
-                    return new Promise(function(resolve, reject) {
-                        setTimeout(function() { 
+        for (var i1 = 0; i1 < Utils.DL_CHAIN_COUNT; i1++) {
+            Utils.dlChains.push(
+                Promise.resolve(true).then(() => {
+                    return new Promise((resolve, reject) => {
+                        setTimeout(() => { 
                             resolve(true); 
                         }, 300);
                     });
@@ -345,16 +339,15 @@ var Utils = (function Utils() {
             );
         }
     }
-    me.resetDownloader();
 
 
     /**
      * Download a single uri to the filename (well, path) provided.
      * Add its downloading to one of the DL_CHAIN_COUNT download promise chains.
      */
-    me.downloadFile = function downloadFile(uri, destFilename, output) {
+    static downloadFile(uri, destFilename, output) {
         if (uri.lastIndexOf('/') === uri.length - 1) { 
-            return Promise.resolve(me.createDownloadSig(0, uri, destFilename)); 
+            return Promise.resolve(Utils.createDownloadSig(0, uri, destFilename)); 
         };
 
         // If it's not an expected file type, slap jpg on the end.
@@ -362,45 +355,45 @@ var Utils = (function Utils() {
             destFilename = destFilename + '.jpg';
         }
 
-        var dlIndex = me.dlCounter % me.DL_CHAIN_COUNT;
-        me.dlCounter++;
-        var num = me.dlCounter + 0;
+        var dlIndex = Utils.dlCounter % Utils.DL_CHAIN_COUNT;
+        Utils.dlCounter++;
+        var num = Utils.dlCounter + 0;
         
-        me.dlChains[dlIndex] = me.dlChains[dlIndex].then(
-            buildDlChain(uri, destFilename, output, num)
+        Utils.dlChains[dlIndex] = Utils.dlChains[dlIndex].then(
+            Utils.buildDlChain(uri, destFilename, output, num)
         );
 
-        return me.dlChains[dlIndex];
+        return Utils.dlChains[dlIndex];
     }
 
 
     /**
      * Helper to avoid unwanted closures.
      */
-    function buildDlChain(uri, destFilename, output, num) {
+    static buildDlChain(uri, destFilename, output, num) {
         return (
-            function() {
+            () => {
                 output.toOut('Downloading file ' + num);
 
                 chrome.browserAction.setBadgeText({ text: '' + num + '' });
                 chrome.browserAction.setBadgeBackgroundColor({ color: '#009900' });
 
-                return me.dlInChain(uri, destFilename);
+                return Utils.dlInChain(uri, destFilename);
             }
         );
     }
 
 
     /**
-     * Build a salted directory name based on me.loc. 
+     * Build a salted directory name based on Utils.loc. 
      */
-    me.getSaltedDirectoryName = function getSaltedDirectoryName(loc) {
+    static getSaltedDirectoryName(loc) {
         // Stash loc for later
         if (!loc || !loc.hostname) {
-            loc = me.LAST_LOC;
+            loc = Utils.lastLoc;
         }
         else {
-            me.LAST_LOC = { 
+            Utils.lastLoc = { 
                 hostname: loc.hostname, 
                 pathname: loc.pathname 
             };
@@ -423,15 +416,14 @@ var Utils = (function Utils() {
 
         return ('Gimme-' + loc.hostname + '__' + hackedPageName + '__' + (new Date()).getTime());
     }
-    me.LAST_LOC = { hostname: 'localhost', pathname: '/gallery' };    
 
 
     /**
      * Start the download. Wrapper around chrome.downloads.download.
      */
-    me.dlInChain = function dlInChain(uri, destFilename) {
-        return new Promise(function(resolve, reject) {
-            setTimeout(function() { 
+    static dlInChain(uri, destFilename) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => { 
                 chrome.downloads.download(
                 {
                     url: uri,
@@ -440,15 +432,15 @@ var Utils = (function Utils() {
                     saveAs: false,
                     method: 'GET'
                 },
-                function downloadCallback(downloadId) {
+                (downloadId) => {
                     if (downloadId) {
-                        me.dlCallbacks[downloadId] = buildDlCallback(downloadId, uri, destFilename, resolve);
-                        chrome.downloads.onChanged.addListener(me.dlCallbacks[downloadId]);
+                        Utils.dlCallbacks[downloadId] = buildDlCallback(downloadId, uri, destFilename, resolve);
+                        chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
                     }
                     else {
                         console.log('[Utils] no downloadId for uri ' + uri);
                         console.log('[Utils] download error was: ' + chrome.runtime.lastError);
-                        resolve(me.createDownloadSig(0, uri, destFilename));
+                        resolve(Utils.createDownloadSig(0, uri, destFilename));
                     }
                 });
             }, 300);
@@ -459,29 +451,29 @@ var Utils = (function Utils() {
     /**
      * Helper to build the onChange callbacks, avoiding unwanted closures.
      */
-    function buildDlCallback(dlId, dlUri, dlFile, res) {
-        return (function(dlDelta) {
+    static buildDlCallback(dlId, dlUri, dlFile, res) {
+        return ((dlDelta) => {
             if (dlDelta.id !== dlId) { return; }
 
             if (!!dlDelta.state && dlDelta.state.current !== 'in_progress') {
-                chrome.downloads.onChanged.removeListener(me.dlCallbacks[dlId]);
-                delete me.dlCallbacks[dlId];
+                chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
+                delete Utils.dlCallbacks[dlId];
 
-                res(me.createDownloadSig(dlId, dlUri, dlFile));
+                res(Utils.createDownloadSig(dlId, dlUri, dlFile));
                 return;
             }
-            else if (!!dlDelta.endTime && !!dlDelta.endTime.current) {
-                chrome.downloads.onChanged.removeListener(me.dlCallbacks[dlId]);
-                delete me.dlCallbacks[dlId];
+            else if (!!dlDelta.endTime && !!dlDelta.endTiUtils.current) {
+                chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
+                delete Utils.dlCallbacks[dlId];
 
-                res(me.createDownloadSig(dlId, dlUri, dlFile));
+                res(Utils.createDownloadSig(dlId, dlUri, dlFile));
                 return;
             }
             else if (!!dlDelta.exists && !!dlDelta.exists.current) {
-                chrome.downloads.onChanged.removeListener(me.dlCallbacks[dlId]);
-                delete me.dlCallbacks[dlId];
+                chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
+                delete Utils.dlCallbacks[dlId];
 
-                res(me.createDownloadSig(dlId, dlUri, dlFile));
+                res(Utils.createDownloadSig(dlId, dlUri, dlFile));
                 return;
             }
         });
@@ -492,7 +484,7 @@ var Utils = (function Utils() {
     /**
      * Download as zip.
      */
-    me.downloadInZip = function downloadInZip(fileOpts) {
+    static downloadInZip(fileOpts) {
         var zip = new JSZip();
         var a = chrome.extension.getBackgroundPage().document.createElement('a');
 
@@ -500,37 +492,36 @@ var Utils = (function Utils() {
 
         for (var i = 0; i < fileOpts.length-1; i++) {
             if (!fileOpts[i].uri.match(/preview/)) {
-                promises.push(new Promise(function doDownloadInZip(resolve, reject) {
-                    console.log('DOWNLOAD IN ZIP: ' + JSON.stringify(fileOpts[i]));
+                promises.push(new Promise((resolve, reject) => {
+                    console.log('[Utils] Adding file option to zip file for download: ' + JSON.stringify(fileOpts[i]));
 
-                    return me.sendXhr('GET', fileOpts[i].uri, ['response'], 'blob')
-                        .then(function addToZip(r) {
-                            console.log('ZIP.FILING');
-
+                    return Utils.sendXhr('GET', fileOpts[i].uri, ['response'], 'blob')
+                        .then((r) => {
                             zip.file(fileOpts[i].filePath, r);
-                            console.log('ZIP.FILED');
+                            console.log('[Utils] File added to zip successfully.');
                             resolve();
                         })
-                        .catch(function(error) {
-                            console.log('ZIP FAILED ' + error);
+                        .catch((error) => {
+                            console.log('[Utils] adding file o zip failed: ' + JSON.stringify(error));
                             resolve();
                         });
                 }));
             }
         }
 
-        return Promise.all(promises).then(function() {
+        return Promise.all(promises).then(() => {
             zip.generateAsync({
                 type: 'blob'
             })
-            .then(function(content) {
+            .then((content) => {
                 a.download = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf('/')) + '.zip';
                 a.href = URL.createObjectURL(content);
                 chrome.extension.getBackgroundPage().document.querySelector('body').appendChild(a);
                 a.click();
                 a.remove();
             })
-            .catch(function() {
+            .catch((err) => {
+                console.log('[Utils] failed to create zip file.')
             });
         });
     };
@@ -539,13 +530,13 @@ var Utils = (function Utils() {
     /**
      * Get the newly created download items. Wrapper around chrome.downloads.search.
      */
-    me.searchDownloads = function searchDownloads(downloadSig) {
-        return new Promise(function doSearching(resolve, reject) {
+    static searchDownloads(downloadSig) {
+        return new Promise((resolve, reject) => {
             chrome.downloads.search(
                 {
                     id: downloadSig.id,
                 }, 
-                function searchCallback(downloadItems) {
+                (downloadItems) => {
                     if (downloadItems && downloadItems.length > 0) {
                         resolve(downloadItems);
                     }
@@ -562,11 +553,11 @@ var Utils = (function Utils() {
     /**
      * A promise-based wrapper for setting storage items.
      */
-    me.setInStorage = function setInStorage(items) {
-        return new Promise(function doSetInStorage(resolve, reject) {
-            chrome.storage.local.set(items, function setInStorageCallback() {
-                if (runtime.lastError) {
-                    reject(runtime.lastError);
+    static setInStorage(items) {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.set(items, () => {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
                 }
                 else {
                     resolve(true);
@@ -579,11 +570,11 @@ var Utils = (function Utils() {
     /**
      * A promise-based wrapper for getting storage items. 
      */
-    me.getFromStorage = function getFromStorage(keys) {
-        return new Promise(function doGetFromStorage(resolve, reject) {
-            chrome.storage.local.get(keys, function getFromStorageCallback(items) {
-                if (runtime.lastError) {
-                    reject(runtime.lastError);
+    static getFromStorage(keys) {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.get(keys, (items) => {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
                 }
                 else {
                     resolve(items);
@@ -596,7 +587,7 @@ var Utils = (function Utils() {
     /**
      * Add listener for all media requests.
      */
-    me.addMediaHeadersListener = function addMediaHeadersListener(listener, windowId, tabId) {
+    static addMediaHeadersListener(listener, windowId, tabId) {
         var filter = {
             urls: [ 'http://*/*', 'https://*/*' ],
             types: [ 'image', 'media', 'xmlhttprequest' ]
@@ -615,7 +606,7 @@ var Utils = (function Utils() {
     /**
      * Remove listener for media requests (only for parity).
      */
-    me.removeMediaHeadersListener = function removeMediaHeadersListener(listener) {
+    static removeMediaHeadersListener(listener) {
         chrome.webRequest.onHeadersReceived.removeListener(listener);
     };
 
@@ -624,12 +615,8 @@ var Utils = (function Utils() {
      * Promise-based loader of an external resource into a <iframe>
      * in the background page. Returns the iframe's document object.
      */
-    var DEFAULT_IFRAME_ID = 'background_iframe';
-    var listeners = [];
-    var counter = 0;
-    var domParser = new DOMParser();
-    me.loadUriDoc = function loadUriDoc(uri, id) {
-        return new Promise(function doLoadUri(resolve, reject) {
+    static loadUriDoc(uri, id) {
+        return new Promise((resolve, reject) => {
             id = (!id && id !== 0) ? DEFAULT_IFRAME_ID : id;
 
             // Create the iframe, removing the old one if needed.
@@ -643,23 +630,23 @@ var Utils = (function Utils() {
             
             // Set a timeout for waiting for the iframe to load. We can't afford to 
             // just never complete the promise. Wait 7 seconds.
-            var listeningTimeoutId = setTimeout(function listenerTimeout() {
+            var listeningTimeoutId = setTimeout(() => {
                 chrome.runtime.onMessage.removeListener(listeners[listenerId]);
                 iframe.remove();
                 delete listeners[listenerId];
 
-                reject(me.LISTENER_TIMED_OUT);
+                reject(Utils.LISTENER_TIMED_OUT);
             }, 7000);
 
             // Add a message listener for the ContentPeeper's loading message.
             // It will fire for every page or frame loaded, as it is always injected.
             // But restrict this particular listener to only the uri at hand.
-            listeners[listenerId] = function(request, sender, sendResponse) {                
-                if (request.docInnerHtml && request.uri == uri) {
+            listeners[listenerId] = (request, sender, sendResponse) => {                
+                if (request.docOuterHtml && request.uri == uri) {
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(listeners[listenerId]);
 
-                    var iframeDoc = domParser.parseFromString(request.docInnerHtml, "text/html");
+                    var iframeDoc = domParser.parseFromString(request.docOuterHtml, "text/html");
                     resolve(iframeDoc);
                     
                     iframe.remove();
@@ -681,15 +668,11 @@ var Utils = (function Utils() {
     /**
      * Stringify JSON so it's pretty.
      */
-    me.toPrettyJson = function toPrettyJson(obj) {
+    static toPrettyJson(obj) {
         return JSON.stringify(obj).replace(/\{/g, '{\n\t').replace(/\}/g, '\n}').replace(/\,/g,',\n\t');
     };
-
-
-
-    // return the singleton
-    return me;
-})();
+}
+Utils.resetDownloader();
 
 window['Utils'] = Utils;
 
