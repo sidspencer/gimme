@@ -4,12 +4,12 @@ import { default as Output } from './Output.js';
 import { default as Digger } from './Digger.js';
 import { default as Scraper } from './Scraper.js';
 
+
 /**
  * Factory function for the main "Application" backend of Gimme.
  */
 class App {
-    constructor(output, digger, scraper, Logicker, Utils) {
-        this.u = Utils;
+    constructor(output, digger, scraper) {
         this.output = output;
         this.digger = digger;
         this.scraper = scraper;
@@ -52,7 +52,7 @@ class App {
                };    
            }
                    
-           var tabMessage = this.u.createTabMessage(tab, message); 
+           var tabMessage = Utils.createTabMessage(tab, message); 
            return Promise.resolve(tabMessage);
        };
    
@@ -70,11 +70,11 @@ class App {
             this.peeperMap = Object.assign({}, resp.galleryMap);
 
             // Create our own copy of the document we're looking at.
-            var peeperDoc = domParser.parseFromString(resp.docInnerHtml, "text/html");
+            var peeperDoc = domParser.parseFromString(resp.docOuterHml, "text/html");
             
             // Fallback to getting the document via XHR if we have to. (worse, because scripts will not have run.)
-            if (!peeperDoc || !resp.docInnerHtml) {
-                return getLocDoc(loc);
+            if (!peeperDoc || !resp.docOuterHml) {
+                return this.getLocDoc(loc);
             }
             else {
                 return Promise.resolve(Utils.createLocDoc(loc, peeperDoc));
@@ -192,9 +192,12 @@ class App {
      * Once we have the dug uris from the response, this callback downloads them.
      */
     startDownloading(harvestedMap) {
-        var length = Object.keys(harvestedMap).length;        
-        this.galleryMap = harvestedMap;
         var me = this;
+        var length = Object.keys(harvestedMap).length;   
+             
+        if (!!this) {
+            this.galleryMap = harvestedMap;
+        }
 
         this.digger.redrawOutputFileOpts(harvestedMap);
 
@@ -225,7 +228,7 @@ class App {
     getLocDoc(loc) {
         return (
             Utils.getXhrResponse('GET', loc.href, 'document')
-            .then(function processXhrResponse(xhrResponse) {
+            .then((xhrResponse) =>{
                 return Promise.resolve(Utils.createLocDoc(loc, xhrResponse));
             })
         );
@@ -239,10 +242,18 @@ class App {
     processContentPage() {
         return (
             Utils.queryActiveTab()
-            .then(this.buildTabMessage)
-            .then(Utils.sendTabMessage)
-            .then(this.processTabMessageResponse)
-            .then(this.processLocDoc)
+                .then((tab) => { 
+                    return this.buildTabMessage(tab); 
+                })
+                .then((tabMesssage) => {
+                    return Utils.sendTabMessage(tabMesssage);
+                })
+                .then((resp) => {
+                    return this.processTabMessageResponse(resp);
+                })
+                .then((locDoc) => {
+                    return this.processLocDoc(locDoc);
+                })
         );        
     }
 
@@ -305,7 +316,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
                 
@@ -353,7 +365,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
@@ -408,7 +421,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
@@ -459,7 +473,9 @@ class App {
                     });
                 }
             })
-            .then(me.presentFileOptions)
+            .then((harvestedMap) => {
+                me.presentFileOptions(harvestedMap);
+            })
             .catch((errorMessage) => {
                 me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
@@ -470,7 +486,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 
@@ -600,7 +617,8 @@ class App {
                         prevUriMap: me.galleryMap,
                     },
                     function storageSet() {
-                        console.log('[Digger] Set prevUriMap in storage');
+                        console.log('[App] Set prevUriMap in storage');
+                        console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
                 );
 

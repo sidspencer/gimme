@@ -8,68 +8,65 @@ const IMAGE_SIZE = 224;
 const CLASSIFICATIONS = 20;
 const PRED_CUTOFF = 0.2;
 const USE_TENSORFLOW = true;
-
 const MODEL_CONFIG = {
     version: 2,
     alpha: 0.25,
     modelUrl: MOBILENET_MODEL_PATH,
-}
+};
 const TF_MODEL_CONFIG = {
     version: 2,
     alpha: 0.25,
     fromTFHub: true,
-}
+};
+const URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;
+const MIN_ZOOM_HEIGHT = 250;
+const MIN_ZOOM_WIDTH = 250;
+
 
 /**
- * Logicker service/singleton for stateless rules about how to 
+ * Logicker static class for stateless rules about how to 
  * find things on pages in general, and for specific sites.
  */
-let Logicker = (function Logicker(Utils) {
+class Logicker {
     // service object
-    var me = {
-        hasSpecialRules: false,
-        
-        MIN_ZOOM_HEIGHT: 250,
-        MIN_ZOOM_WIDTH: 250,
+    static hasSpecialRules = false;
+    static knownBadImgRegex = /^SUPER_FAKE_NOT_FOUND_IN_NATURE_ONLY_ZOOL$/;
+    static messages = [];
+    static processings = [];
+    static blessings = [];
+    static mnModel = undefined;
+    static MinZoomHeight = MIN_ZOOM_HEIGHT;
+    static MinZoomWidth = MIN_ZOOM_WIDTH;
 
-        knownBadImgRegex: /^SUPER_FAKE_NOT_FOUND_IN_NATURE_ONLY_ZOOL$/,
-        messages: [],
-        processings: [],
-        blessings: [],
-
-        mnModel: undefined,
-    };
-
-    // aliases
-    var u = Utils; 
-
-
-    me.setMessages = function setMessages(messages) {
-        me.messages = JSON.parse(JSON.stringify(messages));
+    /**
+     * Methods for setting the preferences options on the Logicker.
+     */
+    static setMessages(messages) {
+        Logicker.messages = JSON.parse(JSON.stringify(messages));
     }
-    me.setProcessings = function setProcessings(processings) {
-        me.processings = JSON.parse(JSON.stringify(processings));
+    static setProcessings(processings) {
+        Logicker.processings = JSON.parse(JSON.stringify(processings));
     }
-    me.setBlessings = function setBlessings(blessings) {
-        me.blessings = JSON.parse(JSON.stringify(blessings));
+    static setBlessings(blessings) {
+        Logicker.blessings = JSON.parse(JSON.stringify(blessings));
     }
-    me.setMinZoomHeight = function setMinZoomHeight(height) {
+    static setMinZoomHeight(height) {
         var zoomHeight = parseInt(height + '', 10);
 
         if (!isNaN(zoomHeight)) {
-            me.MIN_ZOOM_HEIGHT = zoomHeight;
+            Logicker.MinZoomHeight = zoomHeight;
         }
     }
-    me.setMinZoomWidth = function setMinZoomWidth(width) {
+    static setMinZoomWidth(width) {
         var zoomWidth = parseInt(width + '', 10);
 
         if (!isNaN(zoomWidth)) {
-            me.MIN_ZOOM_WIDTH = zoomWidth;
+            Logicker.MinZoomWidth = zoomWidth;
         }
     }
-    me.setKnownBadImgRegex = function setKnownBadImgRegex(regexString) {
+    static setKnownBadImgRegex(regexString) {
         if (!!regexString) {
-            me.knownBadImgRegex =  new RegExp(regexString);
+            Logicker.knownBadImgRegex =  new RegExp(regexString);
         }
     }
 
@@ -78,21 +75,21 @@ let Logicker = (function Logicker(Utils) {
      * Load the mobilenet image-matching model, and do it only once per instance.
      * Returns a promise resolving to our copy of this model.
      */
-    me.loadModel = function loadModel() {
+    static loadModel() {
         return new Promise(async (resolve, reject) => {
-            if (!!me.mnModel) {
+            if (!!Logicker.mnModel) {
                 console.log('[Logicker] returning cached copy of model.');
-                resolve(me.mnModel);
+                resolve(Logicker.mnModel);
             }
             else {
                 console.log('[Logicker] Loading model...');
                 const startTime = performance.now();
 
-                //me.mnModel = await tf.loadLayersModel(MOBILENET_MODEL_PATH, MODEL_CONFIG);
-                me.mnModel = await mobilenet.load();
+                //Logicker.mnModel = await tf.loadLayersModel(MOBILENET_MODEL_PATH, MODEL_CONFIG);
+                Logicker.mnModel = await mobilenet.load();
 
-                if (!!me.mnModel) {
-                    resolve(me.mnModel);
+                if (!!Logicker.mnModel) {
+                    resolve(Logicker.mnModel);
                 }
                 else {
                     reject('Mobilenet model came back null.')
@@ -108,7 +105,7 @@ let Logicker = (function Logicker(Utils) {
     /**
      * Using the TF Mobilenet model, get a classification vector for the image.
      */
-    me.classifyImage = function classifyImage(imgElement) {
+    static classifyImage(imgElement) {
         let p = new Promise(async (resolve, reject) => {
             var originalHeight = imgElement.height;
             var originalWidth = imgElement.width;
@@ -116,7 +113,7 @@ let Logicker = (function Logicker(Utils) {
             imgElement.height = IMAGE_SIZE;
             imgElement.width = IMAGE_SIZE;
 
-            let imgClassifications = await me.mnModel.classify(imgElement, CLASSIFICATIONS);
+            let imgClassifications = await Logicker.mnModel.classify(imgElement, CLASSIFICATIONS);
 
             imgElement.height = originalHeight;
             imgElement.width = originalWidth;
@@ -139,18 +136,18 @@ let Logicker = (function Logicker(Utils) {
     /**
      * Load an image via the Image() object, sized so tf can analyse it.
      */
-    me.loadImage = function loadImage(src) {
+    static loadImage(src) {
         return new Promise((resolve, reject) => {
             var img = new Image();
             img.src = src;
             img.crossOrigin = "anonymous";
 
-            img.onerror = function(e) {
+            img.onerror = (e) => {
                 resolve(null);
             };
 
             // Set image size for tf!
-            img.onload = function(evt) {
+            img.onload = (evt) => {
                 resolve(img);
             }
 
@@ -163,12 +160,12 @@ let Logicker = (function Logicker(Utils) {
      * Find the right uri for the zoomed media item pointed to by the gallery thumb.
      * (this applies the scraped rules I view-sourced to see.)
      */
-    me.findBlessedZoomUri = function findBlessedZoomUri(doc, thumbUri) {
+    static findBlessedZoomUri(doc, thumbUri) {
         var zoomImgUri = '';
 
         // Look through the blessings for one that matches this thumbUri.
-        if (me.blessings.length !== -1) {
-            me.blessings.forEach(function applyBlessing(blessing) {
+        if (Logicker.blessings.length !== -1) {
+            Logicker.blessings.forEach((blessing) => {
                 //console.log('[Logicker] applying blessing: ' + JSON.stringify(blessing));
 
                 // If the thumbUri matches the pattern and we can find the blessed element,
@@ -183,7 +180,7 @@ let Logicker = (function Logicker(Utils) {
 
                         if (blessing.src.indexOf('style') === 0) {
                             var parts = blessing.src.split('.');
-                            zoomImgUri = me.extractUrl(zoomImg[parts[0]][parts[1]]);
+                            zoomImgUri = Logicker.extractUrl(zoomImg[parts[0]][parts[1]]);
                         }
                         else {
                             zoomImgUri = zoomImg[blessing.src];
@@ -214,7 +211,7 @@ let Logicker = (function Logicker(Utils) {
      * gallery thumbs page (srcUrl), and always be tested against some destUrl that could end
      * up being another image, or a movie, or a pdf, or a song.... who knows.
      */
-    me.isPossiblyZoomedFile = function isPossiblyZoomedFile(thumbUrl, zoomUrl) {
+    static isPossiblyZoomedFile(thumbUrl, zoomUrl) {
         var isPossibly = false;
 
         // confirm type and value existence, then trim whitespace. Otherwise, blank string, which
@@ -223,17 +220,17 @@ let Logicker = (function Logicker(Utils) {
             return false;    
         }
 
-        if (me.isKnownBadImg(zoomUrl)) {
+        if (Logicker.isKnownBadImg(zoomUrl)) {
             return false;
         }
 
         // Pick out the basic filenames of the src and dest. No file extensions.
-        var sname = thumbUrl.pathname.replace(/\/$/, '')
-            .substring(thumbUrl.pathname.lastIndexOf('/') + 1)
-            .substring(0, thumbUrl.pathname.lastIndexOf('.'));
-        var zname = zoomUrl.pathname.replace(/\/$/, '')
-            .substring(zoomUrl.pathname.lastIndexOf('/') + 1)
-            .substring(0, zoomUrl.pathname.lastIndexOf('.'));
+        var sname = thumbUrl.pathnaLogicker.replace(/\/$/, '')
+            .substring(thumbUrl.pathnaLogicker.lastIndexOf('/') + 1)
+            .substring(0, thumbUrl.pathnaLogicker.lastIndexOf('.'));
+        var zname = zoomUrl.pathnaLogicker.replace(/\/$/, '')
+            .substring(zoomUrl.pathnaLogicker.lastIndexOf('/') + 1)
+            .substring(0, zoomUrl.pathnaLogicker.lastIndexOf('.'));
         
         var sval = '';
         var zval = '';
@@ -246,13 +243,13 @@ let Logicker = (function Logicker(Utils) {
 
         // Do the low-hanging fruit first. Just don't hit your head on it.
         // first: The happiest of paths.
-        if ((sname.indexOf(zname) != -1) || (zname.indexOf(sname) != -1)) {
+        if ((snaLogicker.indexOf(zname) != -1) || (znaLogicker.indexOf(sname) != -1)) {
             isPossibly = true;
             return isPossibly;
         }
 
         // Strip off file extension, punctuation, and common thumb/zoomed deliniation strings.
-        var getRootForName = (function getRootForName(name) {
+        var getRootForName = ((name) => {
             var root = '' + name;
 
             // remove "thumb" or "large" type words.
@@ -268,7 +265,7 @@ let Logicker = (function Logicker(Utils) {
         var sroot = getRootForName(sname);
         var zroot = getRootForName(zname);
 
-        if ((zname.indexOf(sroot) != -1) || (sname.indexOf(zroot) != -1)) {
+        if ((znaLogicker.indexOf(sroot) != -1) || (snaLogicker.indexOf(zroot) != -1)) {
             isPossibly = true;
             return isPossibly;
         }
@@ -280,14 +277,14 @@ let Logicker = (function Logicker(Utils) {
         var normThumbUri = getRootForName(thumbUrl.href.substring(0, thumbUrl.href.indexOf('?') - 1));
         var normZoomUri = getRootForName(thumbUrl.href.substring(0, thumbUrl.href.indexOf('?') - 1));
 
-        // Now get all the path parts of the pathname. we'll check for them individually.
-        var sparts = [].concat(thumbUrl.pathname.split('/'));
+        // Now get all the path parts of the pathnaLogicker. we'll check for them individually.
+        var sparts = [].concat(thumbUrl.pathnaLogicker.split('/'));
         var maybes = [];
 
         // For all the parts of the root filename, look through all the parts of the root test filename,
         // and push a vote of '1' into the maybes array. We will use that to see how "likely" it is they're
         // for the same thing....
-        sparts.forEach(function testSParts(spart) {
+        sparts.forEach((spart) => {
             if (zoomUrl.href.indexOf(spart) != -1) {
                 maybes.push(1);
             }
@@ -298,7 +295,7 @@ let Logicker = (function Logicker(Utils) {
 
         // count the trues, count the falses. 
         // Cut it off at 70% match.
-        var sum = maybes.reduce(function sumMaybeVotes(count, val) {
+        var sum = maybes.reduce((count, val) => {
             return (count + val);
         });
 
@@ -315,11 +312,11 @@ let Logicker = (function Logicker(Utils) {
      * put any image srcs or patterns here that you know you don't want.
      * Like logos and whatnot. Currently blocks all png files. 
      */
-    me.isKnownBadImg = function isKnownBadImg(src) {
+    static isKnownBadImg(src) {
         var isBad = false;
 
-        if (!!me.knownBadImgRegex) {
-            if (me.knownBadImgRegex.test(src)) {
+        if (!!Logicker.knownBadImgRegex) {
+            if (Logicker.knownBadImgRegex.test(src)) {
                 isBad = true;
             }
         }
@@ -332,8 +329,8 @@ let Logicker = (function Logicker(Utils) {
      * Is this image large enough to be a zoom image? 
      * Any object with the "width" and "height" properties can be used.
      */
-    me.isZoomSized = function isZoomSized(obj) {
-        return !(obj.height < me.MIN_ZOOM_HEIGHT && obj.width < me.MIN_ZOOM_WIDTH);
+    static isZoomSized(obj) {
+        return !(obj.height < Logicker.MinZoomHeight && obj.width < Logicker.MinZoomWidth);
     }
 
 
@@ -341,13 +338,13 @@ let Logicker = (function Logicker(Utils) {
      * Try to find the best matching image in the doc by using tensorFlow image classification using
      * Mobilenet, and just comparing classification vectors.
      */
-    me.tfClassificationMatch = function tfClassificationMatch(thumbUri, doc) {
+    static tfClassificationMatch(thumbUri, doc) {
         // Make sure the model is loaded.
-        let p = me.loadModel().then((mobilenetModel) => {
+        let p = Logicker.loadModel().then((mobilenetModel) => {
             return new Promise((resolve, reject) => {
-                me.loadImage(thumbUri).then((thumbImg) => {
+                Logicker.loadImage(thumbUri).then((thumbImg) => {
                     if (!!thumbImg) {
-                        resolve(me.classifyImage(thumbImg));
+                        resolve(Logicker.classifyImage(thumbImg));
                     }
                     else {
                         console.log(`[Logicker] ThumbUri will not load, rejecting: ${thumbUri}`);
@@ -363,8 +360,8 @@ let Logicker = (function Logicker(Utils) {
                 var imgPromises = [];
                 var largestImgSrc = undefined;
                 var largestDims = { 
-                    height: this.MIN_ZOOM_HEIGHT, 
-                    width: this.MIN_ZOOM_WIDTH 
+                    height: Logicker.MinZoomHeight, 
+                    width: Logicker.MinZoomWidth
                 };
 
                 // Check every image for similarities.
@@ -386,17 +383,18 @@ let Logicker = (function Logicker(Utils) {
                         new Promise((resolve, reject) => {
                             let testImg = new Image(IMAGE_SIZE, IMAGE_SIZE);
 
+                            // Must use the "function" keyword so "this" points to the image.
                             testImg.onload = async function onload() {
                                 //console.log('[Logicker] Loaded document image for TF scoring: ' + imgSrc);
 
-                                if (me.isKnownBadImg(this.src)) {
-                                    console.log('[Logicker] Known bad image name. Skipping...');
+                                if (Logicker.isKnownBadImg(this.src)) {
+                                    console.log('[Logicker] Known bad image naLogicker. Skipping...');
                                     resolve(zeroResponse);
                                     return;
                                 } 
                                 else {
                                     // Skip the image if it is not big enough.
-                                    if (!me.isZoomSized(originalDims)) {
+                                    if (!Logicker.isZoomSized(originalDims)) {
                                         console.log('[Logicker] Image too small. Skipping...');
                                         resolve(zeroResponse);
                                         return;
@@ -411,7 +409,7 @@ let Logicker = (function Logicker(Utils) {
                                 }
 
                                 // Do the scoring.
-                                let classifications = await me.classifyImage(this);
+                                let classifications = await Logicker.classifyImage(this);
 
                                 if (!Array.isArray(classifications)) {
                                     console.log(`[Logicker] got no classifications for img ${imgSrc}`);
@@ -445,7 +443,8 @@ let Logicker = (function Logicker(Utils) {
                                 });
                             };
 
-                            // On error, still resolve. (Waiting on support for Promise.allSettled())
+                            // On error, still resolve. (Waiting on support for Promise.allSettled()).
+                            // Must use the "function" keyword so "this" points to the image.
                             testImg.onerror = function onerror() {
                                 console.log('[Logicker] Error loading image for TF classifying. Resolving with score of 0.');
                                 resolve(zeroResponse);
@@ -494,12 +493,8 @@ let Logicker = (function Logicker(Utils) {
      * by the XHRs are not "live", and no elements have dimensions because there was no rendering. SO,
      * we create Image objects and get the dimensions from those. 
      */
-    me.getPairWithLargestImage = function getPairWithLargestImage(thumbUri, doc) {
-        // if (USE_TENSORFLOW) {
-        //     return me.tfClassificationMatch(thumbUri, doc);
-        // }
-
-        let p = new Promise(function findLargestImage(resolve, reject) {
+    static getPairWithLargestImage(thumbUri, doc) {
+        let p = new Promise((resolve, reject) => {
             var largestImg = false;
             var largestImgSrc = false;
             var largestDims = {
@@ -525,18 +520,19 @@ let Logicker = (function Logicker(Utils) {
                     // Construct a temporary image object so we can get the natural dimensions. 
                     var imageObj = new Image();
 
+                    // Must use the "function" keyword so "this" points to the image.
                     imageObj.onload = function compareDimensions(evt) {
                         imgsToCheck--;
 
                         // Skip the image if the filename is known to not ever be a real zoom-image.
-                        if (!me.isKnownBadImg(this.src)) {
+                        if (!Logicker.isKnownBadImg(this.src)) {
                             var dims = {
                                 height: (!!this.height ? this.height : this.naturalHeight),
                                 width: (!!this.width ? this.width : this.naturalWidth)
                             };
 
                             // Skip the image if it is not big enough.
-                            if (me.isZoomSized(dims)) {
+                            if (Logicker.isZoomSized(dims)) {
                                 if (dims.height > largestDims.height && dims.width > largestDims.width) {
                                     largestImg = this;
                                     largestImgSrc = this.src;
@@ -558,7 +554,8 @@ let Logicker = (function Logicker(Utils) {
                             }
                         }
                     };
-
+                    
+                    // Must use the "function" keyword so "this" points to the image.
                     imageObj.onerror = function handleImageLoadError(evt) {                        
                         console.log('[Logicker] Error creating image object to get dimensions. evt: ' + JSON.stringify(evt));
                         imgsToCheck--;
@@ -596,7 +593,7 @@ let Logicker = (function Logicker(Utils) {
      * This is where the knowledge-magic comes in. By inspecting a number of sites' galleries,
      * I have found easy selector/prop pairs to get the URIs by. 
      */
-    me.getMessageDescriptorForUrl = function getMessageDescriptorForUrl(url) {
+    static getMessageDescriptorForUrl(url) {
         var d = {
             command: 'peepAround',
             linkSelector: 'a[href]',
@@ -614,8 +611,8 @@ let Logicker = (function Logicker(Utils) {
 
         // Check all of the special messaging rules for guidance in what to use for the
         // thumb element and uri, and the zoom page anchor element and uri.
-        for (var i = 0; i < me.messages.length; i++) {
-            var m = me.messages[i];
+        for (var i = 0; i < Logicker.messages.length; i++) {
+            var m = Logicker.messages[i];
             
             console.log('[Logicker] working on message: ' + JSON.stringify(m));
 
@@ -640,7 +637,7 @@ let Logicker = (function Logicker(Utils) {
      * Often, you can munge your thumbSrc and linkHref values into place 
      * enough that you can just call the downloader in App directly. 
      */
-    me.postProcessResponseData = function postProcessResponseData(galleryMap, pageUri) {
+    static postProcessResponseData(galleryMap, pageUri) {
         var instructions = {
             doScrape: true,
             doDig: true,
@@ -650,8 +647,8 @@ let Logicker = (function Logicker(Utils) {
         var newGalleryMap = null;
 
         // Utilize processings hints from the Options page.
-        for (var i=0; i < me.processings.length; i++) {
-            var p = me.processings[i];
+        for (var i=0; i < Logicker.processings.length; i++) {
+            var p = Logicker.processings[i];
 
             //console.log('[Logicker] working on processing: ' + JSON.stringify(p));
 
@@ -661,10 +658,10 @@ let Logicker = (function Logicker(Utils) {
                 //console.log('[Logicker] pageUri matched: ' + pageUri);
 
                 newGalleryMap = {};
-                thumbUris.forEach(function applyProcessings(thumbUri) {
+                thumbUris.forEach((thumbUri) => {
                     var thumbUri2 = thumbUri + '';
 
-                    p.actions.forEach(function applyActions(act) {
+                    p.actions.forEach((act) => {
                         //console.log('[Logicker] applying action: ' + JSON.stringify(act));
 
                         // We only support "replace" for now.
@@ -726,7 +723,7 @@ let Logicker = (function Logicker(Utils) {
      * See whether firstUri or secondUri better matches src, by doing a canonical filename match.
      * favor firstUri.
      */
-    me.chooseBetterMatchingUri = function chooseBetterMatchingUri(src, firstUri, secondUri) {
+    static chooseBetterMatchingUri(src, firstUri, secondUri) {
         if (!src || !(firstUri || secondUri)) { return ''; }
         else if (!secondUri) { return firstUri; }
         else if (!firstUri) { return secondUri; }
@@ -747,7 +744,7 @@ let Logicker = (function Logicker(Utils) {
         // check if the firstUri has the canonical name in one of its path parts.
         var firstHasIt = false;
         var firstUriArray = firstUri.split('/');
-        firstUriArray.forEach(function lookForCanonicalNameInUri(pathPart) {
+        firstUriArray.forEach((pathPart) => {
             if (!firstHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
                 firstHasIt = true;
             }
@@ -756,7 +753,7 @@ let Logicker = (function Logicker(Utils) {
         // check if the secondUri has the canonical name in one of its path parts.
         var secondHasIt = false;
         var secondUriArray = secondUri.split('/');
-        secondUriArray.forEach(function lookForCanonicalNameInUri(pathPart) {
+        secondUriArray.forEach((pathPart) => {
             if (!secondHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
                 secondHasIt = true;
             }
@@ -779,9 +776,8 @@ let Logicker = (function Logicker(Utils) {
      * Get a property value given a tag, and a dot-notation property path as a string.
      * It handles extracting from javascript functions, and from css properties.
      */
-    var URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;
-    var googleHackCounter = 0;    
-    me.extractUrl = function extractUrl(tag, propPath, loc) {
+    static googleHackCounter = 0;    
+    static extractUrl(tag, propPath, loc) {
         if (!tag || !propPath) {
             return '';
         }
@@ -843,11 +839,11 @@ let Logicker = (function Logicker(Utils) {
             if (value.match('chrome-extension://' + chrome.runtime.id + '/background/')) {
                 value = value.replace(
                     'chrome-extension://' + chrome.runtime.id + '/background/', 
-                    loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf('/')+1)
+                    loc.origin + loc.pathnaLogicker.substring(0, loc.pathnaLogicker.lastIndexOf('/')+1)
                 ); 
             }
             else if (value.match('chrome-extension://' + chrome.runtime.id + '/') && dotdotCount > 0) {
-                var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/'));
+                var trimmedPath = loc.pathnaLogicker.substring(0, loc.pathnaLogicker.lastIndexOf('/'));
                 for (var d = 0; d < dotdotCount; d++) {
                     trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf('/'));
                 }
@@ -867,11 +863,7 @@ let Logicker = (function Logicker(Utils) {
 
         return (new URL(value, loc.origin));
     };
-
-
-    // return the singleton
-    return me;
-})(Utils);
+}
 
 window.logicker = Logicker;
 

@@ -2,27 +2,41 @@ import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 
+ 
+// constants used by Scraper
+const DEFAULT_ALL_JS_SELECTOR = ':scope *[onclick],*[onmouseover],*[onmouseout],*[onmouseenter],*[onchange],*[href^="javascript:"],script';    
+const BLANK_LOC = new URL('http://localhost/');
+
 /**
  * Factory function for the Scraper for Gimme. It holds all the
  * functions for scraping a node.
  */
-var Scraper = (function Scraper(Utils, Logicker, Output) {
-    // service object
-    var me = {};
+class Scraper {
+    // Configuration needed to scrape.
+    config = {
+        opts: {},
+        loc: BLANK_LOC,
+        node: undefined,
+    };
+    output = {};
 
-    // aliases
-    var u = Utils;
 
-    // constants
-    var DEFAULT_ALL_JS_SELECTOR = ':scope *[onclick],*[onmouseover],*[onmouseout],*[onmouseenter],*[onchange],*[href^="javascript:"],script';    
-    var BLANK_LOC = new URL('http://localhost/');
+    /**
+     * Scraper constructor. Scraper is used to find media on the currently active page (tab). It
+     * can be used on its own, and is also heavily used by Digger.
+     * 
+     * @param {Output} anOutput 
+     */
+    constructor(anOutput) {
+        this.output = anOutput;
+    }
 
 
     /**
      * Collect all the values of the property "paths" given of all the tags of a given kind on
      * the page.
      */
-    me.getElementUrls = function getElementUrls(inputSpec) {
+    getElementUrls(inputSpec) {
         var tagUrls = [];
         var defaultSpec = {
             loc: BLANK_LOC,
@@ -60,7 +74,7 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Amass all the background-images. This is for places like Flickr.
      */
-    me.getAllCssBackgroundUrls = function getAllCssBackgroundUrls(root, loc) {
+    getAllCssBackgroundUrls(root, loc) {
         if (!root) {
             console.log('[Scraper] No root node. Returning blank array.');
             return [];
@@ -73,20 +87,20 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
         if (nodes.length > 0) {
             nodes.forEach(function getNodeCssBgUrl(node) {
                 // Extract the style.backgroundImage, and take the 'url("' and '")' off of it.
-                if (u.exists(node) && u.exists(node.style)) {
+                if (Utils.exists(node) && Utils.exists(node.style)) {
                     var bgVal = node.style.backgroundImage;
 
-                    if (!u.exists(bgVal)) {
+                    if (!Utils.exists(bgVal)) {
                         return;
                     }
 
                     var bgSrc = bgVal.replace(/^url\(/, '').replace(/\)$/, '').replace(/\'/g, '').replace(/\"/g, '');                
 
-                    if (u.exists(bgSrc)) {
-                        var cleansedUrl = u.srcToUrl(bgSrc, (loc || BLANK_LOC));
+                    if (Utils.exists(bgSrc)) {
+                        var cleansedUrl = Utils.srcToUrl(bgSrc, (loc || BLANK_LOC));
                         
                         // Add to the list if an OK url.
-                        if (u.exists(cleansedUrl)) {
+                        if (Utils.exists(cleansedUrl)) {
                             urlList.push(cleansedUrl);
                         }
                     }
@@ -101,8 +115,8 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Amass the video urls within a given node.
      */
-    me.getAllVideoUrls = function getAllVideoUrls(node, loc) {
-        if (!u.exists(node)) {
+    getAllVideoUrls(node, loc) {
+        if (!Utils.exists(node)) {
             console.log('[Scraper] No root node. Returning blank array.');
             return [];
         }
@@ -135,9 +149,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
 
                     // Only grab video srcs. turn the src into a uri, push it if it worked.
                     if (vidSrc && vidSrc.match(/\.(mpg|mp4|mov|avi|wmv|flv)/i)) {
-                        var cleansedUrl = u.srcToUrl(vidSrc, (loc || BLANK_LOC));
+                        var cleansedUrl = Utils.srcToUrl(vidSrc, (loc || BLANK_LOC));
 
-                        if (u.exists(cleansedUrl)) {
+                        if (Utils.exists(cleansedUrl)) {
                             urlList.push(cleansedUrl);
                         }
                     }
@@ -152,13 +166,13 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Scrape the javascript for more links to media.
      */
-    me.getAllJsUrls = function getAllJsUrls(node, loc, selector) {
-        if (!u.exists(node)) {
+    getAllJsUrls(node, loc, selector) {
+        if (!Utils.exists(node)) {
             console.log('[Scraper] No root node. Returning blank array.');
             return [];
         }
 
-        selector = (u.exists(selector) ? selector : DEFAULT_ALL_JS_SELECTOR);
+        selector = (Utils.exists(selector) ? selector : DEFAULT_ALL_JS_SELECTOR);
 
         var urlList = [];
 
@@ -180,25 +194,25 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
             ];
 
             // If it's a script tag, concat the contents of it.
-            if (t.name = 'script' && u.exists(t.textContent)) {
+            if (t.name = 'script' && Utils.exists(t.textContent)) {
                 js = js.concat(t.textContent);
             }
             // If it's a javascript: href, concat the value of the attribute.
-            else if (u.exists(t.href) && /^javascript\:/.test(t.href)) {
+            else if (Utils.exists(t.href) && /^javascript\:/.test(t.href)) {
                 js = js.concat(t.href);
             }
             // Or use the attribute href value.
-            else if (u.exists(atts) && u.exists(atts.href) && /^javascript\:/.test(atts.href) && u.exists(atts.href.textContent)) {
+            else if (Utils.exists(atts) && Utils.exists(atts.href) && /^javascript\:/.test(atts.href) && Utils.exists(atts.href.textContent)) {
                 js = js.concat(atts.href.textContent)
             }
             
             // Go through the other on* attributes.
-            if (u.exists(atts)) {
+            if (Utils.exists(atts)) {
                 jsAtts.forEach(function mungeJsAttribute(attName) {
-                    if (u.exists(atts[attName]) && u.exists(atts[attName].textContent)) {
+                    if (Utils.exists(atts[attName]) && Utils.exists(atts[attName].textContent)) {
                         var content = atts[attName].textContent;
                         
-                        if (u.exists(content)) {
+                        if (Utils.exists(content)) {
                             js = js.concat(content);
                         }
                     }
@@ -211,7 +225,7 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
                 var possibleMatches = js.match(/(\'|\").+?\.(jpg|png|gif|mp4|flv|wmv|webm|mov)\.[\?].+?(\'|\")/g) || [];
 
                 possibleMatches.forEach(function extractUriFromMatch(match) {
-                    if (u.exists(match) && (typeof match === 'string')) {
+                    if (Utils.exists(match) && (typeof match === 'string')) {
                         var splitChar = ((match.indexOf("'") === -1) ? "'" : '"');
                         var splits = match.split(splitChar);
 
@@ -221,24 +235,24 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
                             var possibleHref = splits[1];
                             var allowedHref = '';
 
-                            if (!allowedHref && (me.options.imgs === true)) {
-                                if (u.isAllowedImageFile(possibleHref)) {
+                            if (!allowedHref && (this.options.imgs === true)) {
+                                if (Utils.isAllowedImageFile(possibleHref)) {
                                     allowedHref = possibleHref;
                                 }
                             }
-                            if (!allowedHref && (me.options.audios === true)) {
-                                if (u.isAllowedAudioFile(possibleHref)) {
+                            if (!allowedHref && (this.options.audios === true)) {
+                                if (Utils.isAllowedAudioFile(possibleHref)) {
                                     allowedHref = possibleHref;
                                 }
                             }
-                            if (!allowedHref && (me.options.videos === true)) {
-                                if (u.isAllowedVideoFile(possibleHref)) {
+                            if (!allowedHref && (this.options.videos === true)) {
+                                if (Utils.isAllowedVideoFile(possibleHref)) {
                                     allowedHref = possibleHref;
                                 }
                             }
 
-                            var possibleUrl = u.srcToUrl(allowedHref, (loc || BLANK_LOC));
-                            if (u.exists(possibleUrl)) {
+                            var possibleUrl = Utils.srcToUrl(allowedHref, (loc || BLANK_LOC));
+                            if (Utils.exists(possibleUrl)) {
                                 urlList.push(possibleUrl);
                             }
                         }
@@ -254,13 +268,13 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Get all the audio URLs in a given node.
      */
-    me.getAllAudioUrls = function getAllAudioUrls(node, loc) {
-        if (!u.exists(node)) {
+    getAllAudioUrls(node, loc) {
+        if (!Utils.exists(node)) {
             console.log('[Scraper] No root node. Returning blank array.');
             return [];
         }
 
-        var audioUrls = me.getElementUrls({
+        var audioUrls = this.getElementUrls({
             root: node,
             loc: loc,
             selector: ':scope audio[src],audio>source[src],param[value],a[href]',
@@ -273,7 +287,7 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
         // pop out all the uris that have an unknown file extension.
         if (audioUrls.length > 0) {
             audioUrls.forEach(function pushAudioUrl(url) {
-                if (u.isAllowedAudioFile(url.href)) {
+                if (Utils.isAllowedAudioFile(url.href)) {
                     cleanAudioUrls.push(url);
                 }
             });
@@ -286,13 +300,13 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Scrape a node for all the <img> uris in it.
      */
-    me.getAllImgUrls = function getAllImgUrls(node, loc) {
-        if (!u.exists(node)) {
+    getAllImgUrls(node, loc) {
+        if (!Utils.exists(node)) {
             console.log('[Scraper] No root node. Returning blank array.');
             return [];
         }
 
-        return me.getElementUrls({
+        return this.getElementUrls({
             root: node,
             loc: loc,
             selector: ':scope img',
@@ -304,9 +318,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Scrape out any file paths and names seen in the querystring.
      */
-    me.getAllQsUrls = function getAllQsUrls(d, l) {
-        if (!u.exists(l) && !u.exists(d.location)) {
-            console.log('[Scraper] No location. Returning blank array.');
+    getAllQsUrls(d, l) {
+        if (!Utils.exists(l) && !Utils.exists(d.location)) {
+            console.log('[Scraper] No this.config.location. Returning blank array.');
             return [];
         }
 
@@ -328,10 +342,10 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
             
             // If it has a '.' and is of a known media type, then push it into the 
             // uri list after URL-ifying it.
-            if (val && (val.indexOf('.') !== -1) && u.isKnownMediaFile(val)) {
-                var url = new URL(val, u.getBaseUri(loc));
+            if (val && (val.indexOf('.') !== -1) && Utils.isKnownMediaFile(val)) {
+                var url = new URL(val, Utils.getBaseUri(loc));
 
-                if (u.exists(url)) {
+                if (Utils.exists(url)) {
                     urls.push(url);
                 }
             }
@@ -344,9 +358,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Scrape the node's <script> tags for any URIs.
      */
-    me.scrapeAllJsUris = function scrapeAllJsUris(node, loc, selector) {
+    scrapeAllJsUris(node, loc, selector) {
         return (
-            me.getAllJsUrls(node, loc, selector).map(function returnUrisFromUrls(url) {
+            this.getAllJsUrls(node, loc, selector).map(function returnUrisFromUrls(url) {
                 return url.href;
             })
         );
@@ -356,9 +370,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Scrape the node for all the <img> uris.
      */
-    me.scrapeAllImgUris = function scrapeAllImgUris(node, loc) {
+    scrapeAllImgUris(node, loc) {
         return (
-            me.getAllImgUrls(node, loc).map(function urisFromUrls(url) {
+            this.getAllImgUrls(node, loc).map(function urisFromUrls(url) {
                 return url.href;
             })
         );
@@ -369,9 +383,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
      * Scrape the node for anything with a css background-image.
      * extract the uri from the "url('uri')" before returning.
      */
-    me.scrapeAllCssBgUris = function scrapeAllCssBgUris(node, loc) {
+    scrapeAllCssBgUris(node, loc) {
         return (
-            me.getAllCssBackgroundUrls(node, loc).map(function urisFromUrls(url) {
+            this.getAllCssBackgroundUrls(node, loc).map(function urisFromUrls(url) {
                 return url.href;
             })
         );
@@ -382,9 +396,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
      * Scrape the node for any type of video. <video>, <object>, <embed>.
      * Try to grab flvs as ya can.
      */
-    me.scrapeAllVideoUris = function scrapeAllVideoUris(node, loc) {
+    scrapeAllVideoUris(node, loc) {
         return (
-            me.getAllVideoUrls(node, loc).map(function urisFromUrls(url) {
+            this.getAllVideoUrls(node, loc).map(function urisFromUrls(url) {
                 return url.href;
             })
         );
@@ -392,11 +406,11 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
 
 
     /**
-     * Scrape a querystring for anything that looks like a filename.
+     * Scrape a querystring for anything that looks like a filenathis.
      */
-    me.scrapeAllQsUris = function scrapeAllQsUris(node, loc) {
+    scrapeAllQsUris(node, loc) {
         return (
-            me.getAllQsUrls(node, loc).map(function urisFromUrls(url) {
+            this.getAllQsUrls(node, loc).map(function urisFromUrls(url) {
                 return url.href;
             })
         );
@@ -406,9 +420,9 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Scrape all <audio>,<source>,<param>s inside a node.
      */
-    me.scrapeAllAudioUris = function scrapeAllAudioUris(node, loc) {
+    scrapeAllAudioUris(node, loc) {
         return (
-            me.getAllAudioUrls(node, loc).map(function urisFromUrls(url) {
+            this.getAllAudioUrls(node, loc).map(function urisFromUrls(url) {
                 return url.href;
             })
         );
@@ -418,11 +432,8 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
     /**
      * Find all the image/movie media that is directly inside a node.
      */
-    me.scrape = function scrape(config) {
-        var opts = config.opts;
-        var node = config.node;
-        var loc = config.loc;
-        var node = config.node;
+    scrape(aConfig) {
+        this.config = Object.assign({}, aConfig);
 
         var imgUris = [];
         var cssBgUris = [];
@@ -431,36 +442,36 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
         var audioUris = [];
         var qsUris = [];
 
-        console.log('[Scraper] options: ' + JSON.stringify(opts));
+        console.log('[Scraper] options: ' + JSON.stringify(this.config.opts));
 
-        if (opts.imgs) {
-            Output.toOut('Scraping all images.')
-            imgUris = me.scrapeAllImgUris(node, loc);   
+        if (this.config.opts.imgs) {
+            this.output.toOut('Scraping all images.')
+            imgUris = this.scrapeAllImgUris(this.config.node, this.config.loc);   
         }
 
-        if (opts.cssBgs) {
-            Output.toOut('Scraping all CSS background-images.')            
-            cssBgUris = me.scrapeAllCssBgUris(node, loc);
+        if (this.config.opts.cssBgs) {
+            this.output.toOut('Scraping all CSS background-images.')            
+            cssBgUris = this.scrapeAllCssBgUris(this.config.node, this.config.loc);
         }
 
-        if (opts.js) {
-            Output.toOut('Scraping all javascript.')            
-            jsUris = me.scrapeAllJsUris(node, loc, null);
+        if (this.config.opts.js) {
+            this.output.toOut('Scraping all javascript.')            
+            jsUris = this.scrapeAllJsUris(this.config.node, this.config.loc, null);
         }
         
-        if (opts.videos) {
-            Output.toOut('Scraping all Videos.')            
-            videoUris = me.scrapeAllVideoUris(node, loc);
+        if (this.config.opts.videos) {
+            this.output.toOut('Scraping all Videos.')            
+            videoUris = this.scrapeAllVideoUris(this.config.node, this.config.loc);
         }
 
-        if (opts.audios) {
-            Output.toOut('Scraping all Audio.')            
-            audioUris = me.scrapeAllAudioUris(node, loc);
+        if (this.config.opts.audios) {
+            this.output.toOut('Scraping all Audio.')            
+            audioUris = this.scrapeAllAudioUris(this.config.node, this.config.loc);
         }
 
-        if (opts.qs && (!!loc || !!node.location)) {
-            Output.toOut('Scraping the Querystring.')            
-            qsUris = me.scrapeAllQsUris(node, loc);
+        if (this.config.opts.qs && (!!this.config.loc || !!node.location)) {
+            this.output.toOut('Scraping the Querystring.')            
+            qsUris = this.scrapeAllQsUris(this.config.node, (this.config.loc || this.config.node.location));
         }
         else {
             console.log('[Scraper] skipping qs scrape. No location information.')
@@ -505,10 +516,6 @@ var Scraper = (function Scraper(Utils, Logicker, Output) {
             );
         }));
     };
-
-    
-    // return the singleton
-    return me;
-});
+}
 
 export default Scraper;

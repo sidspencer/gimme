@@ -1,13 +1,16 @@
 import { default as Digger } from '../background/Digger.js';
 import { default as Output } from '../background/Output.js';
 import { default as EventPage } from '../background/EventPage.js';
+import { default as Optionator } from '../options/Optionator.js';
+
+const ENABLE_HALF_BAKED_VAL = '3.14159';
 
 class Popup {
     constructor() {
         /**
          * Set up event handlers for the UI. All actual work is done in the background scripts.
          */
-        document.addEventListener("DOMContentLoaded", function init() {
+        document.addEventListener("DOMContentLoaded", () => {
             setFileOptionList();
             readSpec();
             connectEventHandlers();    
@@ -21,13 +24,13 @@ class Popup {
                 chrome.storage.local.get({
                         prevUriMap: {}
                     }, 
-                    function storageRetrieved(store) {
+                    (store) => {
                         var uriMap = store.prevUriMap
 
                         // If we're still in the digging/scraping stages, restore the textual file-list.
                         // If we're in the file option download stage, show the list of file option checkboxes instead.
                         var length = Object.values(uriMap).length;
-                        chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
+                        chrome.runtime.getBackgroundPage((bgWindow) => {
                             var out = bgWindow.output;
                             out.setDoc(document);
 
@@ -127,14 +130,7 @@ class Popup {
             function readSpec() {
                 chrome.storage.sync.get({
                     spec: {
-                        config: {
-                            minZoomWidth: '300',
-                            minZoomHeight: '300',
-                            dlChannels: '11',
-                            dlBatchSize: '3',
-                            knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
-                            enableHalfBakedFeatures: '0',
-                        },
+                        config: Optionator.getDefaultConfig(),
                         messages: [],
                         processings: [],
                         blessings: [],
@@ -154,11 +150,11 @@ class Popup {
                         bgWindow.logicker.setBlessings(store.spec.blessings);
 
                         bgWindow.output.setEnableHalfBakedFeatures(
-                            (store.spec.config.enableHalfBakedFeatures === '-1')
+                            (store.spec.config.enableHalfBakedFeatures === ENABLE_HALF_BAKED_VAL)
                         );
                     });
 
-                    if (store.spec.config.enableHalfBakedFeatures === '-1') {
+                    if (store.spec.config.enableHalfBakedFeatures === ENABLE_HALF_BAKED_VAL) {
                         var bcs = document.getElementsByClassName('buttonColumn');
                         for (var b = 0; b < bcs.length; b++) {
                             bcs[b].style.display = 'inline-block';

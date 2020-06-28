@@ -2,42 +2,47 @@ import { default as Utils } from './Utils.js';
 
 /** 
  * Singleton.
- * Web Navigation listener for GimmeGimmieGimmie. Listens to web requests in order to 
+ * Web Navigation listener for GimmeGimmeGimme. Listens to web requests in order to 
  * see what media is being requested.
  */
-var Voyeur = (function Voyeur(Utils) {
-    // instance object
-    var me = {
-        uris: [],
-        isWatching: false,
-    };
+class Voyeur {
+    static uris = [];
+    static isWatching = false;
 
-    var u = Utils;
 
-    me.start = function start() {
-        if (me.isWatching) { return; };
+    /**
+     * Start watching the network traffic. 
+     */
+    static start() {
+        if (Voyeur.isWatching) { return; };
 
-        u.queryActiveTab()
-        .then(function setUpMediaHeadersListener(tab) {
-            u.addMediaHeadersListener(watchMedia, tab.windowId, tab.id);
-            me.isWatching = true;    
+        Utils.queryActiveTab().then((tab) => {
+            Utils.addMediaHeadersListener(Voyeur.watchMedia, tab.windowId, tab.id);
+            Voyeur.isWatching = true;    
         });
     }   
     
-    function watchMedia(details) {
+
+    /**
+     * Log network traffic.
+     * @param {} details 
+     */
+    static watchMedia(details) {
         console.log('[Voyeur] pushing uri: [' + details.url + '] type: [' + details.type +']');
     };
 
 
-    me.stop = function stop() {
-        if (!me.isWatching) { return; };
+    /**
+     * Stop watching network traffic.
+     */
+    static stop() {
+        if (!this.isWatching) { return; };
         
-        u.removeMediaHeadersListener(watchMedia);
-        me.isWatching = false;
+        Utils.removeMediaHeadersListener(Voyeur.watchMedia);
+        Voyeur.isWatching = false;
     };
+}
 
-    // Return our singleton.
-    return me;
-})(Utils);
+window['Voyeur'] = Voyeur;
 
 export default Voyeur;

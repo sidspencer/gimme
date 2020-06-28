@@ -7,8 +7,8 @@ module.exports = {
     entry: {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
-        options: './options/options.js',
-        popup: './popup/popup.js'
+        options: './options/Optionator.js',
+        popup: './popup/Popup.js'
     },
     output: {
         // WINDOWS: path: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
@@ -34,6 +34,7 @@ module.exports = {
                           }],
                         ],
                         plugins: [
+                            '@babel/plugin-proposal-class-properties',
                             '@babel/plugin-transform-classes',
                             ['@babel/plugin-transform-runtime', {
                                 'regenerator': false,
