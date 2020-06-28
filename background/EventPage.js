@@ -30,7 +30,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
         app.digGallery();
     }
@@ -55,7 +55,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
         
         app.digFileOptions();
     }
@@ -78,7 +78,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
 
         app.digGallery();
@@ -101,7 +101,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
         app.digGallery();
     }
@@ -123,7 +123,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
         app.digGalleryGallery();
     }
@@ -156,7 +156,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
         app.scrape(inspectionOptions);
     }
@@ -182,7 +182,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
 
         app.scrapeFileOptions(inspectionOptions);
@@ -207,7 +207,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
 
         app.scrape(inspectionOptions);
@@ -232,7 +232,7 @@ class EventPage {
         
         var scraper = new Scraper(output);
         var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper, Logicker, Utils);
+        var app = new App(output, digger, scraper);
 
         app.scrape(inspectionOptions);
     }
