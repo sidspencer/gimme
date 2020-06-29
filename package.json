@@ -2,8 +2,8 @@
   "name": "gimme",
   "version": "0.4.9",
   "description": "A tool for helping you download media from a page, or from the pages that are linked.",
-  "main": "popup/popup.js",
-  "module": "popup/popup.js",
+  "main": "popup/Popup.js",
+  "module": "popup/Popup.js",
   "dependencies": {
     "@babel/plugin-transform-runtime": "^7.10.1",
     "@babel/polyfill": "^7.10.1",
@@ -29,6 +29,7 @@
   },
   "scripts": {
     "pack": "webpack --config webpack.config.js",
+    "clean": "rm */bundle.js*",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
