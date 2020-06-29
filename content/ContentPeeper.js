@@ -1,11 +1,8 @@
-const { uploadDenseMatrixToTexture } = require("@tensorflow/tfjs-core/dist/backends/webgl/gpgpu_util");
-
 // constants
 const GIMME_ID = 'gimme';
 const CONTENTPEEPER_ID = 'contentpeeper';
-const MAX_IMG_HEIGHT = 500;
-const MAX_IMG_WIDTH = 500;
-const URL_EXTRACTING_REGEX = /(url\()?(\'|\")?(https?:\/\/|data|blob)\:.+?(\'|\")?\)?/i;    
+const CONTENTPEEPER_WINDOW_KEY = 'GimmeGimmeGimme_ContentPeeper';
+
 
 /**
  * Client-Script for Gimme. Returns the location object, and will
@@ -302,6 +299,6 @@ class ContentPeeper {
     }
 }
 
-window['GimmeGimmeGimme_ContentPeeper'] = new ContentPeeper();
+window[CONTENTPEEPER_WINDOW_KEY] = new ContentPeeper();
 
 export default ContentPeeper;
