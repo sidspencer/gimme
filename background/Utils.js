@@ -669,6 +669,6 @@ class Utils {
 }
 Utils.resetDownloader();
 
-window['Utils'] = Utils;
+window['theUtils'] = Utils;
 
 export default Utils;

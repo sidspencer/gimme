@@ -17,7 +17,7 @@ class EventPage {
      *  - CSS background-images
      *  - mucks through javascript (musta been green programmers)
      */
-    goDig(parentDocument) {
+    static goDig(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -25,12 +25,12 @@ class EventPage {
             js: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
         app.digGallery();
     }
@@ -42,7 +42,7 @@ class EventPage {
      *  - CSS background-images
      *  - mucks through javascript (musta been green programmers)
      */
-     goDigFileOptions(parentDocument) {
+    static goDigFileOptions(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -50,12 +50,12 @@ class EventPage {
             js: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
         
         app.digFileOptions();
     }
@@ -65,7 +65,7 @@ class EventPage {
      * Fire up the app, dig only for image galleries.
      * This includes css Background Images for bastards like FB.
      */
-     goDigImageGallery(parentDocument) {
+    static goDigImageGallery(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -73,12 +73,12 @@ class EventPage {
             js: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
 
         app.digGallery();
@@ -88,7 +88,7 @@ class EventPage {
     /**
      * Fire up the app, dig only for video galleries.
      */
-     goDigVideoGallery(parentDocument) {
+    static goDigVideoGallery(parentDocument) {
         var inspectionOptions = {
             imgs: false,
             cssBgs: false,
@@ -96,12 +96,12 @@ class EventPage {
             js: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
         app.digGallery();
     }
@@ -110,7 +110,7 @@ class EventPage {
     /**
      * Go dig multiple galleries from a page of gallery of galleries.
      */
-     goDigGalleryGallery(parentDocument) {
+    static goDigGalleryGallery(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -118,12 +118,12 @@ class EventPage {
             js: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
         app.digGalleryGallery();
     }
@@ -141,7 +141,7 @@ class EventPage {
      * videos, audios, any urls inside of the <script> tags, and any urls in the 
      * query-string. Then JUST START DOWNLOADING THEM.
      */
-     goScrape(parentDocument) {
+    static goScrape(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -151,12 +151,12 @@ class EventPage {
             qs: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
         app.scrape(inspectionOptions);
     }
@@ -167,7 +167,7 @@ class EventPage {
      * videos, any urls inside of the <script> tags, and any urls in the 
      * query-string. Then present options for the user to choose to download or not.
      */
-     goScrapeFileOptions(parentDocument) {
+    static goScrapeFileOptions(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -177,12 +177,12 @@ class EventPage {
             qs: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
 
         app.scrapeFileOptions(inspectionOptions);
@@ -192,7 +192,7 @@ class EventPage {
     /**
      * Scrape the current page for <img>s.
      */
-     goScrapeImages(parentDocument) {
+    static goScrapeImages(parentDocument) {
         var inspectionOptions = {
             imgs: true,
             cssBgs: true,
@@ -202,12 +202,12 @@ class EventPage {
             qs: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
 
         app.scrape(inspectionOptions);
@@ -217,7 +217,7 @@ class EventPage {
     /**
      * Scrape the current page for <video>s.
      */
-     goScrapeVideos(parentDocument) {
+    static goScrapeVideos(parentDocument) {
         var inspectionOptions = {
             imgs: false,
             cssBgs: false,
@@ -227,17 +227,17 @@ class EventPage {
             qs: true,
         };
 
-        output.setDoc(parentDocument);
-        output.resetFileData();
+        theOutput.setDoc(parentDocument);
+        theOutput.resetFileData();
         
-        var scraper = new Scraper(output);
-        var digger = new Digger(scraper, output, inspectionOptions);
-        var app = new App(output, digger, scraper);
+        var scraper = new Scraper(theOutput);
+        var digger = new Digger(scraper, theOutput, inspectionOptions);
+        var app = new App(theOutput, digger, scraper);
 
         app.scrape(inspectionOptions);
     }
 }
 
-window.eventPage = new EventPage();
+window['theEventPage'] = EventPage;
 
 export default EventPage;

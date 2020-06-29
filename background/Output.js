@@ -36,8 +36,14 @@ class Output {
      */
     constructor(dokken) {
         this.doc = dokken;
-        this.filesDug = this.doc.getElementById(FILES_DUG_ID);
-        this.out = this.doc.getElementById(OUTPUT_ID);
+
+        try {
+            this.filesDug = this.doc.getElementById(FILES_DUG_ID);
+            this.out = this.doc.getElementById(OUTPUT_ID);
+        }
+        catch(err) {
+            console.log('[Output] Could not get elements from doc, it is a Dead Object.');
+        }
     }
 
 
@@ -63,10 +69,15 @@ class Output {
      */
     setDoc(dok) {
         this.doc = dok;
-        this.filesDug = this.doc.getElementById(FILES_DUG_ID);
-        this.out = this.doc.getElementById(OUTPUT_ID);
+        
+        try {
+            this.filesDug = this.doc.getElementById(FILES_DUG_ID);
+            this.out = this.doc.getElementById(OUTPUT_ID);
+        }
+        catch(err) {
+            console.log('[Output] Could not get elements from doc, it is a Dead Object.');
+        }
     }
-    
 
     /**
      * Enable the use of the half-baked features.
@@ -118,6 +129,7 @@ class Output {
         }
         catch(error) {
             console.log('[Output] Cannot set entry as downloading. doc reference is a Dead Object.');
+            return;
         }
         
         if (entry) { 
@@ -137,6 +149,7 @@ class Output {
         }
         catch(error) {
             console.log('[Output] Cannot change file entry state. doc ref is a Dead Object.');
+            return;
         }
         
         if (fEntry) {
@@ -215,6 +228,7 @@ class Output {
         }
         catch(error) {
             console.log('[Output] Could not delete entry. doc reference is a Dead Object.');
+            return;
         }
 
         if (fileLi) {
@@ -425,6 +439,6 @@ class Output {
     }
 }
 
-window.output = new Output(window.document);
+window['theOutput'] = new Output(window.document);
 
 export default Output;
