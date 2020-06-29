@@ -68,9 +68,9 @@ class Digger {
      * @param {Utils} Utils 
      * @param {InspecionOptions} someInspectionOptions 
      */
-    constructor(aScraper, theOutput, someInspectionOptions) {
+    constructor(aScraper, commonOutput, someInspectionOptions) {
         this.scraper = aScraper;
-        this.output = theOutput;
+        this.output = commonOutput;
 
         this.inspectionOptions = someInspectionOptions;
 
@@ -643,7 +643,7 @@ class Digger {
         }
         
         // Construct the ID used by loadUriDoc() to identify the <iframe>
-        var uriDocId = zoomFilenathis.substring('id' + zoomFilenathis.substring(0, zoomFilenathis.indexOf('.')));  
+        var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf('.')));  
         console.log('[Digger] uriDocId: ' + uriDocId);
         this.output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + '');
 
