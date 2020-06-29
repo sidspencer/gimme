@@ -2,22 +2,11 @@ import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm';
 import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
 import { default as Utils } from './Utils.js';
 
-const MOBILENET_MODEL_PATH = 'https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json';
-const MOBILENET_TF_PATH = 'https://tfhub.dev/google/imagenet/mobilenet_v1_050_160/feature_vector/4';
+
+// Constants used by Logicker.
 const IMAGE_SIZE = 224;
 const CLASSIFICATIONS = 20;
 const PRED_CUTOFF = 0.2;
-const USE_TENSORFLOW = true;
-const MODEL_CONFIG = {
-    version: 2,
-    alpha: 0.25,
-    modelUrl: MOBILENET_MODEL_PATH,
-};
-const TF_MODEL_CONFIG = {
-    version: 2,
-    alpha: 0.25,
-    fromTFHub: true,
-};
 const URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;
 const MIN_ZOOM_HEIGHT = 250;
 const MIN_ZOOM_WIDTH = 250;
@@ -85,7 +74,6 @@ class Logicker {
                 console.log('[Logicker] Loading model...');
                 const startTime = performance.now();
 
-                //Logicker.mnModel = await tf.loadLayersModel(MOBILENET_MODEL_PATH, MODEL_CONFIG);
                 Logicker.mnModel = await mobilenet.load();
 
                 if (!!Logicker.mnModel) {
@@ -865,6 +853,6 @@ class Logicker {
     };
 }
 
-window.logicker = Logicker;
+window['theLogicker'] = Logicker;
 
 export default Logicker;

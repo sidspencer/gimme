@@ -518,4 +518,6 @@ class Scraper {
     };
 }
 
+window['scraperClass'] = Scraper;
+
 export default Scraper;

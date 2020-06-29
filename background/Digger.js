@@ -68,9 +68,9 @@ class Digger {
      * @param {Utils} Utils 
      * @param {InspecionOptions} someInspectionOptions 
      */
-    constructor(aScraper, anOutput, someInspectionOptions) {
+    constructor(aScraper, theOutput, someInspectionOptions) {
         this.scraper = aScraper;
-        this.output = anOutput;
+        this.output = theOutput;
 
         this.inspectionOptions = someInspectionOptions;
 
@@ -975,6 +975,6 @@ Digger.prototype.BATCH_SIZE = 3;
 Digger.prototype.CHANNELS = 11;
 
 
-window.digger = Digger;
+window['diggerClass'] = Digger;
 
 export default Digger;

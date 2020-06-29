@@ -62,7 +62,8 @@
     "storage",
     "http://*/*",
     "https://*/*",
-    "file:///*/*"
+    "file:///*/*",
+    "chrome-extension://*/*"
   ],
 
   "web_accessible_resources": [

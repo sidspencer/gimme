@@ -480,7 +480,10 @@ class Optionator {
      */
     static getSpec() {
         var loadingDiv = document.getElementById('loading');
-        loadingDiv.style.display = 'block';
+
+        if (!!loadingDiv) {
+            loadingDiv.style.display = 'block';
+        }
 
         chrome.storage.sync.get({
                 spec: DEFAULT_SPEC
@@ -491,7 +494,9 @@ class Optionator {
                 Optionator.layoutProcessings(store.spec.processings);
                 Optionator.layoutBlessings(store.spec.blessings);
 
-                loadingDiv.style.display = 'none';
+                if (!!loadingDiv) {
+                    loadingDiv.style.display = 'none';
+                }
             }
         );
     }
@@ -676,6 +681,17 @@ class Optionator {
         return DEFAULT_SPEC.config;
     }
 }
-Optionator.setupOptionsPageOnLoad();
 
-export default Optionator;
+if (window.location.href.indexOf('options.html') === -1) {
+    console.log('[Optionator] some page other than Options called us. Return -- do nothing.');
+}
+else {
+    console.log('[Optionator] starting up, laying out the config form.');
+    Optionator.setupOptionsPageOnLoad();
+}
+
+window['theOptionator'] = Optionator;
+window['theDominatrix'] = Dominatrix;
+window['theConstance'] = Constance;
+
+export { Optionator as default, Dominatrix, Constance };

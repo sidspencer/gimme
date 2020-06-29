@@ -9,8 +9,8 @@ import { default as Scraper } from './Scraper.js';
  * Factory function for the main "Application" backend of Gimme.
  */
 class App {
-    constructor(output, digger, scraper) {
-        this.output = output;
+    constructor(commonOutput, digger, scraper) {
+        this.output = commonOutput;
         this.digger = digger;
         this.scraper = scraper;
 
@@ -630,6 +630,6 @@ class App {
 
 }
 
-window.app = App;
+window['appClass'] = App;
 
 export default App;

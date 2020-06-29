@@ -43,6 +43,6 @@ class Voyeur {
     };
 }
 
-window['Voyeur'] = Voyeur;
+window['theVoyeur'] = Voyeur;
 
 export default Voyeur;
