@@ -1,7 +1,5 @@
-// constants
-const GIMME_ID = 'gimme';
-const CONTENTPEEPER_ID = 'contentpeeper';
-const CONTENTPEEPER_WINDOW_KEY = 'GimmeGimmeGimme_ContentPeeper';
+import { default as GCon } from '../lib/GCon.js';
+import { ContentMessage, ContentPeeperMessage } from '../lib/DataClasses.js';
 
 
 /**
@@ -26,11 +24,13 @@ class ContentPeeper {
     
             console.log('[ContentPeeper] Content Tab\'s Window.load() fired.');        
     
-            chrome.runtime.sendMessage({ 
-                content: 'ContentPeeper window load',
-                uri: document.location.href,
-                docOuterHtml: document.documentElement.outerHTML,
-             });
+            chrome.runtime.sendMessage(
+                new ContentPeeperMessage( 
+                    'ContentPeeper window load',
+                    document.location.href,
+                    document.documentElement.outerHTML,
+                )
+            );
         };
         window.addEventListener('load', setWindowLoadComplete, false);
     
@@ -43,11 +43,13 @@ class ContentPeeper {
     
                 console.log('[ContentPeeper] Content Tab\'s Window.document.readyState is "complete".');                    
     
-                chrome.runtime.sendMessage({ 
-                    content: 'ContentPeeper doc complete',
-                    uri: document.location.href,
-                    docOuterHtml: document.documentElement.outerHTML,
-                });
+                chrome.runtime.sendMessage(
+                    new ContentPeeperMessage( 
+                        'ContentPeeper doc complete',
+                        document.location.href,
+                        document.documentElement.outerHTML
+                    )
+                );
             }
         };
         document.addEventListener('readystatechange', setDocLoadComplete, false);
@@ -74,7 +76,7 @@ class ContentPeeper {
         }
 
         // Don't even respond if it's not gimme. return blank if we have a no-good window object.
-        if (req.senderId !== GIMME_ID) {
+        if (req.senderId !== ContentMessage.GIMME_ID) {
             console.log('[ContentPeeper] Sent message by someone other than gimme, "' + req.senderId + '". Not responding.');
             return false;
         }
@@ -109,7 +111,7 @@ class ContentPeeper {
 
         // Put in the basics of the payload.
         var resPayload = {
-            'contentScriptId': CONTENTPEEPER_ID,
+            'contentScriptId': ContentMessage.CONTENTPEEPER_ID,
             'status': 'success',
             'error': '',
             
@@ -134,7 +136,7 @@ class ContentPeeper {
             if (this.peepingAround) {
                 proc = this.alreadyPeepingAround;
             }
-            else if (req.command === 'peepAround' && req.linkSelector && req.linkHrefProp && req.thumbSubselector && req.thumbSrcProp) {
+            else if (req.command === GCon.ACTION.PEEPAROUND && req.linkSelector && req.linkHrefProp && req.thumbSubselector && req.thumbSrcProp) {
                 proc = this.peepAround;            
             }
             else {
@@ -148,14 +150,14 @@ class ContentPeeper {
             
             // set one for page load.
             var load = (event) => {
-                window.removeEventListener("load", load, false); //remove listener, no longer needed
+                window.removeEventListener('load', load, false); //remove listener, no longer needed
                 
                 if (!this.peepingAround) {
                     resPayload = proc(resPayload, req)
                     res(resPayload);
                 }
             };
-            window.addEventListener("load", load, false);
+            window.addEventListener('load', load, false);
 
             // set one for document.readyState === 'complete'.
             var rsc = (event) => {
@@ -168,7 +170,7 @@ class ContentPeeper {
             };
             document.addEventListener('readystatechange', rsc, false);
 
-            // async - wait for the events.
+            // Returning true means Be Asynchronous - wait for the events.
             return true;
         }
 
@@ -299,6 +301,6 @@ class ContentPeeper {
     }
 }
 
-window[CONTENTPEEPER_WINDOW_KEY] = new ContentPeeper();
+window[GCon.WIN_PROP.CONTENTPEEPER_INST] = new ContentPeeper();
 
 export default ContentPeeper;
