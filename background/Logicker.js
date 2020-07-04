@@ -127,7 +127,7 @@ class Logicker {
                 imgElement.width = originalWidth;
 
                 if (Array.isArray(imgClassifications)) {
-                    console.log('[Logicker] mnModel.classify found these: ' + JSON.stringify(imgClassifications));
+                    //console.log('[Logicker] mnModel.classify found these: ' + JSON.stringify(imgClassifications));
                     resolve(imgClassifications);  
                 }
                 else {
@@ -396,7 +396,6 @@ class Logicker {
                             // Must use the "function" keyword so "this" points to the image.
                             testImg.onload = function onload() {
                                 //console.log('[Logicker] Loaded document image for TF scoring: ' + imgSrc);
-
                                 if (Logicker.isKnownBadImg(this.src)) {
                                     console.log('[Logicker] Known bad image naLogicker. Skipping...');
                                     resolve(zeroResponse);
@@ -411,7 +410,6 @@ class Logicker {
                                     } 
                                     else {
                                         if (originalDims.height > largestDims.height && originalDims.width > largestDims.width) {
-                                            largestImg = this;
                                             largestImgSrc = this.src;
                                             largestDims = originalDims;
                                         }
@@ -426,11 +424,10 @@ class Logicker {
                                         return;
                                     }
                                     else {
-                                        console.log(`[Logicker] got classifications for img ${imgSrc}: ${JSON.stringify(classifications)}`);
+                                        //console.log(`[Logicker] got classifications for img ${imgSrc}: ${JSON.stringify(classifications)}`);
+                                        console.log(`[Logicker] got classifications for img ${imgSrc}`);
                                     }
                                     
-                                    //console.log(`[Logicker] got classifications for img ${imgSrc}`);
-
                                     var classAgreements = [];
                                     var totalClassesCount = classifications.length;
                     
@@ -551,7 +548,6 @@ class Logicker {
                             // Skip the image if it is not big enough.
                             if (Logicker.isZoomSized(dims)) {
                                 if (dims.height > largestDims.height && dims.width > largestDims.width) {
-                                    largestImg = this;
                                     largestImgSrc = this.src;
                                     largestDims = dims;
                                 }
