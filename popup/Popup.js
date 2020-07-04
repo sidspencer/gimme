@@ -2,9 +2,16 @@ import { default as Digger } from '../background/Digger.js';
 import { default as Output } from '../background/Output.js';
 import { default as EventPage } from '../background/EventPage.js';
 import { default as Optionator } from '../options/Optionator.js';
+import { default as GCon } from '../lib/GCon.js';
+import {
+    Storing, 
+    FileOption,
+} from '../lib/DataClasses.js';
 
-const ENABLE_HALF_BAKED_VAL = '3.14159';
 
+/**
+ * Controller for the popup window UI.
+ */
 class Popup {
     constructor() {
         /**
@@ -21,19 +28,21 @@ class Popup {
              * Note: clicking one of the "download all [ |jpgs]" button will clear them.
              */
             function setFileOptionList() {
-                chrome.storage.local.get({
-                        prevUriMap: {}
-                    }, 
+                chrome.storage.local.get(
+                    Storing.storePrevUriMap({}), 
                     (store) => {
                         var uriMap = store.prevUriMap
-
+                        
                         // If we're still in the digging/scraping stages, restore the textual file-list.
                         // If we're in the file option download stage, show the list of file option checkboxes instead.
                         var length = Object.values(uriMap).length;
                         chrome.runtime.getBackgroundPage((bgWindow) => {
-                            var out = bgWindow.theOutput;
+                            // Get the Output common instance and the Static Utils obj, and set our popup document on the Output.
+                            var out = bgWindow[GCon.WIN_PROP.OUTPUT_INST];
+                            var ut = bgWindow[GCon.WIN_PROP.UTILS_ST];
                             out.setDoc(document);
 
+                            // If it's still doing a dig/scrape, just say so and return.
                             if (out.appIsScraping || out.appIsDigging) {
                                 var descriptionOfWork = out.appIsScraping ? 'scraping...' : 'digging...';
                                 out.toOut('Currently ' + descriptionOfWork);
@@ -41,6 +50,7 @@ class Popup {
                                 return;
                             }
                             
+                            // Otherwise, if there is a previousUriMap, make the file options.
                             if (length) {
                                 console.log("[Popup] Got persisted uris:");
                                 console.log(JSON.stringify(uriMap));
@@ -49,17 +59,23 @@ class Popup {
                                 console.log(JSON.stringify(out.checkedFileOptUris));
 
                                 out.showActionButtons();
-
-                                var dir = bgWindow.theUtils.getSaltedDirectoryName();
+                                var dir = ut.getSaltedDirectoryName();
                         
                                 out.clearFilesDug();
-                                bgWindow.theUtils.resetDownloader();
+                                ut.resetDownloader();
 
                                 var checkedItemCount = 0;
                                 var idx = length - 1;
 
+                                // Make a file option and hook up the event handlers for all in the prevUriMap.
                                 for (var thumbUri in uriMap) { 
                                     var uri = uriMap[thumbUri];
+
+                                    if (!uri || !uri.replace || uri.indexOf('.') === 0) {
+                                        console.log('[Popup] Bad uri string for download: ' + JSON.stringify(uri));
+                                        continue;
+                                    }
+
                                     var queryPos = uri.lastIndexOf('?');
 
                                     if (queryPos === -1) {
@@ -69,14 +85,8 @@ class Popup {
                                     var filePath = dir + '/' + uri.substring(uri.lastIndexOf('/') + 1, queryPos)
                                     var optId = (idx--);
 
-                                    out.addFileOption({ 
-                                        id: optId + '', 
-                                        uri: uri, 
-                                        thumbUri: thumbUri,
-                                        filePath: filePath,
-                                        onSelect: bgWindow.theUtils.downloadFile, 
-                                    });
-
+                                    out.addFileOption(new FileOption(optId+'', uri, thumbUri, filePath, ut.downloadFile));
+                                    
                                     var cb = document.getElementById('cbFile' + optId);
                                     if (!!cb) {
                                         if (out.checkedFileOptUris.indexOf(cb.value) !== -1) {
@@ -88,8 +98,9 @@ class Popup {
                                     }
                                 }
 
+                                // Set the badge text and background color.
                                 chrome.browserAction.setBadgeText({ text: '' + (length - checkedItemCount) + '' });
-                                chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
+                                chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.AVAILABLE_FOPTS);
 
                                 if (checkedItemCount > 0) {
                                     out.toOut('Please select which of the ' + (length - checkedItemCount) + ' remaining files you wish to download.');
@@ -99,6 +110,7 @@ class Popup {
                                 }
                             }
                             else {
+                                // If there are no previous uri entries, set us up normally.
                                 chrome.browserAction.setBadgeText({ text: '' });
                                 out.showDigScrapeButtons();
                                 out.toOut('hit a button to begin.');
@@ -114,9 +126,8 @@ class Popup {
              */
             function clearPreviousUriMap() {
                 chrome.browserAction.setBadgeText({ text: '' });
-                chrome.storage.local.set({
-                        prevUriMap: {},
-                    },
+                chrome.storage.local.set(
+                    Storing.storePrevUriMap({}),
                     function storageSet() {
                         console.log('[Popup] Cleared prev uri map');
                     }
@@ -130,32 +141,39 @@ class Popup {
             function readSpec() {
                 chrome.storage.sync.get({
                     spec: {
-                        config: Optionator.getDefaultConfig(),
+                        config: GCon.OPT_CONF.CANNED_CONFIG,
                         messages: [],
                         processings: [],
                         blessings: [],
                     }
                 }, 
                 function storageRetrieved(store) {
+                    // Set the options on the background-page objects and classes.
                     chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
-                        bgWindow.diggerClass.setBatchSize(store.spec.config.dlBatchSize);
-                        bgWindow.diggerClass.setChannels(store.spec.config.dlChannels);
+                        var d = bgWindow[GCon.WIN_PROP.DIGGER_CLASS];
+                        var l = bgWindow[GCon.WIN_PROP.LOGICKER_ST];
+                        var o = window[GCon.WIN_PROP.OUTPUT_INST];
 
-                        bgWindow.theLogicker.setMinZoomHeight(store.spec.config.minZoomHeight);
-                        bgWindow.theLogicker.setMinZoomWidth(store.spec.config.minZoomWidth);
-                        bgWindow.theLogicker.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
+                        d.setBatchSize(store.spec.config.dlBatchSize);
+                        d.setChannels(store.spec.config.dlChannels);
 
-                        bgWindow.theLogicker.setMessages(store.spec.messages);
-                        bgWindow.theLogicker.setProcessings(store.spec.processings);
-                        bgWindow.theLogicker.setBlessings(store.spec.blessings);
+                        l.setMinZoomHeight(store.spec.config.minZoomHeight);
+                        l.setMinZoomWidth(store.spec.config.minZoomWidth);
+                        l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
 
-                        bgWindow.theOutput.setEnableHalfBakedFeatures(
-                            (store.spec.config.enableHalfBakedFeatures === ENABLE_HALF_BAKED_VAL)
+                        l.setMessages(store.spec.messages);
+                        l.setProcessings(store.spec.processings);
+                        l.setBlessings(store.spec.blessings);
+
+                        o.setEnableHalfBakedFeatures(
+                            (store.spec.config.enableHalfBakedFeatures === GCon.OPT_CONF.HALF_BAKED_VAL)
                         );
                     });
 
-                    if (store.spec.config.enableHalfBakedFeatures === ENABLE_HALF_BAKED_VAL) {
+                    // Show all the buttons if the user enabled the half-baked features.
+                    if (store.spec.config.enableHalfBakedFeatures === GCon.OPT_CONF.HALF_BAKED_VAL) {
                         var bcs = document.getElementsByClassName('buttonColumn');
+
                         for (var b = 0; b < bcs.length; b++) {
                             bcs[b].style.display = 'inline-block';
                         }
@@ -174,7 +192,7 @@ class Popup {
                  */
                 document.getElementById('digFileOptionsButton').addEventListener('click', function onDigFileOptions() {
                     chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
-                        bgWindow.theEventPage.goDigFileOptions(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goDigFileOptions(window.document);
                     });
                 });
 
@@ -185,7 +203,7 @@ class Popup {
                  */
                 document.getElementById('digGalleryGallery').addEventListener('click', function onDigGalleryGallery() {
                     chrome.runtime.getBackgroundPage(function doGalleryGalleryDigging(bgWindow) {
-                        bgWindow.theEventPage.goDigGalleryGallery(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goDigGalleryGallery(window.document);
                     });
                 });
 
@@ -224,7 +242,7 @@ class Popup {
                     chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
                         clearPreviousUriMap();
                         
-                        var out = bgWindow.theOutput;
+                        var out = bgWindow[GCon.WIN_PROP.OUTPUT_INST];
                         out.setDoc(document);           
                         out.clearFilesDug();
                         out.resetFileData();
@@ -240,7 +258,7 @@ class Popup {
                  */
                 document.getElementById('scrapeFileOptionsButton').addEventListener('click', function onDigFileOptions() {
                     chrome.runtime.getBackgroundPage(function doScrapingForOptions(bgWindow) {
-                        bgWindow.theEventPage.goScrapeFileOptions(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goScrapeFileOptions(window.document);
                     });
                 });
 
@@ -250,7 +268,7 @@ class Popup {
                  */
                 document.getElementById("scrapeImagesButton").addEventListener("click", function onDigButton() {
                     chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-                        bgWindow.theEventPage.goScrapeImages(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goScrapeImages(window.document);
                     });
                 });
 
@@ -260,7 +278,7 @@ class Popup {
                  */
                 document.getElementById("scrapeVideosButton").addEventListener("click", function onDigButton() {
                     chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-                        bgWindow.theEventPage.goScrapeVideos(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goScrapeVideos(window.document);
                     });
                 });
 
@@ -270,7 +288,7 @@ class Popup {
                  */
                 document.getElementById("scrapeButton").addEventListener("click", function onDigButton() {
                     chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-                        bgWindow.theEventPage.goScrape(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goScrape(window.document);
                     });
                 });
 
@@ -280,7 +298,7 @@ class Popup {
                  */
                 document.getElementById("digImageGalleryButton").addEventListener("click", function onDigButton() {
                     chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
-                        bgWindow.theEventPage.goDigImageGallery(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goDigImageGallery(window.document);
                     });
                 });
 
@@ -290,7 +308,7 @@ class Popup {
                  */
                 document.getElementById("digVideoGalleryButton").addEventListener("click", function onDigButton() {
                     chrome.runtime.getBackgroundPage(function doVideoGalleryDig(bgWindow) {
-                        bgWindow.theEventPage.goDigVideoGallery(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goDigVideoGallery(window.document);
                     });
                 });
 
@@ -300,7 +318,18 @@ class Popup {
                  */
                 document.getElementById("digButton").addEventListener("click", function onDigButton() {
                     chrome.runtime.getBackgroundPage(function doDigging(bgWindow) {
-                        bgWindow.theEventPage.goDig(window.document);
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].goDig(window.document);
+                    });
+                });
+
+
+                /**
+                 * Stop any digging or scraping currently happening.
+                 */
+                document.getElementById('stopButton').addEventListener('click', () => {
+                    chrome.runtime.getBackgroundPage((bgWindow) => {
+                        console.log('[Popup] stop button was pressed. Stopping.');
+                        bgWindow[GCon.WIN_PROP.EVENTPAGE_ST].stopHarvesting(window.document);
                     });
                 });
 
@@ -323,6 +352,6 @@ class Popup {
     }
 }
 
-window['thePopup'] = new Popup();
+window[GCon.WIN_PROP.POPUP_INST] = new Popup();
 
 export default Popup;
