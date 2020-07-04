@@ -3,31 +3,52 @@ import { default as Logicker } from './Logicker.js';
 import { default as Output } from './Output.js';
 import { default as Digger } from './Digger.js';
 import { default as Scraper } from './Scraper.js';
+import { default as GCon } from '../lib/GCon.js';
+import {
+    DigOpts, 
+    ContentMessage,
+    TabMessage,
+    LocDoc,
+    FileOption,
+    GalleryOptions,
+    ScrapeOptions,
+    Storing
+} from '../lib/DataClasses.js'
+ 
 
 
 /**
- * Factory function for the main "Application" backend of Gimme.
+ * Class for the main "Application" backend of Gimme.
  */
 class App {
-    constructor(commonOutput, digger, scraper) {
-        this.output = commonOutput;
-        this.digger = digger;
-        this.scraper = scraper;
+    // vars for our background object instances.
+    output = undefined;
+    digger = undefined;
+    scraper = undefined;
 
-        this.galleryMap = {};
-        this.peeperMap = {};
-        this.downloadsDir = 'Gimme-site_pagename-tmp';
-        this.digOpts = {
-            doScrape: true,
-            doDig: true,
-        };
-        this.alreadyDownloaded = {};
-        this.fileOptions = [];
-        this.filesDug = [];
-        this.contentScriptSelection = true;
-        this.diggingGalleryGallery = false;
+    // Vars for harvested URIs.
+    galleryMap = {};
+    peeperMap = {};
+    alreadyDownloaded = {};
+    fileOptions = [];
+    filesDug = [];
+
+    // Configuration vars.
+    digOpts = new DigOpts(true, true);
+    contentScriptSelection = true;
+    diggingGalleryGallery = false;
+    downloadsDir = GCon.TPL_STR.DOWNLOADS_DIR;
+    stop = false;
 
 
+    /** 
+     * Constructor for App.
+     */
+    constructor(aDigger, aScraper) {
+        this.output = window[GCon.WIN_PROP.OUTPUT_INST];
+        this.digger = aDigger;
+        this.scraper = aScraper;
+        
         /** 
         * Ask the client-script for the active tab's location object, as well as
         * an array of values corresponding to the selector and propName for that tag. 
@@ -42,17 +63,10 @@ class App {
                message = Object.assign({}, d);
            }
            else if (this.diggingGalleryGallery) {
-               message = {
-                   command: 'peepAround',
-                   linkSelector: 'a[href]',
-                   linkHrefProp: 'href',
-                   thumbSubselector: ':scope img',
-                   thumbSrcProp: 'src',
-                   useRawValues: false,
-               };    
+               message = new ContentMessage();
            }
                    
-           var tabMessage = Utils.createTabMessage(tab, message); 
+           var tabMessage = new TabMessage(tab, message); 
            return Promise.resolve(tabMessage);
        };
    
@@ -70,14 +84,14 @@ class App {
             this.peeperMap = Object.assign({}, resp.galleryMap);
 
             // Create our own copy of the document we're looking at.
-            var peeperDoc = domParser.parseFromString(resp.docOuterHml, "text/html");
+            var peeperDoc = domParser.parseFromString(resp.docOuterHml, GCon.MIME_TYPE.HTML);
             
             // Fallback to getting the document via XHR if we have to. (worse, because scripts will not have run.)
             if (!peeperDoc || !resp.docOuterHml) {
                 return this.getLocDoc(loc);
             }
             else {
-                return Promise.resolve(Utils.createLocDoc(loc, peeperDoc));
+                return Promise.resolve(new LocDoc(loc, peeperDoc));
             }
         };
 
@@ -101,8 +115,7 @@ class App {
 
             // But make it do everything if it came back as 0.
             if (Object.keys(this.galleryMap).length === 0) {
-                this.digOpts.doDig = true;
-                this.digOpts.doScrape = true;
+                this.digOpts = new DigOpts(true, true);
             }
 
             // log the linkHrefs from ContentPeeper.
@@ -110,7 +123,7 @@ class App {
             var mapSize = Object.getOwnPropertyNames(this.galleryMap).length;
             console.log('[App] Initial processed response has ' + mapSize + ' thumb uris -> zoom link uris.');
 
-            if (locDoc) {
+            if (!!locDoc && !!locDoc.loc && !!locDoc.doc) {
                 return Promise.resolve(locDoc);
             }
             else {
@@ -129,8 +142,6 @@ class App {
                 console.log('[App] called with null harvestedMap.');
                 return Promise.resolve([]);
             }
-
-            Object.assign(this.galleryMap, harvestedMap);
             
             var thumbUris = Object.keys(harvestedMap);
             var length = thumbUris.length;
@@ -152,6 +163,12 @@ class App {
 
                 if (!uri || !uri.replace || uri.indexOf('.') === 0) {
                     console.log('[App] Bad uri string for download: ' + JSON.stringify(uri));
+                    delete harvestedMap[thumbUri];
+                    continue;
+                }
+                else if (/.+?\.html.+?/i.test(uri)) {
+                    console.log('[App] Rejecting uri string for download: ' + JSON.stringify(uri));
+                    delete harvestedMap[thumbUri];
                     continue;
                 }
 
@@ -170,14 +187,16 @@ class App {
 
                 var destFilePath = this.downloadsDir + '/' + destFileName;
                 var optIdx = this.fileOptions.push(destFilePath);
-                var fileOption = Utils.createFileOption(optIdx+'', uri, thumbUri, destFilePath, Utils.downloadFile);
+                var fileOption = new FileOption(optIdx+'', uri, thumbUri, destFilePath, Utils.downloadFile);
 
                 this.output.addFileOption(fileOption);
                 fileOptionzzz.push(fileOption);
             }
             
+            this.galleryMap = Object.assign({}, harvestedMap);
+
             chrome.browserAction.setBadgeText({ text: '' + this.fileOptions.length + '' });
-            chrome.browserAction.setBadgeBackgroundColor({ color: [247, 81, 158, 255] });
+            chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.AVAILABLE_FOPTS);
 
             console.log('[App] Presented ' + this.fileOptions.length + ' file options.');
             this.output.toOut('Please select which of the ' + this.fileOptions.length + ' files you would like to download.');
@@ -211,7 +230,7 @@ class App {
         }
 
         console.log('STARTING DOWNLOAD')
-        Utils.downloadInZip(harvestedMap.values()).then(function() {
+        Utils.downloadInZip(harvestedMap.values()).then(() => {
             for (var index = 0; index < harvestedMap.values(); index++) {
                 me.output.setEntryAsDownloading(index);
             };
@@ -227,9 +246,9 @@ class App {
      */
     getLocDoc(loc) {
         return (
-            Utils.getXhrResponse('GET', loc.href, 'document')
+            Utils.getXhrResponse(GCon.ACTION.GET, loc.href, GCon.MIME_TYPE.DOC)
             .then((xhrResponse) =>{
-                return Promise.resolve(Utils.createLocDoc(loc, xhrResponse));
+                return Promise.resolve(new LocDoc(loc, xhrResponse));
             })
         );
     }
@@ -272,13 +291,31 @@ class App {
 
 
     /**
+     * Do the setup needed for a clean scrape or dig.
+     * 
+     * @param {bool} clearGalleryItems 
+     * @param {Action} action 
+     */
+    setupProcess(action, clearGalleryItems, text) {
+        this.output.showStopButton();
+        this.output.toOut(text);        
+        this.clearGalleryData(true);
+
+        this.output.setIsDigging(
+            (action === GCon.ACTION.DIG || action === GCon.ACTION.DIG_GG)
+        );
+        this.output.setIsScraping(
+            (action === GCon.ACTION.SCRAPE)
+        );
+        this.diggingGalleryGallery = (action === GCon.ACTION.DIG_GG);
+    }
+
+    /**
      * Main entry point of the app for scraping media from the immediate page, and not having
      * any choice over which media gets downloaded. 
      */
     scrape(options) {
-        this.output.toOut('Initializing: Collecting uris from page.');        
-        this.clearGalleryData(false);
-        this.output.setIsScraping(true);
+        this.setupProcess(GCon.ACTION.SCRAPE, false, 'Initializing: Collecting uris from page.');
         var me = this;        
 
         // Begin by communicating with the ContentPeeper for information 
@@ -287,7 +324,7 @@ class App {
         // No user choice on what to download.
         return (
             this.processContentPage()
-            .then(function doScraping(locDoc) {
+            .then((locDoc) => {
                 // Based upon the Logicker's special rules for sites, either just
                 // resolve with the ContentPeeper's processed uri info, or do a scrape.
                 if (me.digOpts.doScrape === false) {
@@ -297,25 +334,21 @@ class App {
                 }
                 else {
                     console.log('[App] Performing scrape.')
-                    return (me.scraper.scrape({
-                            node: locDoc.doc, 
-                            loc: locDoc.loc, 
-                            opts: options
-                        })
+                    return (
+                        new ScrapeOptions(locDoc.doc, locDoc.loc, options)
                     );
                 }
             })
             .then(me.startDownloading)            
-            .catch(function onDocRequestError(errorMessage) {
+            .catch((errorMessage) => {
                 me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
-            .finally(function setUriMapInStorage() {
-                chrome.storage.local.set({
-                        prevUriMap: me.galleryMap,
-                    },
-                    function storageSet() {
+            .finally(() => {
+                chrome.storage.local.set(
+                    Storing.storePrevUriMap(me.galleryMap),
+                    () => {
                         console.log('[App] Set prevUriMap in storage');
                         console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
@@ -332,9 +365,7 @@ class App {
      * Scrape, but do not download automatically. Give the user a list of choices.
      */
     scrapeFileOptions(options) {
-        this.output.toOut('Initializing: Collecting uris from page.');        
-        this.clearGalleryData(true); 
-        this.output.setIsScraping(true); 
+        this.setupProcess(GCon.ACTION.SCRAPE, true, 'Initializing: Collecting uris from page.');
         var me = this;
 
         // Begin by communicating with the ContentPeeper for information 
@@ -346,25 +377,22 @@ class App {
         //       the images on the page, not just gallery thumbs.
         return (
             me.processContentPage()
-            .then(function doScraping(locDoc) {
+            .then((locDoc) => {
                 console.log('[App] Scraping with the this.scraper.')
-                return me.scraper.scrape({
-                    node: locDoc.doc, 
-                    loc: locDoc.loc, 
-                    opts: options,
-                });
+                return me.scraper.scrape(
+                    new ScrapeOptions(locDoc.doc, locDoc.loc, options)
+                );
             })
             .then(me.presentFileOptions)            
-            .catch(function handleError(errorMessage) {
+            .catch((errorMessage) => {
                 me.output.toOut('There was an internal error. Please try refreshing the page.');
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
-            .finally(function setUriMapInStorage() {
-                chrome.storage.local.set({
-                        prevUriMap: me.galleryMap,
-                    },
-                    function storageSet() {
+            .finally(() => {
+                chrome.storage.local.set(
+                    Storing.storePrevUriMap(me.galleryMap),
+                    () => {
                         console.log('[App] Set prevUriMap in storage');
                         console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
@@ -381,9 +409,7 @@ class App {
      * gallery-searching logic without choosing from any options.
      */
     digGallery() {
-        this.output.toOut('Initializing: Collecting uris from page.');        
-        this.clearGalleryData(true);
-        this.output.setIsDigging(true);
+        this.setupProcess(GCon.ACTION.DIG, true, 'Initializing: Collecting gallery uris from page.');
         var me = this;     
         
         // Begin by communicating with the ContentPeeper for information 
@@ -392,35 +418,34 @@ class App {
         // No user choice in what to download.         
         return (
             this.processContentPage()
-            .then(function goDig(locDoc) {
+            .then((locDoc) => {
                 // Based upon the Logicker's special rules for sites, either just
                 // resolve with the ContentPeeper's processed uri info, or do the dig.
                 if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
                     me.digger.redrawOutputFileOpts(me.galleryMap);
+                    
                     console.log('[App] Downloading ContentPeeper uris');
                     return Promise.resolve(me.galleryMap);
                 }
                 else {
                     console.log('[App] Performing gallery dig.')               
-                    return this.digger.digGallery({
-                        doc: locDoc.doc,
-                        loc: locDoc.loc,
-                        digOpts: this.digOpts,
-                        galleryMap: this.galleryMap,
-                    })
+                    return this.digger.digGallery(
+                        new GalleryOptions(locDoc.doc, locDoc.loc, me.digOpts, me.galleryMap)
+                    );
                 }
             })
             .then(me.startDownloading)
-            .catch(function handleError(errorMessage) {
+            .catch((errorMessage) => {
                 me.output.toOut('There was an internal error. Please try refreshing the page.');
+                
                 console.log(errorMessage);
                 return Promise.reject(errorMessage);
             })
-            .finally(function setUriMapInStorage() {
+            .finally(() => {
                 chrome.storage.local.set({
                         prevUriMap: me.galleryMap,
                     },
-                    function storageSet() {
+                    () => {
                         console.log('[App] Set prevUriMap in storage');
                         console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
@@ -438,9 +463,7 @@ class App {
      * want. 
      */
     digFileOptions() {
-        this.output.toOut('Initializing: Collecting uris from page.');        
-        this.clearGalleryData(true); 
-        this.output.setIsDigging(true); 
+        this.setupProcess(GCon.ACTION.DIG, true, 'Initializing: Collecting gallery uris from page.');
         var me = this;        
  
         // Begin by communicating with the ContentPeeper for information 
@@ -455,22 +478,18 @@ class App {
 
                     console.log('[App] Downloading ContentHelper uris');
                     
-                    chrome.storage.local.set({
-                            prevUriMap: me.galleryMap
-                        },
-                        function() {
+                    chrome.storage.local.set(
+                        Storing.storePrevUriMap(me.galleryMap),
+                        () => {
                             console.log('[App] Setting prevUriMap');
                         }
                     );
                     return Promise.resolve(me.galleryMap);
                 }
                 else {
-                    return me.digger.digGallery({
-                        doc: locDoc.doc,
-                        loc: locDoc.loc,
-                        digOpts: me.digOpts,
-                        galleryMap: me.galleryMap,
-                    });
+                    return me.digger.digGallery(
+                        new GalleryOptions(locDoc.doc, locDoc.loc, me.digOpts, me.galleryMap)
+                    );                      
                 }
             })
             .then((harvestedMap) => {
@@ -482,10 +501,9 @@ class App {
                 return Promise.reject(errorMessage);
             })
             .finally(() => {
-                chrome.storage.local.set({
-                        prevUriMap: me.galleryMap,
-                    },
-                    function storageSet() {
+                chrome.storage.local.set(
+                    Storing.storePrevUriMap(me.galleryMap),
+                    () => {
                         console.log('[App] Set prevUriMap in storage');
                         console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
@@ -503,52 +521,50 @@ class App {
      * choose which ones they want. 
      */
     digGalleryGallery() {
-        this.output.toOut('Initializing: Collecting links to galleries from page.');        
-        this.clearGalleryData(false);
-        this.diggingGalleryGallery = true;
+        this.setupProcess(GCon.ACTION.DIG_GG, false, 'Initializing: Collecting uris to galleries from page.');
+        
         var locDocs = [];
         var combinedMap = {};
         var me = this; 
-
-        me.output.setIsDigging(true);
 
         // Begin by communicating with the ContentPeeper for information 
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the this.digger.
         return ( 
             this.processContentPage()
-            .then(function buildPromises(locDoc) {
-                return me.digger.digGallery({
-                    doc: locDoc.doc,
-                    loc: locDoc.loc,
-                    digOpts: { doScrape: true, doDig: false },
-                    galleryMap: Object.assign({}, me.peeperMap),
-                })
+            .then((locDoc) => {
+                return me.digger.digGallery(
+                    new GalleryOptions(locDoc.doc, locDoc.loc, new DigOpts(true, false), Object.assign({}, me.peeperMap))
+                );
             })
-            .then(function(mapOfGalleryLinks) {
+            .then((mapOfGalleryLinks) => {
                 var p = Promise.resolve(true);
 
                 // make a simple chain of 
                 var id = 0;
                 var galleryCount = 0;
-                Object.values(mapOfGalleryLinks).forEach(function(uri) { 
+                Object.values(mapOfGalleryLinks).forEach((uri) => { 
                     if (!!uri && !!uri.trim()) {                   
-                        p = p.then(function() { 
+                        p = p.then(() => { 
                             return Utils.getXhrResponse('GET', uri, 'document')
-                            .then(function pushDoc(d) {
+                            .then((d) => {
+                                if (me.stop) { 
+                                    return Promise.reject(GCon.ACTION.STOP); 
+                                };
+
                                 console.log('[App] Executed load of gallery page ' + uri);
                                 me.output.toOut('Loading gallery page ' + uri);
+                                
                                 chrome.browserAction.setBadgeText({ text: '' + (++galleryCount) + '' });
-                                chrome.browserAction.setBadgeBackgroundColor({ color: '#4444ff' });
+                                chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.NEW_FOPTS);
 
-                                locDocs.push({
-                                    loc: new URL(uri),
-                                    doc: d,
-                                });
+                                locDocs.push(new LocDoc(new URL(uri), d));
+
                                 return Promise.resolve(true);
-                            }).catch(function(e) {
+                            }).catch((e) => {
                                 console.log('[App] Failed to load gallery doc ' + uri)
                                 console.log('      Error: ' + e);
+                                
                                 me.output.toOut('Failed to load gallery page ' + uri);
                                 galleryCount--;
 
@@ -560,33 +576,32 @@ class App {
 
                 return p;
             })
-            .then(function docsLoaded() {
+            .then(() => {
                 var p = Promise.resolve(true);
 
-                locDocs.forEach(function(lDoc) {
+                locDocs.forEach((lDoc) => {
+                    if (me.stop === true) { 
+                        p = Promise.reject(STOP); 
+                        return p; 
+                    };
+
                     console.log('[App] creating dig promise for ' + lDoc.loc.href);
                     me.output.toOut('Beginning dig for ' + lDoc.loc.href);
 
-                    p = p.then(function peepAroundForInitialMap() {
-                        return me.digger.digGallery({
-                            doc: lDoc.doc,
-                            loc: lDoc.loc,
-                            digOpts: { doScrape: true, doDig: false },
-                            galleryMap: {},
-                        })
-                        .then(function doDigging(scrapedMap) {
+                    p = p.then(() => {
+                        return me.digger.digGallery(
+                            new GalleryOptions(lDoc.doc, lDoc.loc, new DigOpts(true, false), {})
+                        )
+                        .then((scrapedMap) => {
                             console.log('[App] Received initial gallery map length: ' + Object.getOwnPropertyNames(scrapedMap).length + '');
                             console.log('[App] Applying post-processing to: ' + lDoc.loc.href);
                             var inst = Logicker.postProcessResponseData(scrapedMap, lDoc.loc.href);
 
-                            return me.digger.digGallery({
-                                doc: lDoc.doc,
-                                loc: lDoc.loc,
-                                digOpts: { doScrape: inst.doScrape, doDig: inst.doDig },
-                                galleryMap: Object.assign({}, inst.processedMap)
-                            });
+                            return me.digger.digGallery(
+                                new GalleryOptions(lDoc.doc, lDoc.loc, new DigOpts(inst.doScrape, inst.doDig), inst.processedMap)
+                            );
                         })
-                        .then(function receiveGalleryMap(gMap) {
+                        .then((gMap) => {
                             me.output.toOut('Received file list for ' + lDoc.loc.href);
                             console.log('[App] Received ' + Object.getOwnPropertyNames(gMap).length + '');
                             Object.assign(combinedMap, gMap);
@@ -598,7 +613,7 @@ class App {
 
                 return p;
             })
-            .then(function() {
+            .then(() => {
                 me.digger.redrawOutputFileOpts(combinedMap);
 
                 console.log('[App] Received combinedMap.');
@@ -607,16 +622,22 @@ class App {
                 return Promise.resolve(combinedMap); 
             })
             .then(me.presentFileOptions)
-            .catch(function handleError(errorMessage) {
-                me.output.toOut('There was an internal error. Please try refreshing the page.');
-                console.log(errorMessage);
-                return Promise.reject(errorMessage);
+            .catch((errorMessage) => {
+                if (errorMessage === GCon.ACTION.STOP) {
+                    console.log("[App] Stop was called.")
+                    me.presentFileOptions(me.galleryMap);
+                    return Promise.resolve(true);
+                }
+                else {
+                    me.output.toOut('There was an internal error. Please try refreshing the page.');
+                    console.log('[App]: ' + errorMessage);
+                    return Promise.reject(errorMessage);
+                }
             })
-            .finally(function setUriMapInStorage() {
-                chrome.storage.local.set({
-                        prevUriMap: me.galleryMap,
-                    },
-                    function storageSet() {
+            .finally(() => {
+                chrome.storage.local.set(
+                    Storing.storePrevUriMap(me.galleryMap),
+                    () => {
                         console.log('[App] Set prevUriMap in storage');
                         console.log('[App] --- harvest is of count -> ' + Object.keys(me.galleryMap).length + '------');
                     }
@@ -628,8 +649,24 @@ class App {
         );
     };
 
-}
 
-window['appClass'] = App;
+    /**
+     * Tell the scraper and the digger to stop harvesting immediately and just resolve with what
+     * they've already found.
+     */
+    stopHarvesting() {
+        this.stop = true;
+
+        if (!!this.scraper) {
+            this.scraper.stopHarvesting();
+        }
+
+        if (!!this.digger) {
+            this.digger.stopHarvesting();
+        }
+    };
+}
+window[GCon.WIN_PROP.APP_CLASS] = App;
 
 export default App;
+    
