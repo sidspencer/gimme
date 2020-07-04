@@ -8,7 +8,8 @@ module.exports = {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
         options: './options/Optionator.js',
-        popup: './popup/Popup.js'
+        popup: './popup/Popup.js',
+        lib: './lib/DataClasses.js'
     },
     output: {
         // WINDOWS: path: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
