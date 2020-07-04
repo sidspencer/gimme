@@ -68,6 +68,8 @@
 
   "web_accessible_resources": [
     "content/bundle.js",
+    "lib/GimmeConstants.js",
+    "lib/DataClasses.js",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js.map",
     "node_modules/@tensorflow/tfjs/dist/tf.esm.js.map",
