@@ -1,15 +1,5 @@
-'use strict'
-
-
-const ACTION_HOLDER_ID = 'actionHolder';
-const BUTTON_HOLDER_ID = 'buttonHolder';
-const MAIN_BUTTONS_HOLDER_ID = 'mainButtonsHolder';
-const SCRAPING_BUTTONS_HOLDER_ID = 'scrapingButtonsHolder';
-const DIGGING_BUTTONS_HOLDER_ID = 'diggingButtonsHolder';
-const FILES_DUG_ID = 'filesDug';
-const OUTPUT_ID = 'output';
-const GET_ALL_FILE_OPTS_ID = 'getAllFileOptsButton';
-const GET_ALL_JPG_OPTS_ID = 'getAllJpgOptsButton';
+import { default as GCon } from '../lib/GCon.js';
+import { FileEntry } from '../lib/DataClasses.js';
 
 
 /**
@@ -38,8 +28,8 @@ class Output {
         this.doc = dokken;
 
         try {
-            this.filesDug = this.doc.getElementById(FILES_DUG_ID);
-            this.out = this.doc.getElementById(OUTPUT_ID);
+            this.filesDug = this.doc.getElementById(GCon.POP_EL_ID.FILES_DUG_ID);
+            this.out = this.doc.getElementById(GCon.POP_EL_ID.OUTPUT_ID);
         }
         catch(err) {
             console.log('[Output] Could not get elements from doc, it is a Dead Object.');
@@ -52,7 +42,7 @@ class Output {
      */
     toOut(newContent) {
         try {
-            this.out = this.doc.getElementById(OUTPUT_ID);
+            this.out = this.doc.getElementById(GCon.POP_EL_ID.OUTPUT_ID);
             this.out.textContent = newContent;
         }
         catch(error) {
@@ -71,13 +61,14 @@ class Output {
         this.doc = dok;
         
         try {
-            this.filesDug = this.doc.getElementById(FILES_DUG_ID);
-            this.out = this.doc.getElementById(OUTPUT_ID);
+            this.filesDug = this.doc.getElementById(GCon.POP_EL_ID.FILES_DUG_ID);
+            this.out = this.doc.getElementById(GCon.POP_EL_ID.OUTPUT_ID);
         }
         catch(err) {
             console.log('[Output] Could not get elements from doc, it is a Dead Object.');
         }
     }
+
 
     /**
      * Enable the use of the half-baked features.
@@ -86,6 +77,7 @@ class Output {
     setEnableHalfBakedFeatures(enableThem) {
         this.enableHalfBakedFeatures = enableThem;
     }
+
 
     /**
      * Clear the filesDug <ul> of any child nodes.
@@ -125,7 +117,7 @@ class Output {
         var entry = undefined;
 
         try {
-            entry = this.doc.getElementById('fileEntry' + idx);
+            entry = this.doc.getElementById(GCon.POP_EL_ID.FILE_ENTRY_ID_PREFIX + idx);
         }
         catch(error) {
             console.log('[Output] Cannot set entry as downloading. doc reference is a Dead Object.');
@@ -133,7 +125,7 @@ class Output {
         }
         
         if (entry) { 
-            entry.className = 'downloading';
+            entry.className = GCon.FE_STATE.DOWNLOADING;
         }
     };
 
@@ -145,7 +137,7 @@ class Output {
         var fEntry = undefined;
         
         try {
-            fEntry = this.doc.getElementById('fileEntry' + id);
+            fEntry = this.doc.getElementById(GCon.POP_EL_ID.FILE_ENTRY_ID_PREFIX + id);
         }
         catch(error) {
             console.log('[Output] Cannot change file entry state. doc ref is a Dead Object.');
@@ -165,7 +157,7 @@ class Output {
      */
     setEntryAsDug(id, entry) {
         this.dugUris.push(id+'');
-        this.setEntryToState(id, entry, 'dug');
+        this.setEntryToState(id, entry, GCon.FE_STATE.DUG);
     };
 
 
@@ -174,7 +166,7 @@ class Output {
      */
     setEntryAsFailed(id, entry) {
         this.failedUris.push(id+'');        
-        this.setEntryToState(id, entry, 'failed');
+        this.setEntryToState(id, entry, GCon.FE_STATE.FAILED);
     };
 
 
@@ -201,17 +193,14 @@ class Output {
                 }
 
                 var newContent = this.doc.createTextNode(uri);
-                newLi.id = 'fileEntry' + id;
-                newLi.className = 'found';
+                newLi.id = GCon.POP_EL_ID.FILE_ENTRY_ID_PREFIX + id;
+                newLi.className = GCon.FE_STATE.FOUND;
                 newLi.dataset.initialUri = uri;
                 newLi.appendChild(newContent);
                 
                 this.filesDug.appendChild(newLi);
 
-                resolve({ 
-                    id: id+'', 
-                    uri: uri, 
-                });
+                resolve(new FileEntry(id+'', uri));
             }, 1);
         });
     };
@@ -224,7 +213,7 @@ class Output {
         var fileLi = undefined;
         
         try {
-            fileLi = this.doc.querySelector('#fileEntry' + id);
+            fileLi = this.doc.querySelector(`#${GCon.POP_EL_ID.FILE_ENTRY_ID_PREFIX + id}`);
         }
         catch(error) {
             console.log('[Output] Could not delete entry. doc reference is a Dead Object.');
@@ -254,7 +243,7 @@ class Output {
         
         
         checkbox.type = 'checkbox';
-        checkbox.name = 'cbFile' + fileOpt.id;
+        checkbox.name = GCon.POP_EL_ID.CB_ID_PREFIX + fileOpt.id;
         checkbox.id = checkbox.name;
         checkbox.value = fileOpt.uri;
         checkbox.dataset.filePath = fileOpt.filePath;
@@ -280,7 +269,7 @@ class Output {
         newLi.appendChild(checkbox);
         newLi.appendChild(thumbHolder);
         newLi.appendChild(nameLabel);
-        newLi.id = 'fileEntry' + fileOpt.id;
+        newLi.id = GCon.POP_EL_ID.FILE_ENTRY_ID_PREFIX + fileOpt.id;
         newLi.className = 'opt';
         
         this.filesDug.appendChild(newLi);
@@ -321,7 +310,7 @@ class Output {
      */
     hideDigScrapeButtons() {
         try {
-            this.doc.getElementById(BUTTON_HOLDER_ID).style.display = 'none';
+            this.doc.getElementById(GCon.POP_EL_ID.BUTTON_HOLDER_ID).style.display = 'none';
         }
         catch(error) {
             console.log('[Output] Could not hide dig/scrape buttons. doc ref is a Dead Object.');
@@ -334,7 +323,7 @@ class Output {
      */
     hideActionButtons() {
         try {
-            this.doc.getElementById(ACTION_HOLDER_ID).style.display = 'none';       
+            this.doc.getElementById(GCon.POP_EL_ID.ACTION_HOLDER_ID).style.display = 'none';       
         }
         catch(error) {
             console.log('[Output] Could not hide action buttons. doc ref is a Dead Object.');
@@ -347,14 +336,15 @@ class Output {
      */
     showDigScrapeButtons() {
         this.hideActionButtons();
+        this.hideStopButton();
 
         try {
-            this.doc.getElementById(BUTTON_HOLDER_ID).style.display = 'block';
-            this.doc.getElementById(MAIN_BUTTONS_HOLDER_ID).style.display = 'block';
+            this.doc.getElementById(GCon.POP_EL_ID.BUTTON_HOLDER_ID).style.display = 'block';
+            this.doc.getElementById(GCon.POP_EL_ID.MAIN_BUTTONS_HOLDER_ID).style.display = 'block';
 
             if (this.enableHalfBakedFeatures) {
-                this.doc.getElementById(DIGGING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
-                this.doc.getElementById(SCRAPING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
+                this.doc.getElementById(GCon.POP_EL_ID.DIGGING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
+                this.doc.getElementById(GCon.POP_EL_ID.SCRAPING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
             }
         }
         catch(error) {
@@ -368,13 +358,43 @@ class Output {
      */
     showActionButtons() {
         this.hideDigScrapeButtons();
+        this.hideStopButton();
 
         try {
-            this.doc.getElementById(ACTION_HOLDER_ID).style.display = 'block';
-            this.doc.getElementById(GET_ALL_JPG_OPTS_ID).focus();
+            this.doc.getElementById(GCon.POP_EL_ID.ACTION_HOLDER_ID).style.display = 'block';
+            this.doc.getElementById(GCon.POP_EL_ID.GET_ALL_JPG_OPTS_ID).focus();
         }
         catch(error) {
             console.log('[Output] Could not show action buttons. doc ref is a Dead Object.');
+        }
+    };
+
+
+    /**
+     * Show the stop button. It is shown when the scrape/dig is in progress.
+     */
+    showStopButton() {
+        this.hideDigScrapeButtons();
+        this.hideActionButtons();
+
+        try {
+            this.doc.getElementById(GCon.POP_EL_ID.STOP_BUTTON_HOLDER_ID).style.display = 'block';
+        }
+        catch(error) {
+            console.log('[Output] Could not show stop button. doc ref is a Dead Object.')
+        }
+    };
+
+
+    /**
+     * Hide the stop button.
+     */
+    hideStopButton() {
+        try {
+            this.doc.getElementById(GCon.POP_EL_ID.STOP_BUTTON_HOLDER_ID).style.display = 'none';
+        }
+        catch(error) {
+            console.log('[Output] Could not hide stop button. doc ref is a Dead Object.')
         }
     };
 
@@ -439,6 +459,6 @@ class Output {
     }
 }
 
-window['theOutput'] = new Output(window.document);
+window[GCon.WIN_PROP.OUTPUT_INST] = new Output(window.document);
 
 export default Output;
