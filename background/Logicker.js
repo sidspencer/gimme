@@ -5,6 +5,9 @@ import { default as GCon } from '../lib/GCon.js';
 import {
     ContentMessage,
     ProcessingInstructions,
+    UriPair,
+    ScoredUriPair,
+    Dimensions
 } from '../lib/DataClasses.js';
 
 
@@ -366,24 +369,17 @@ class Logicker {
                 var imgs = doc.querySelectorAll('img');
                 var imgPromises = [];
                 var largestImgSrc = undefined;
-                var largestDims = { 
-                    height: Logicker.MinZoomHeight, 
-                    width: Logicker.MinZoomWidth
-                };
+                var largestDims = new Dimensions(Logicker.MinZoomHeight, Logicker.MinZoomWidth);
 
                 // Check every image for similarities.
                 //console.log(`[Logicker] Checking ${imgs.length} images for TF similarity to the test image.`);
                 imgs.forEach((img) => {                
                     var imgSrc = img.src;
-                    var originalDims = {
-                        height: (!!this.naturalHeight ? this.naturalHeight : this.height),
-                        width: (!!this.naturalWidth ? this.naturalWidth : this.width),
-                    }
-                    var zeroResponse = {
-                        thumbUri: thumbUri,
-                        zoomUri: (new URL(imgSrc)).href,
-                        score: 0,
-                    };
+                    var originalDims = new Dimensions(
+                        (!!this.naturalHeight ? this.naturalHeight : this.height),
+                        (!!this.naturalWidth ? this.naturalWidth : this.width)
+                    );
+                    var zeroResponse = new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, 0);
 
                     // Load all the images in the document, wrapping their onload/onerror in promises. Score them.
                     imgPromises.push(
@@ -449,11 +445,7 @@ class Logicker {
                                     var score = classAgreements.length / totalClassesCount;
                                     console.log(`[Logicker] candidate ${imgSrc} has a match score to ${thumbUri} of: ${score}`);
 
-                                    resolve({
-                                        thumbUri: thumbUri,
-                                        zoomUri: (new URL(imgSrc)).href,
-                                        score: score,
-                                    });
+                                    resolve(new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, score));
                                 });
                             };
 
@@ -474,12 +466,8 @@ class Logicker {
 
                 // Go through the img scores and pick the best one.
                 Promise.all(imgPromises).then((imgScores) => {
-                    var topImgScoreObj = { 
-                        thumbUri: thumbUri,
-                        zoomUri: '',
-                        score: 0,
-                    };
-
+                    var topImgScoreObj = new ScoredUriPair(thumbUri, '', 0);
+                    
                     imgScores.forEach((s) => {
                         if (s.score > topImgScoreObj.score) {
                             topImgScoreObj = s;
@@ -511,11 +499,8 @@ class Logicker {
     static getPairWithLargestImage(thumbUri, doc) {
         let p = new Promise((resolve, reject) => {
             var largestImgSrc = false;
-            var largestDims = {
-                height: 0,
-                width: 0,
-            };
-
+            var largestDims = new Dimensions(0, 0);
+ 
             if (!!doc && !!doc.querySelectorAll) {                
                 // Get all the imageNodes from the doc we are to search.
                 //
@@ -540,10 +525,10 @@ class Logicker {
 
                         // Skip the image if the filename is known to not ever be a real zoom-image.
                         if (!Logicker.isKnownBadImg(this.src)) {
-                            var dims = {
-                                height: (!!this.height ? this.height : this.naturalHeight),
-                                width: (!!this.width ? this.width : this.naturalWidth)
-                            };
+                            var dims = new Dimensions(
+                                (!!this.height ? this.height : this.naturalHeight),
+                                (!!this.width ? this.width : this.naturalWidth)
+                            );
 
                             // Skip the image if it is not big enough.
                             if (Logicker.isZoomSized(dims)) {
@@ -557,10 +542,7 @@ class Logicker {
                         // If we've reached the last image, call the callback.
                         if (imgsToCheck === 0) {
                             if (!!largestImgSrc) {
-                                resolve({
-                                    thumbUri: thumbUri,
-                                    zoomUri: (new URL(largestImgSrc)).href,
-                                });                            
+                                resolve(new UriPair(thumbUri, (new URL(largestImgSrc)).href));
                             }
                             else {
                                 reject('[Logicker] Could not find largest image');
@@ -576,10 +558,7 @@ class Logicker {
                         // If we've reached the last image, call the callback.
                         if (imgsToCheck === 0) {
                             if (!!largestImgSrc) {
-                                resolve({
-                                    thumbUri: thumbUri,
-                                    zoomUri: (new URL(largestImgSrc)).href,
-                                });
+                                resolve(new UriPair(thumbUri, (new URL(largestImgSrc)).href));
                             }
                             else {
                                 reject('[Logicker] Could not find URL of largest image.');
