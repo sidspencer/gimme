@@ -1,15 +1,11 @@
 import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm';
 import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
 import { default as Utils } from './Utils.js';
-
-
-// Constants used by Logicker.
-const IMAGE_SIZE = 224;
-const CLASSIFICATIONS = 20;
-const PRED_CUTOFF = 0.2;
-const URL_EXTRACTING_REGEX = /(url\()?('|")?(https?|data|blob|file)\:.+?\)?('|")?\)?/i;
-const MIN_ZOOM_HEIGHT = 250;
-const MIN_ZOOM_WIDTH = 250;
+import { default as GCon } from '../lib/GCon.js';
+import {
+    ContentMessage,
+    ProcessingInstructions,
+} from '../lib/DataClasses.js';
 
 
 /**
@@ -24,8 +20,12 @@ class Logicker {
     static processings = [];
     static blessings = [];
     static mnModel = undefined;
-    static MinZoomHeight = MIN_ZOOM_HEIGHT;
-    static MinZoomWidth = MIN_ZOOM_WIDTH;
+    static loadingModel = false;
+    static modelLoadPromiseChain = Promise.resolve(true);
+
+    // Configurable options.
+    static MinZoomHeight = GCon.LOGICK_CONF.MIN_ZOOM_HEIGHT;
+    static MinZoomWidth = GCon.LOGICK_CONF.MIN_ZOOM_WIDTH;
 
     /**
      * Methods for setting the preferences options on the Logicker.
@@ -65,26 +65,47 @@ class Logicker {
      * Returns a promise resolving to our copy of this model.
      */
     static loadModel() {
-        return new Promise(async (resolve, reject) => {
+        return new Promise((resolve, reject) => {
             if (!!Logicker.mnModel) {
+                // If it's already loaded, resolve with it.
                 console.log('[Logicker] returning cached copy of model.');
                 resolve(Logicker.mnModel);
             }
+            else if (Logicker.loadingModel === true) {
+                console.log('[Logicker] Model is loading. We will wait a the end of the promise chain.');
+                
+                // If it's still loading, we chain onto the promise. This way we do not double-load,
+                // and we continue execution once it's been loaded by the first caller.
+                Logicker.modelLoadPromiseChain.then(() => {
+                    if (!!Logicker.mnModel) {
+                        resolve(Logicker.mnModel);
+                    }
+                    else {
+                        reject('Mobilenet model came back null.')
+                    }                   
+                });
+            }
             else {
+                Logicker.loadingModel = true;
                 console.log('[Logicker] Loading model...');
                 const startTime = performance.now();
 
-                Logicker.mnModel = await mobilenet.load();
+                Logicker.modelLoadPromiseChain = Logicker.modelLoadPromiseChain.then(() => { 
+                    return mobilenet.load().then((mnModel) => {
+                        Logicker.mnModel = mnModel;
+                        Logicker.loadingModel = false;
 
-                if (!!Logicker.mnModel) {
-                    resolve(Logicker.mnModel);
-                }
-                else {
-                    reject('Mobilenet model came back null.')
-                }   
+                        if (!!Logicker.mnModel) {
+                            resolve(Logicker.mnModel);
+                        }
+                        else {
+                            reject('Mobilenet model came back null.')
+                        }   
 
-                const totalTime = Math.floor(performance.now() - startTime);
-                console.log(`[Logicker] Model loaded and initialized in ${totalTime}ms...`);
+                        const totalTime = Math.floor(performance.now() - startTime);
+                        console.log(`[Logicker] Model loaded and initialized in ${totalTime}ms...`);
+                    });
+                });
             }             
         });
     };
@@ -94,27 +115,25 @@ class Logicker {
      * Using the TF Mobilenet model, get a classification vector for the image.
      */
     static classifyImage(imgElement) {
-        let p = new Promise(async (resolve, reject) => {
+        let p = new Promise((resolve, reject) => {
             var originalHeight = imgElement.height;
             var originalWidth = imgElement.width;
     
-            imgElement.height = IMAGE_SIZE;
-            imgElement.width = IMAGE_SIZE;
+            imgElement.height = GCon.LOGICK_CONF.IMAGE_SIZE;
+            imgElement.width = GCon.LOGICK_CONF.IMAGE_SIZE;
 
-            let imgClassifications = await Logicker.mnModel.classify(imgElement, CLASSIFICATIONS);
+            Logicker.mnModel.classify(imgElement, GCon.LOGICK_CONF.CLASSIFICATIONS).then((imgClassifications) => {
+                imgElement.height = originalHeight;
+                imgElement.width = originalWidth;
 
-            imgElement.height = originalHeight;
-            imgElement.width = originalWidth;
-
-            if (Array.isArray(imgClassifications)) {
-                // imgClassifications.forEach((pred, idx) => {
-                //     console.log(`** Classification ${idx} -- class name: "${pred.className}", probability: "${pred.probability}"`);
-                // });
-                resolve(imgClassifications);  
-            }
-            else {
-                reject('[Logicker] Classifications came back null');
-            }
+                if (Array.isArray(imgClassifications)) {
+                    console.log('[Logicker] mnModel.classify found these: ' + JSON.stringify(imgClassifications));
+                    resolve(imgClassifications);  
+                }
+                else {
+                    reject('[Logicker] Classifications came back null');
+                }
+            });
         });
 
         return p;
@@ -213,12 +232,12 @@ class Logicker {
         }
 
         // Pick out the basic filenames of the src and dest. No file extensions.
-        var sname = thumbUrl.pathnaLogicker.replace(/\/$/, '')
-            .substring(thumbUrl.pathnaLogicker.lastIndexOf('/') + 1)
-            .substring(0, thumbUrl.pathnaLogicker.lastIndexOf('.'));
-        var zname = zoomUrl.pathnaLogicker.replace(/\/$/, '')
-            .substring(zoomUrl.pathnaLogicker.lastIndexOf('/') + 1)
-            .substring(0, zoomUrl.pathnaLogicker.lastIndexOf('.'));
+        var sname = thumbUrl.path.replace(/\/$/, '')
+            .substring(thumbUrl.pathname.lastIndexOf('/') + 1)
+            .substring(0, thumbUrl.pathname.lastIndexOf('.'));
+        var zname = zoomUrl.pathname.replace(/\/$/, '')
+            .substring(zoomUrl.pathname.lastIndexOf('/') + 1)
+            .substring(0, zoomUrl.pathname.lastIndexOf('.'));
         
         var sval = '';
         var zval = '';
@@ -265,8 +284,8 @@ class Logicker {
         var normThumbUri = getRootForName(thumbUrl.href.substring(0, thumbUrl.href.indexOf('?') - 1));
         var normZoomUri = getRootForName(thumbUrl.href.substring(0, thumbUrl.href.indexOf('?') - 1));
 
-        // Now get all the path parts of the pathnaLogicker. we'll check for them individually.
-        var sparts = [].concat(thumbUrl.pathnaLogicker.split('/'));
+        // Now get all the path parts of the pathname. we'll check for them individually.
+        var sparts = [].concat(thumbUrl.pathname.split('/'));
         var maybes = [];
 
         // For all the parts of the root filename, look through all the parts of the root test filename,
@@ -369,10 +388,13 @@ class Logicker {
                     // Load all the images in the document, wrapping their onload/onerror in promises. Score them.
                     imgPromises.push(
                         new Promise((resolve, reject) => {
-                            let testImg = new Image(IMAGE_SIZE, IMAGE_SIZE);
+                            let testImg = new Image(
+                                GCon.LOGICK_CONF.IMAGE_SIZE, 
+                                GCon.LOGICK_CONF.IMAGE_SIZE
+                            );
 
                             // Must use the "function" keyword so "this" points to the image.
-                            testImg.onload = async function onload() {
+                            testImg.onload = function onload() {
                                 //console.log('[Logicker] Loaded document image for TF scoring: ' + imgSrc);
 
                                 if (Logicker.isKnownBadImg(this.src)) {
@@ -397,44 +419,54 @@ class Logicker {
                                 }
 
                                 // Do the scoring.
-                                let classifications = await Logicker.classifyImage(this);
-
-                                if (!Array.isArray(classifications)) {
-                                    console.log(`[Logicker] got no classifications for img ${imgSrc}`);
-                                    resolve(zeroResponse);
-                                    return;
-                                }
-                                
-                                //console.log(`[Logicker] got classifications for img ${imgSrc}`);
-
-                                var classAgreements = [];
-                                var totalClassesCount = classifications.length;
-                
-                                // For each of the class-match classifications, see how they compare to the thumbnail's classifications.
-                                classifications.forEach((cls) => {
-                                    if (thumbClassifications.indexOf(cls.className) != -1) {
-                                        if (Math.abs(cls.probability - thumbClassifications.probability) < PRED_CUTOFF) {
-                                            classAgreements.push(cls.className);
-                                        } 
+                                Logicker.classifyImage(this).then((classifications) => {
+                                    if (!Array.isArray(classifications)) {
+                                        console.log(`[Logicker] got no classifications for img ${imgSrc}`);
+                                        resolve(zeroResponse);
+                                        return;
                                     }
-                                });
+                                    else {
+                                        console.log(`[Logicker] got classifications for img ${imgSrc}: ${JSON.stringify(classifications)}`);
+                                    }
+                                    
+                                    //console.log(`[Logicker] got classifications for img ${imgSrc}`);
 
-                                // Create a simple percentage score of the class matches. Resolve with the same object structure
-                                // that getPairWithLargestImage() does.
-                                var score = classAgreements.length / totalClassesCount;
-                                console.log(`[Logicker] cantidate ${imgSrc} has a match score to ${thumbUri} of: ${score}`);
+                                    var classAgreements = [];
+                                    var totalClassesCount = classifications.length;
+                    
+                                    // For each of the class-match classifications, see how they compare to the thumbnail's classifications.
+                                    // As the classifications are just arrays of objects of the form {className: '', propability: 0}, we must
+                                    // iterate in a nested loop. :(
+                                    classifications.forEach((cls) => {
+                                        thumbClassifications.forEach((tCls) => {
+                                            if (tCls.className.indexOf(cls.className) != -1) {
+                                                if (Math.abs(cls.probability - tCls.probability) < GCon.LOGICK_CONF.SCORE_CUTOFF) {
+                                                    classAgreements.push(cls.className);
+                                                } 
+                                            }
+                                        });
+                                    });
 
-                                resolve({
-                                    thumbUri: thumbUri,
-                                    zoomUri: (new URL(imgSrc)).href,
-                                    score: score,
+                                    // Create a simple percentage score of the class matches. Resolve with the same object structure
+                                    // that getPairWithLargestImage() does.
+                                    var score = classAgreements.length / totalClassesCount;
+                                    console.log(`[Logicker] candidate ${imgSrc} has a match score to ${thumbUri} of: ${score}`);
+
+                                    resolve({
+                                        thumbUri: thumbUri,
+                                        zoomUri: (new URL(imgSrc)).href,
+                                        score: score,
+                                    });
                                 });
                             };
 
                             // On error, still resolve. (Waiting on support for Promise.allSettled()).
                             // Must use the "function" keyword so "this" points to the image.
-                            testImg.onerror = function onerror() {
-                                console.log('[Logicker] Error loading image for TF classifying. Resolving with score of 0.');
+                            testImg.onerror = function onerror(evt) {
+                                console.log(
+                                    '[Logicker] Error loading image for TF classifying. Resolving with score of 0.' +
+                                    '           Event for onerror was: ' + JSON.stringify(evt)
+                                );
                                 resolve(zeroResponse);
                             };
 
@@ -459,13 +491,11 @@ class Logicker {
                             if (s.zoomUri.indexOf(largestImgSrc) !== -1) {
                                 topImgScoreObj = s;
                             }
-                            else {
-                                // Keep the existing topImgScoreObj
-                            }
+                            // else, keep the current top scoring image.
                         }
                     });
 
-                    console.log(`[Logicker] TF Mobilenet's most likely match ->\n -Score: ${topImgScoreObj.score}, Uri: ${topImgScoreObj.zoomImgUri}`);
+                    console.log(`[Logicker] TF Mobilenet's most likely match ->\n -Score: ${topImgScoreObj.score}, Uri: ${topImgScoreObj.zoomUri}`);
                     topLevelResolve(topImgScoreObj);
                 });
             });
@@ -483,14 +513,13 @@ class Logicker {
      */
     static getPairWithLargestImage(thumbUri, doc) {
         let p = new Promise((resolve, reject) => {
-            var largestImg = false;
             var largestImgSrc = false;
             var largestDims = {
                 height: 0,
                 width: 0,
             };
 
-            if (doc && doc.querySelectorAll) {                
+            if (!!doc && !!doc.querySelectorAll) {                
                 // Get all the imageNodes from the doc we are to search.
                 //
                 // NOTE: Since it is not a *rendered* document, just one returned from the XHR, there are no client rects.
@@ -582,14 +611,7 @@ class Logicker {
      * I have found easy selector/prop pairs to get the URIs by. 
      */
     static getMessageDescriptorForUrl(url) {
-        var d = {
-            command: 'peepAround',
-            linkSelector: 'a[href]',
-            linkHrefProp: 'href',
-            thumbSubselector: ':scope img',
-            thumbSrcProp: 'src',
-            useRawValues: false,
-        };
+        var d = new ContentMessage();
 
         // Force popup-side dom processing.
         if (!url || !url.match) {
@@ -611,7 +633,11 @@ class Logicker {
                 d.linkHrefProp = m.href;
 
                 // Note, :scope the subselector.
-                d.thumbSubselector = (m.thumb.indexOf(':scope') === -1 ? ':scope ' + m.thumb : m.thumb);
+                d.thumbSubselector = (
+                    m.thumb.indexOf(GCon.SEL_PROP.SCOPE) === -1 ? 
+                    `${GCon.SEL_PROP.SCOPE} ${m.thumb}` : 
+                    m.thumb
+                );
                 d.thumbSrcProp = m.src;
             }
         }
@@ -626,11 +652,7 @@ class Logicker {
      * enough that you can just call the downloader in App directly. 
      */
     static postProcessResponseData(galleryMap, pageUri) {
-        var instructions = {
-            doScrape: true,
-            doDig: true,
-            processedMap: null,
-        };
+        var instructions = new ProcessingInstructions(true, true, null);
         var thumbUris = Object.getOwnPropertyNames(galleryMap);
         var newGalleryMap = null;
 
@@ -779,18 +801,20 @@ class Logicker {
         var pathParts = propPath.split('.');
         var iterator = tag;
         var lastIterator = undefined;
-        for(var i = 0; (!!iterator && iterator !== null && typeof iterator !== 'undefined') && i < pathParts.length; i++) {
+        for(var i = 0; (!!iterator && i < pathParts.length); i++) {
             if (!!iterator && iterator !== null) {
                 lastIterator = iterator;
                 iterator = iterator[pathParts[i]];
             }
         }
-        var value = iterator;
-        if (!value) { return ''; };
 
-        var lastPart = pathParts[pathParts.length-1];
+        var value = iterator;
+        if (!value) { 
+            return ''; 
+        };
 
         // Special processing for srcset props.
+        var lastPart = pathParts[pathParts.length-1];
         if (lastPart === 'srcset') {
             value = value.split(',')[0].split(' ')[0];
         }
@@ -827,11 +851,11 @@ class Logicker {
             if (value.match('chrome-extension://' + chrome.runtime.id + '/background/')) {
                 value = value.replace(
                     'chrome-extension://' + chrome.runtime.id + '/background/', 
-                    loc.origin + loc.pathnaLogicker.substring(0, loc.pathnaLogicker.lastIndexOf('/')+1)
+                    loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf('/')+1)
                 ); 
             }
             else if (value.match('chrome-extension://' + chrome.runtime.id + '/') && dotdotCount > 0) {
-                var trimmedPath = loc.pathnaLogicker.substring(0, loc.pathnaLogicker.lastIndexOf('/'));
+                var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf('/'));
                 for (var d = 0; d < dotdotCount; d++) {
                     trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf('/'));
                 }
@@ -853,6 +877,6 @@ class Logicker {
     };
 }
 
-window['theLogicker'] = Logicker;
+window[GCon.WIN_PROP.LOGICKER_ST] = Logicker;
 
 export default Logicker;
