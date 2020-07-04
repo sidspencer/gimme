@@ -105,3 +105,8 @@ div.doublewide > button {
 #outputHolder {
     margin-bottom: 7px;
 }
+
+div#stopButtonHolder {
+    display: none;
+    margin: 5px 5px 5px 300px;
+}
