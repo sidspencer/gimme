@@ -1,11 +1,9 @@
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
+import { default as GCon } from '../lib/GCon.js';
+import { ScrapeDefinition } from '../lib/DataClasses.js';
 
- 
-// constants used by Scraper
-const DEFAULT_ALL_JS_SELECTOR = ':scope *[onclick],*[onmouseover],*[onmouseout],*[onmouseenter],*[onchange],*[href^="javascript:"],script';    
-const BLANK_LOC = new URL('http://localhost/');
 
 /**
  * Factory function for the Scraper for Gimme. It holds all the
@@ -15,10 +13,11 @@ class Scraper {
     // Configuration needed to scrape.
     config = {
         opts: {},
-        loc: BLANK_LOC,
+        loc: GCon.BLANK_VAL.LOC,
         node: undefined,
     };
     output = {};
+    stop = false;
 
 
     /**
@@ -27,8 +26,8 @@ class Scraper {
      * 
      * @param {Output} anOutput 
      */
-    constructor(anOutput) {
-        this.output = anOutput;
+    constructor() {
+        this.output = window[GCon.WIN_PROP.OUTPUT_INST];
     }
 
 
@@ -36,10 +35,10 @@ class Scraper {
      * Collect all the values of the property "paths" given of all the tags of a given kind on
      * the page.
      */
-    getElementUrls(inputSpec) {
+    static getElementUrls(inputSpec) {
         var tagUrls = [];
         var defaultSpec = {
-            loc: BLANK_LOC,
+            loc: GCon.BLANK_VAL.LOC,
             selector: '*',
             propPaths: [ 'currentSrc', 'href' ]
         };
@@ -68,7 +67,7 @@ class Scraper {
         });
 
         return tagUrls;
-    };
+    }
 
 
     /**
@@ -97,7 +96,7 @@ class Scraper {
                     var bgSrc = bgVal.replace(/^url\(/, '').replace(/\)$/, '').replace(/\'/g, '').replace(/\"/g, '');                
 
                     if (Utils.exists(bgSrc)) {
-                        var cleansedUrl = Utils.srcToUrl(bgSrc, (loc || BLANK_LOC));
+                        var cleansedUrl = Utils.srcToUrl(bgSrc, (loc || GCon.BLANK_VAL.LOC));
                         
                         // Add to the list if an OK url.
                         if (Utils.exists(cleansedUrl)) {
@@ -148,8 +147,8 @@ class Scraper {
                     }
 
                     // Only grab video srcs. turn the src into a uri, push it if it worked.
-                    if (vidSrc && vidSrc.match(/\.(mpg|mp4|mov|avi|wmv|flv)/i)) {
-                        var cleansedUrl = Utils.srcToUrl(vidSrc, (loc || BLANK_LOC));
+                    if (vidSrc && vidSrc.match(GCon.RECOG_RGX.VIDEO)) {
+                        var cleansedUrl = Utils.srcToUrl(vidSrc, (loc || GCon.BLANK_VAL.LOC));
 
                         if (Utils.exists(cleansedUrl)) {
                             urlList.push(cleansedUrl);
@@ -172,7 +171,7 @@ class Scraper {
             return [];
         }
 
-        selector = (Utils.exists(selector) ? selector : DEFAULT_ALL_JS_SELECTOR);
+        selector = (Utils.exists(selector) ? selector : GCon.DEF_SEL.ALL_JS_SELECTOR);
 
         var urlList = [];
 
@@ -222,7 +221,7 @@ class Scraper {
             // Grab all the srcs/urls we can find in the big concatenated javascript string.
             if (js) {
                 // Find all the matches that we can for things looking like media files.
-                var possibleMatches = js.match(/(\'|\").+?\.(jpg|png|gif|mp4|flv|wmv|webm|mov)\.[\?].+?(\'|\")/g) || [];
+                var possibleMatches = js.match(GCon.RECOG_RGX.ALL_MEDIA) || [];
 
                 possibleMatches.forEach(function extractUriFromMatch(match) {
                     if (Utils.exists(match) && (typeof match === 'string')) {
@@ -274,13 +273,15 @@ class Scraper {
             return [];
         }
 
-        var audioUrls = this.getElementUrls({
-            root: node,
-            loc: loc,
-            selector: ':scope audio[src],audio>source[src],param[value],a[href]',
-            propPaths: [ 'currentSrc', 'value' ]
-        });
-
+        var audioUrls = Scraper.getElementUrls(
+            new ScrapeDefinition(
+                node, 
+                loc, 
+                ':scope audio[src],audio>source[src],param[value],a[href]', 
+                [ 'currentSrc', 'value']
+            )
+        );
+    
         var cleanAudioUrls = [];
 
         // Make URL objects for all the audio srcs, to get the pathing right.
@@ -306,12 +307,9 @@ class Scraper {
             return [];
         }
 
-        return this.getElementUrls({
-            root: node,
-            loc: loc,
-            selector: ':scope img',
-            propPaths: ['dataset.src', 'src']
-        });    
+        return Scraper.getElementUrls(
+            new ScrapeDefinition(node, loc, ':scope img', ['dataset.src', 'src'])
+        );    
     };
 
 
@@ -444,37 +442,41 @@ class Scraper {
 
         console.log('[Scraper] options: ' + JSON.stringify(this.config.opts));
 
-        if (this.config.opts.imgs) {
+        if (this.config.opts.imgs && this.stop !== true) {
             this.output.toOut('Scraping all images.')
             imgUris = this.scrapeAllImgUris(this.config.node, this.config.loc);   
         }
 
-        if (this.config.opts.cssBgs) {
+        if (this.config.opts.cssBgs && this.stop !== true) {
             this.output.toOut('Scraping all CSS background-images.')            
             cssBgUris = this.scrapeAllCssBgUris(this.config.node, this.config.loc);
         }
 
-        if (this.config.opts.js) {
+        if (this.config.opts.js && this.stop !== true) {
             this.output.toOut('Scraping all javascript.')            
             jsUris = this.scrapeAllJsUris(this.config.node, this.config.loc, null);
         }
         
-        if (this.config.opts.videos) {
+        if (this.config.opts.videos && this.stop !== true) {
             this.output.toOut('Scraping all Videos.')            
             videoUris = this.scrapeAllVideoUris(this.config.node, this.config.loc);
         }
 
-        if (this.config.opts.audios) {
+        if (this.config.opts.audios && this.stop !== true) {
             this.output.toOut('Scraping all Audio.')            
             audioUris = this.scrapeAllAudioUris(this.config.node, this.config.loc);
         }
 
-        if (this.config.opts.qs && (!!this.config.loc || !!node.location)) {
+        if (this.config.opts.qs && (!!this.config.loc || !!node.location) && this.stop !== true) {
             this.output.toOut('Scraping the Querystring.')            
             qsUris = this.scrapeAllQsUris(this.config.node, (this.config.loc || this.config.node.location));
         }
         else {
             console.log('[Scraper] skipping qs scrape. No location information.')
+        }
+
+        if (this.stop === true) {
+            console.log('[Scraper] Stop was called. Returning what has been scraped thus far.');
         }
 
         console.log('[Scraper] Found imgUris: ' + JSON.stringify(imgUris));
@@ -503,7 +505,7 @@ class Scraper {
 
         console.log('[Scraper] harvested map of length: ' + harvestedUris.length);
         chrome.browserAction.setBadgeText({ text: '' + harvestedUris.length + '' });
-        chrome.browserAction.setBadgeBackgroundColor({ color: '#9999FF' });
+        chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.SCRAPED);
         
         return (new Promise(function(resolve, reject) {
             chrome.storage.local.set({
@@ -516,8 +518,17 @@ class Scraper {
             );
         }));
     };
+
+    
+    /**
+     * Set the stop flag, preventing any new types of scraping from happening.
+     * The Scraper will just return what it's already harvested.
+     */
+    stopHarvesting() {
+        this.stop = true;
+    };
 }
 
-window['scraperClass'] = Scraper;
+window[GCon.WIN_PROP.SCRAPER_CLASS] = Scraper;
 
 export default Scraper;
