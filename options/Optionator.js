@@ -1,123 +1,5 @@
-'use strict'
-
-
-/**
- * Const generic object for holding the shared constants. 
- */
-const Constance = {
-     // Enumeration of the spec form sections.
-    SECTIONS: {
-        CONFIG: 'CONFIG',
-        MESSAGES: 'MESSAGES',
-        PROCESSINGS: 'PROCESSINGS',
-        BLESSINGS: 'BLESSINGS',
-    },
-
-    // Enumeration of the labels to use for the spec form elements.
-    LABELS: {
-        CONFIG: {
-            minZoomWidth: 'min full-sized image width',
-            minZoomHeight: 'minimum full-sized image height',
-            dlChannels: 'number of download channels for gallery-gallery-digs',
-            dlBatchSize: 'number of downloads in a batch for gallery-gallery-digs',
-            knownBadImgRegex: 'regex to match image uris that are never what we are looking for',
-            enableHalfBakedFeatures: 'enable all the half-baked features with a "3.14159" in this box', 
-        },
-        MESSAGES: {
-            match: 'regex to match the site uri',
-            link: 'css selector for getting the link element pointing to the full-sized image page',
-            href: 'javascript property path for getting the proper link uri from the link element',
-            thumb: 'css scoped sub-selector of the thumbnail image element relative to the link element',
-            src: 'javascript property path for getting the proper thumbnail source uri from the thumbnail element',
-        },
-        PROCESSINGS: {
-            match: 'regex to match the site uri',
-            actions: 'list of transformations to do on the matched uri',
-            actions_noun: 'do matching on the thumbnail image uri (src), or the link uri (href)',
-            actions_verb: 'the type of uri treansformation to do (ie "replace")',
-            actions_match: 'regex for what text in the selected src/href to replace/transform',
-            actions_new: 'new text for replacing/transforming the matched text of the uri',
-            dig: 'force always use dig-engine discovery of full-sized images',
-            scrape: 'force always use scrape-engine discovery of thumbnail images',
-        },
-        BLESSINGS: {
-            match: 'regex to match the site uri of detail pages containing the full-sized image',
-            zoom: 'css selector for the full-sized image element on the page',
-            src: 'javascript property path for getting the full-sized image source uri from the image element',
-        },
-    },
-    
-    // These are the default spec values.
-    cannedConfig: {
-        minZoomWidth: '300',
-        minZoomHeight: '300',
-        dlChannels: '5',
-        dlBatchSize: '5',
-        knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
-        enableHalfBakedFeatures: '0',
-    },
-
-    cannedProcessings: [
-        {
-            match: 'fakeexample.fake',
-            actions: [
-                {
-                    noun: 'src',
-                    verb: 'replace',
-                    match: '/^t-/',
-                    new: 'big-'
-                },
-                {
-                    noun: 'href',
-                    verb: 'replace',
-                    match: '/\\/fakeout\\//',
-                    new: '/realpath/'
-                }
-            ],
-            dig: true,
-            scrape: false,
-        }
-    ],
-    
-    cannedMessages: [
-        {
-            match: 'fakeexample.fake',
-            link: 'a.link[href]',
-            href: 'href',
-            thumb: 'img.thumb[data-src]',
-            src: 'dataset.src',
-        }
-    ],
-
-    cannedBlessings: [
-        {
-            match: 'fakeexample.fake',
-            zoom: 'img.zoomed',
-            src: 'src',
-        }
-    ],
- }
-
-// The default spec, used if there is nothing in storage yet.
-const DEFAULT_SPEC = {
-    config: Constance.cannedConfig,
-    messages: Constance.cannedMessages,
-    processings: Constance.cannedProcessings,
-    blessings: Constance.cannedBlessings,
-};
-
-
-// Constants for Dominatrix. Id prefixes for unique element ids, 
-// classnames for entry holder <div>s, keys for objects.
-const ENTRY_DIV_ID_PREFIX = 'entry_';
-const SUB_ENTRY_DIV_ID_PREFIX = 'subentry_';
-const VALUE_ID_PREFIX = 'value_';
-const ADD_SUB_ENTRY_ID_PREFIX = 'addsubentry_';
-const ENTRY_CLASS = 'entry';
-const SUB_ENTRY_CLASS = 'subentry';
-const DELETE_BUTTON_CLASS = 'delete';
-const ADD_SUB_ENTRY_CLASS = 'addSubentry';
-const DELETE_BUTTON_TEXT = 'X';
+import { default as GCon } from '../lib/GCon.js';
+import { OptionEntry } from '../lib/DataClasses.js';
 
 
 /*
@@ -131,10 +13,10 @@ class Dominatrix {
 
     // Enumeration of section holder <div>s that exist on the options form page.
     static SectionElements = {
-        CONFIG: document.getElementById(Constance.SECTIONS.CONFIG),
-        MESSAGES: document.getElementById(Constance.SECTIONS.MESSAGES),
-        PROCESSINGS: document.getElementById(Constance.SECTIONS.PROCESSINGS),
-        BLESSINGS: document.getElementById(Constance.SECTIONS.BLESSINGS),
+        CONFIG: document.getElementById(GCon.OPT_CONF.SECTIONS.CONFIG),
+        MESSAGES: document.getElementById(GCon.OPT_CONF.SECTIONS.MESSAGES),
+        PROCESSINGS: document.getElementById(GCon.OPT_CONF.SECTIONS.PROCESSINGS),
+        BLESSINGS: document.getElementById(GCon.OPT_CONF.SECTIONS.BLESSINGS),
     };
 
 
@@ -150,12 +32,12 @@ class Dominatrix {
         var div = document.createElement('div');
 
         if (isSubEntry) {
-            div.id = SUB_ENTRY_DIV_ID_PREFIX + (Dominatrix.subEntryCounter++);
-            div.className = SUB_ENTRY_CLASS;
+            div.id = GCon.DOMX_CONF.SUB_ENTRY_DIV_ID_PREFIX + (Dominatrix.subEntryCounter++);
+            div.className = GCon.DOMX_CONF.SUB_ENTRY_CLASS;
         }
         else {
-            div.id = ENTRY_DIV_ID_PREFIX + (Dominatrix.entryCounter++);
-            div.className = ENTRY_CLASS;
+            div.id = GCon.DOMX_CONF.ENTRY_DIV_ID_PREFIX + (Dominatrix.entryCounter++);
+            div.className = GCon.DOMX_CONF.ENTRY_CLASS;
         }
 
         if (Array.isArray(values)) {
@@ -167,7 +49,7 @@ class Dominatrix {
                 }
 
                 var label = (!!value.label ? document.createElement('label') : false);
-                var valueId = div.id + '_' + VALUE_ID_PREFIX + i;
+                var valueId = div.id + '_' + GCon.DOMX_CONF.VALUE_ID_PREFIX + i;
 
                 // Create and append the label if we were told to label this.
                 if (!!label) {
@@ -210,8 +92,8 @@ class Dominatrix {
             // Create a delete button for the entry/subentry. If we're dealing with the first
             // subentry of a list of subentries, do not create a delete button for it.
             var deleteButton = document.createElement('button');
-            deleteButton.textContent = DELETE_BUTTON_TEXT;
-            deleteButton.className = DELETE_BUTTON_CLASS;
+            deleteButton.textContent = GCon.DOMX_CONF.DELETE_BUTTON_TEXT;
+            deleteButton.className = GCon.DOMX_CONF.DELETE_BUTTON_CLASS;
             deleteButton.addEventListener('click', () => {
                 // Remove the subentry title (like 'actions'), then the hidden input
                 // for the subentry, then the subentry itself.
@@ -223,9 +105,9 @@ class Dominatrix {
 
                 // If there is only 1 subentry left, find it and hide its delete button.
                 // otherwise, show all the subentries' delete buttons.
-                var remainingSubentries = section.querySelectorAll(':scope div.' + SUB_ENTRY_CLASS);
+                var remainingSubentries = section.querySelectorAll(':scope div.' + GCon.DOMX_CONF.SUB_ENTRY_CLASS);
                 if (remainingSubentries.length === 1) {
-                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + DELETE_BUTTON_CLASS);
+                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + GCon.DOMX_CONF.DELETE_BUTTON_CLASS);
                     deleteButton.style.display = 'none';
                 }
             });
@@ -265,8 +147,8 @@ class Dominatrix {
 
         // Build the 'add subentry' button, and insert it into the <div>.
         var addSubEntry = document.createElement('button');
-        addSubEntry.id = ADD_SUB_ENTRY_ID_PREFIX + idx;
-        addSubEntry.className = ADD_SUB_ENTRY_CLASS;
+        addSubEntry.id = GCon.DOMX_CONF.ADD_SUB_ENTRY_ID_PREFIX + idx;
+        addSubEntry.className = GCon.DOMX_CONF.ADD_SUB_ENTRY_CLASS;
         addSubEntry.textContent = 'add subentry';
         rootNode.insertBefore(addSubEntry, refNode);                                                
 
@@ -276,7 +158,7 @@ class Dominatrix {
         addSubEntry.addEventListener('click', () => {
             // Create the label.
             var newLabel = (!!val.label ? document.createElement('label') : false);
-            var newValueId = div.id + '_' + VALUE_ID_PREFIX + (idx + 1);
+            var newValueId = div.id + '_' + GCon.DOMX_CONF.VALUE_ID_PREFIX + (idx + 1);
             if (!!newLabel) {
                 newLabel.id = 'label_' + newValueId
                 newLabel.textContent = val.label;
@@ -297,9 +179,9 @@ class Dominatrix {
             newInput.value = addedSubentryId;
 
             // Unhide all the subentries' delete buttons in the section.
-            var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + DELETE_BUTTON_CLASS);
+            var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + GCon.DOMX_CONF.DELETE_BUTTON_CLASS);
             deleteButtons.forEach((dButton) => {
-                if (dButton.parentNode.className === SUB_ENTRY_CLASS) {
+                if (dButton.parentNode.className === GCon.DOMX_CONF.SUB_ENTRY_CLASS) {
                     dButton.style.display = '';
                 }
             });
@@ -356,7 +238,7 @@ class Dominatrix {
 
         // Sort out the text inputs and hidden inputs.
         root.childNodes.forEach((child) => {
-            if (child.nodeName === 'INPUT') {
+            if (child.nodeName.toLowerCase() === 'input') {
                 if (child.type === 'text') {
                     textInputs.push(child);
                 }
@@ -382,7 +264,7 @@ class Dominatrix {
                 }
 
                 var subEntry = input.nextSibling;
-                if (!!subEntry && subEntry.className === SUB_ENTRY_CLASS) {
+                if (!!subEntry && subEntry.className === GCon.DOMX_CONF.SUB_ENTRY_CLASS) {
                     entry[input.dataset.key].push(Dominatrix.getEntry(subEntry));
                 }
             }
@@ -403,7 +285,7 @@ class Dominatrix {
         
         // Get all of the div.ENTRY_CLASS dom nodes.
         section.childNodes.forEach((child) => {
-            if (child.nodeName === 'DIV' && child.className === ENTRY_CLASS) {
+            if (child.nodeName === 'DIV' && child.className === GCon.DOMX_CONF.ENTRY_CLASS) {
                 divs.push(child);
             }
         });
@@ -486,7 +368,7 @@ class Optionator {
         }
 
         chrome.storage.sync.get({
-                spec: DEFAULT_SPEC
+                spec: GCon.OPT_CONF.DEFAULT_SPEC
             }, 
             (store) => {
                 Optionator.layoutConfig(store.spec.config);
@@ -557,35 +439,27 @@ class Optionator {
                         // Similarly to the main forEach(), process each subobject key/value pair.
                         // (Could probably be recursive here.)
                         Object.keys(subObj).forEach((subKey) => {
-                            var subLabel = (Constance.LABELS[section][key + '_' + subKey] || '');
+                            var subLabel = (GCon.OPT_CONF.LABELS[section][key + '_' + subKey] || '');
                             var subText = (subObj[subKey] || '');
 
-                            subValues.push({
-                                label: subLabel,
-                                text: subText,
-                                key: subKey,
-                            });
+                            subValues.push(
+                                new OptionEntry(subLabel, subText, subKey)
+                            );
                         });
 
                         // Add the values array to the object entry.
-                        objEntry.push({
-                            label: Constance.LABELS[section][key],
-                            values: subValues,
-                            key: key,
-                        });
+                        objEntry.push(
+                            new OptionEntry(GCon.OPT_CONF.LABELS[section][key], subValues, key)
+                        );
                     });
                 }
                 // Scalar values are simpler. Just process out their label, text, and key. 
                 // Then put them in the object entry.
                 else {
-                    var label = (Constance.LABELS[section][key] || '');
+                    var label = (GCon.OPT_CONF.LABELS[section][key] || '');
                     var text = (obj[key] || '');
 
-                    var valueObj = {
-                        label: label,
-                        text: text,
-                        key: key,
-                    };
+                    var valueObj = new OptionEntry(label, text, key);
 
                     if (key === 'match') {
                         objEntry.splice(0,0,valueObj);
@@ -608,7 +482,7 @@ class Optionator {
      * full of one-off configuration properties.
      */
     static layoutConfig(config) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.CONFIG, [config]);
+        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.CONFIG, [config]);
     }
 
 
@@ -619,7 +493,7 @@ class Optionator {
      * regular expression.
      */
     static layoutMessages(messages) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.MESSAGES, messages);
+        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.MESSAGES, messages);
     }
 
 
@@ -630,7 +504,7 @@ class Optionator {
      * "doScrape", and array of "actions" of varying types.
      */
     static layoutProcessings(processings) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.PROCESSINGS, processings);
+        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.PROCESSINGS, processings);
     }
 
 
@@ -641,7 +515,7 @@ class Optionator {
      * the zoom item, and a "src" prop for the direct link to the resource.
      */
     static layoutBlessings(blessings) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.BLESSINGS, blessings);
+        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.BLESSINGS, blessings);
     }
 
 
@@ -660,8 +534,8 @@ class Optionator {
                 button.addEventListener('click', () => {
                     var section = button.parentElement.id;
                     Optionator.layoutSpecSection(
-                        Constance.SECTIONS[section], 
-                        DEFAULT_SPEC[section.toLowerCase()]
+                        GCon.OPT_CONF.SECTIONS[section], 
+                        GCon.OPT_CONF.DEFAULT_SPEC[section.toLowerCase()]
                     );
                 });
             });
@@ -672,13 +546,13 @@ class Optionator {
             });
         });
     }
-    
 
-    /**
-     * Convenience method o get the default spec off the exported Optionator object. 
-     */
     static getDefaultConfig() {
-        return DEFAULT_SPEC.config;
+        return GCon.OPT_CONF.DEFAULT_SPEC.config;
+    }
+
+    static getHalfBakedEnablingValue() {
+        return GCon.OPT_CONF.HALF_BAKED_VAL;
     }
 }
 
@@ -692,6 +566,5 @@ else {
 
 window['theOptionator'] = Optionator;
 window['theDominatrix'] = Dominatrix;
-window['theConstance'] = Constance;
 
-export { Optionator as default, Dominatrix, Constance };
+export { Optionator as default, Dominatrix };
