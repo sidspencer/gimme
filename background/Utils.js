@@ -1,7 +1,10 @@
-const LISTENER_TIMED_OUT = 'Listener timed out';
-const GIMME_ID = 'gimme'; 
-const DL_CHAIN_COUNT = 10;
-const DEFAULT_IFRAME_ID = 'background_iframe';
+import { default as GCon } from '../lib/GCon.js';
+import {
+    DownloadSig,
+    ContentMessage,
+    LastLoc,
+} from '../lib/DataClasses.js';
+
 
 /**
  * Utils service/singleton for GimUtils. It holds all the random bric-a-brac
@@ -15,10 +18,7 @@ class Utils {
     static listeners = [];
     static counter = 0;
     static domParser = new DOMParser();
-    static lastLoc = { 
-        hostname: 'localhost', 
-        pathname: '/gallery' 
-    }; 
+    static lastLoc = new LastLoc('localhost', '/gallery');
 
     /**
      * Check if a variable really exists.
@@ -48,7 +48,7 @@ class Utils {
      * Check the src/uri/href/filename for known audio extensions.
      */
     static isAllowedAudioType(name) {
-        var allowedRx = /(mp3|m4a|aac|wav|ogg|aiff|aif|flac)/i;
+        var allowedRx = GCon.RECOG_RGX.AUDIO;
         return allowedRx.test(name);
     };
 
@@ -57,7 +57,7 @@ class Utils {
      * Check the src/uri/href/filename for known video extensions.
      */
     static isAllowedVideoType(name) {
-        var allowedRx = /(mp4|flv|f4v|m4v|mpg|mpeg|wmv|mov|avi|divx|webm)/i;
+        var allowedRx = GCon.RECOG_RGX.VIDEO;
         return allowedRx.test(name);
     };
 
@@ -66,7 +66,7 @@ class Utils {
      * Check the src/uri/href/filename for known image extensions.
      */
     static isAllowedImageType(name) {
-        var allowedRx = /(jpg|jpeg|gif|png|tiff|tif|pdf)/i;
+        var allowedRx = GCon.RECOG_RGX.IMAGE;
         return allowedRx.test(name);
     }
 
@@ -87,7 +87,7 @@ class Utils {
      */
     static srcToUrl(src, loc) {
         if (!Utils.exists(src)) { 
-            src = 'data:'; 
+            src = `${GCon.MIME_TYPE.DATA}:`; 
         }
 
         var cleansedUrl = new URL(src, Utils.getBaseUri(loc));
@@ -128,11 +128,23 @@ class Utils {
      */
     static isFetchableUri(uri) {
         return (
-            /^(http|https|data|blob|chrome|chrome-extension)\:/.test(uri)
+           GCon.RECOG_RGX.PROTOCOL.test(uri)
         );
     };
 
 
+    /**
+     * Is this a URI filetype that we support?
+     * 
+     * @param {string} uri 
+     */
+    static isSupportedMediaUri(uri) {
+        return (
+            GCon.RECOG_RGX.SUPPORTED.test(uri)
+        )
+    }
+
+    
     /**
      * Pull out the filename from a uri, or fallback to the whole thing.
      */
@@ -145,66 +157,20 @@ class Utils {
 
 
     /**
-     * factory function for a LocDoc
-     */
-    static createLocDoc(loc, doc) {
-        return {
-            loc: loc,
-            doc: doc,
-        };
-    };
-
-
-    /**
-     * factory for a TabMessage
-     */
-    static createTabMessage(tab, message) {
-        return {
-            tab: tab,
-            message: message,
-        };
-    };
-
-    /**
-     * factory for a DownloadSig
-     */
-    static createDownloadSig(id, uri, fileName) {
-        return {
-            id: id,
-            uri: uri,
-            fileName: fileName,
-        };
-    };
-
-
-    /**
-     * factory for FileOption
-     */
-    static createFileOption(id, uri, thumbUri, filePath, onSelect) {
-        return {
-            id: id,
-            uri: uri,
-            thumbUri: thumbUri,
-            filePath: filePath,
-            onSelect: onSelect,
-        };
-    };
-
-
-    /**
      * Promise-wrapper for doing an XHR
      */
     static getXhrResponse(method, uri, responseType) {
-        var prop = (responseType === 'document' || responseType === 'blob') ? 'responseXML' : 'response';
+        var prop = (responseType === GCon.MIME_TYPE.DOC || responseType === GCon.MIME_TYPE.BLOB) ? 'responseXML' : 'response';
         return Utils.sendXhr(method, uri, [prop], responseType);
     }
 
+    
     /**
      * Promise-wrapper for doing an XHR
      */
     static sendXhr(method, uri, props, responseType) {
         return new Promise((resolve, reject) => {
-            var errorHandler = (theStatus, theUri) => {
+            var errorHandler = (theStatus) => {
                 reject(theStatus);
             };
 
@@ -288,8 +254,8 @@ class Utils {
      */
     static sendTabMessage(tabMessage) {
         return new Promise((resolve, reject) => {
-            tabMessage.senderId = GIMME_ID;
-            tabMessage.message.senderId = GIMME_ID;
+            tabMessage.senderId = ContentMessage.GIMME_ID;
+            tabMessage.message.senderId = ContentMessage.GIMME_ID;
             
             chrome.tabs.sendMessage(
                 tabMessage.tab.id,
@@ -326,7 +292,7 @@ class Utils {
             delete Utils.dlCallbacks[prp];
         }
     
-        for (var i1 = 0; i1 < DL_CHAIN_COUNT; i1++) {
+        for (var i1 = 0; i1 < GCon.UTILS_CONF.DL_CHAIN_COUNT; i1++) {
             Utils.dlChains.push(
                 Promise.resolve(true).then(() => {
                     return new Promise((resolve, reject) => {
@@ -346,15 +312,15 @@ class Utils {
      */
     static downloadFile(uri, destFilename, output) {
         if (uri.lastIndexOf('/') === uri.length - 1) { 
-            return Promise.resolve(Utils.createDownloadSig(0, uri, destFilename)); 
+            return Promise.resolve(new DownloadSig(0, uri, destFilename)); 
         };
 
         // If it's not an expected file type, slap jpg on the end.
-        if (!/\.(jpg|jpeg|png|gif|tiff|mpg|mp4|flv|avi|zip|tar|gz|mp3|ogg|aac|m4a)$/i.test(destFilename)) {
+        if (!(GCon.RECOG_RGX.SUPPORTED.test(destFilename))) {
             destFilename = destFilename + '.jpg';
         }
 
-        var dlIndex = Utils.dlCounter % DL_CHAIN_COUNT;
+        var dlIndex = Utils.dlCounter % GCon.UTILS_CONF.DL_CHAIN_COUNT;
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
         
@@ -373,7 +339,7 @@ class Utils {
         output.toOut('Downloading file ' + num);
 
         chrome.browserAction.setBadgeText({ text: '' + num + '' });
-        chrome.browserAction.setBadgeBackgroundColor({ color: '#009900' });
+        chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.DOWNLOADING);
 
         return Utils.dlInChain(uri, destFilename);
     }
@@ -388,10 +354,7 @@ class Utils {
             loc = Utils.lastLoc;
         }
         else {
-            Utils.lastLoc = { 
-                hostname: loc.hostname, 
-                pathname: loc.pathname 
-            };
+            Utils.lastLoc = new LastLoc(loc.hostname, loc.pathname);
         }
 
         // Create a salted directory for the images to live in.
@@ -425,7 +388,7 @@ class Utils {
                     filename: destFilename,
                     conflictAction: 'uniquify',
                     saveAs: false,
-                    method: 'GET'
+                    method: GCon.ACTION.GET
                 },
                 (downloadId) => {
                     if (downloadId) {
@@ -435,7 +398,7 @@ class Utils {
                     else {
                         console.log('[Utils] no downloadId for uri ' + uri);
                         console.log('[Utils] download error was: ' + chrome.runtime.lastError);
-                        resolve(Utils.createDownloadSig(0, uri, destFilename));
+                        resolve(new DownloadSig(0, uri, destFilename));
                     }
                 });
             }, 300);
@@ -454,21 +417,21 @@ class Utils {
                 chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
                 delete Utils.dlCallbacks[dlId];
 
-                res(Utils.createDownloadSig(dlId, dlUri, dlFile));
+                res(new DownloadSig(dlId, dlUri, dlFile));
                 return;
             }
             else if (!!dlDelta.endTime && !!dlDelta.endTiUtils.current) {
                 chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
                 delete Utils.dlCallbacks[dlId];
 
-                res(Utils.createDownloadSig(dlId, dlUri, dlFile));
+                res(new DownloadSig(dlId, dlUri, dlFile));
                 return;
             }
             else if (!!dlDelta.exists && !!dlDelta.exists.current) {
                 chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
                 delete Utils.dlCallbacks[dlId];
 
-                res(Utils.createDownloadSig(dlId, dlUri, dlFile));
+                res(new DownloadSig(dlId, dlUri, dlFile));
                 return;
             }
         });
@@ -490,7 +453,7 @@ class Utils {
                 promises.push(new Promise((resolve, reject) => {
                     console.log('[Utils] Adding file option to zip file for download: ' + JSON.stringify(fileOpts[i]));
 
-                    return Utils.sendXhr('GET', fileOpts[i].uri, ['response'], 'blob')
+                    return Utils.sendXhr(GCon.ACTION.GET, fileOpts[i].uri, ['response'], GCon.MIME_TYPE.BLOB)
                         .then((r) => {
                             zip.file(fileOpts[i].filePath, r);
                             console.log('[Utils] File added to zip successfully.');
@@ -506,7 +469,7 @@ class Utils {
 
         return Promise.all(promises).then(() => {
             zip.generateAsync({
-                type: 'blob'
+                type: GCon.MIME_TYPE.BLOB
             })
             .then((content) => {
                 a.download = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf('/')) + '.zip';
@@ -612,11 +575,11 @@ class Utils {
      */
     static loadUriDoc(uri, id) {
         return new Promise((resolve, reject) => {
-            id = (!id && id !== 0) ? DEFAULT_IFRAME_ID : id;
+            id = (!id && id !== 0) ? GCon.UTILS_CONF.DEFAULT_IFRAME_ID : id;
 
             // Create the iframe, removing the old one if needed.
             var bgDoc = chrome.extension.getBackgroundPage().document;
-            var listenerId = id + (counter++);            
+            var listenerId = id + (Utils.counter++);            
             var iframe = bgDoc.getElementById(id);
             if (iframe) { iframe.remove(); };
 
@@ -626,32 +589,32 @@ class Utils {
             // Set a timeout for waiting for the iframe to load. We can't afford to 
             // just never complete the promise. Wait 7 seconds.
             var listeningTimeoutId = setTimeout(() => {
-                chrome.runtime.onMessage.removeListener(listeners[listenerId]);
+                chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
                 iframe.remove();
-                delete listeners[listenerId];
+                delete Utils.listeners[listenerId];
 
-                reject(LISTENER_TIMED_OUT);
+                reject(GCon.UTILS_CONF.LISTENER_TIMED_OUT);
             }, 7000);
 
             // Add a message listener for the ContentPeeper's loading message.
             // It will fire for every page or frame loaded, as it is always injected.
             // But restrict this particular listener to only the uri at hand.
-            listeners[listenerId] = (request, sender, sendResponse) => {                
+            Utils.listeners[listenerId] = (request, sender, sendResponse) => {                
                 if (request.docOuterHtml && request.uri == uri) {
                     clearTimeout(listeningTimeoutId);
-                    chrome.runtime.onMessage.removeListener(listeners[listenerId]);
+                    chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
 
-                    var iframeDoc = domParser.parseFromString(request.docOuterHtml, "text/html");
+                    var iframeDoc = Utils.domParser.parseFromString(request.docOuterHtml, GCon.MIME_TYPE.HTML);
                     resolve(iframeDoc);
                     
                     iframe.remove();
-                    delete listeners[listenerId];
+                    delete Utils.listeners[listenerId];
                 }
 
                 // Wait a while.
                 return true;
             }; 
-            chrome.runtime.onMessage.addListener(listeners[listenerId]);
+            chrome.runtime.onMessage.addListener(Utils.listeners[listenerId]);
                  
             // Set the src (it begins loading here)
             iframe.src = uri;
@@ -669,6 +632,6 @@ class Utils {
 }
 Utils.resetDownloader();
 
-window['theUtils'] = Utils;
+window[GCon.WIN_PROP.UTILS_ST] = Utils;
 
 export default Utils;
