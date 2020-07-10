@@ -29,7 +29,13 @@ class Scraper {
      * @param {Output} anOutput 
      */
     constructor() {
-        this.output = window[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+        this.output = Output.getInstance();
+
+         // Listen for the stop event.
+         this.stop = false;
+         document.addEventListener(C.ACTION.STOP, (evt) => {
+             this.stop = true;
+         });
     }
 
 
@@ -444,32 +450,32 @@ class Scraper {
 
         this.log.log('options: ' + JSON.stringify(this.config.opts));
 
-        if (this.config.opts.imgs && this.stop !== true) {
+        if (!!this.config.opts.imgs && (this.stop === false)) {
             this.output.toOut('Scraping all images.')
             imgUris = this.scrapeAllImgUris(this.config.node, this.config.loc);   
         }
 
-        if (this.config.opts.cssBgs && this.stop !== true) {
+        if (!!this.config.opts.cssBgs && (this.stop === false)) {
             this.output.toOut('Scraping all CSS background-images.')            
             cssBgUris = this.scrapeAllCssBgUris(this.config.node, this.config.loc);
         }
 
-        if (this.config.opts.js && this.stop !== true) {
+        if (!!this.config.opts.js && (this.stop === false)) {
             this.output.toOut('Scraping all javascript.')            
             jsUris = this.scrapeAllJsUris(this.config.node, this.config.loc, null);
         }
         
-        if (this.config.opts.videos && this.stop !== true) {
+        if (!!this.config.opts.videos && (this.stop === false)) {
             this.output.toOut('Scraping all Videos.')            
             videoUris = this.scrapeAllVideoUris(this.config.node, this.config.loc);
         }
 
-        if (this.config.opts.audios && this.stop !== true) {
+        if (!!this.config.opts.audios && (this.stop === false)) {
             this.output.toOut('Scraping all Audio.')            
             audioUris = this.scrapeAllAudioUris(this.config.node, this.config.loc);
         }
 
-        if (this.config.opts.qs && (!!this.config.loc || !!node.location) && this.stop !== true) {
+        if (!!this.config.opts.qs && (!!this.config.loc || !!node.location) && (this.stop === false)) {
             this.output.toOut('Scraping the Querystring.')            
             qsUris = this.scrapeAllQsUris(this.config.node, (this.config.loc || this.config.node.location));
         }
@@ -522,15 +528,6 @@ class Scraper {
                 }
             );
         }));
-    };
-
-    
-    /**
-     * Set the stop flag, preventing any new types of scraping from happening.
-     * The Scraper will just return what it's already harvested.
-     */
-    stopHarvesting() {
-        this.stop = true;
     };
 }
 
