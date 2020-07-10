@@ -47,7 +47,7 @@ class App {
      * Constructor for App.
      */
     constructor(aDigger, aScraper) {
-        this.output = window[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+        this.output = Output.getInstance();
         this.digger = aDigger;
         this.scraper = aScraper;
         
@@ -214,6 +214,13 @@ class App {
 
             return Promise.resolve(fileOptionzzz);
         }
+
+
+        this.stop = false;
+        // Listen for the stop event.
+        document.addEventListener(C.ACTION.STOP, (evt) => {
+            this.stop = true;
+        });
     }
     
     /**
@@ -238,7 +245,7 @@ class App {
             this.output.toOut(C.ST.E + length + ' Downloading!');
         }
 
-        console.log('STARTING ZIP DOWNLOAD')
+        this.log.log('STARTING ZIP DOWNLOAD')
         Utils.downloadInZip(harvestedMap.values()).then(() => {
             for (var index = 0; index < harvestedMap.values(); index++) {
                 me.output.setEntryAsDownloading(index);
@@ -258,6 +265,10 @@ class App {
             Utils.getXhrResponse(C.ACTION.GET, loc.href, C.DOC_TYPE.DOC)
             .then((xhrResponse) =>{
                 return Promise.resolve(new LocDoc(loc, xhrResponse));
+            })
+            .catch((err) => {
+                this.log.log(`Error from XHR: ${ JSON.stringify(err) }`);
+                return Promise.reject(err);
             })
         );
     }
@@ -350,8 +361,16 @@ class App {
             })
             .then(me.startDownloading)            
             .catch((errorMessage) => {
-                me.output.toOut('There was an internal error. Please try refreshing the page.');
-                console.log(errorMessage);
+                // See if we're being asked to stop.
+                if (errorMessage === C.ACTION.STOP) {
+                    this.log.log("[App] Stop was called.")
+                    me.presentFileOptions(me.galleryMap);
+                    return Promise.resolve(true);
+                }
+                else {
+                    me.output.toOut('There was an Please try refreshing the page.');
+                    me.log.log(errorMessage);
+                }
                 return Promise.reject(errorMessage);
             })
             .finally(() => {
@@ -394,8 +413,17 @@ class App {
             })
             .then(me.presentFileOptions)            
             .catch((errorMessage) => {
-                me.output.toOut('There was an internal error. Please try refreshing the page.');
-                console.log(errorMessage);
+                // See if we're being asked to stop.
+                if (errorMessage === C.ACTION.STOP) {
+                    me.log.log("Stop was called. Presenting file options.")
+                    me.presentFileOptions(me.galleryMap);
+                    
+                    return Promise.resolve(true);
+                }
+                else {
+                    me.output.toOut('There was an internal error. Please try refreshing the page.');
+                    me.log.log(errorMessage);
+                }
                 return Promise.reject(errorMessage);
             })
             .finally(() => {
@@ -445,9 +473,16 @@ class App {
             })
             .then(me.startDownloading)
             .catch((errorMessage) => {
-                me.output.toOut('There was an internal error. Please try refreshing the page.');
-                
-                console.log(errorMessage);
+                // See if we're being asked to stop.
+                if (errorMessage === C.ACTION.STOP) {
+                    me.log.log("Stop was called. Presenting file options.")
+                    me.presentFileOptions(me.galleryMap);
+                    return Promise.resolve(true);
+                }
+                else {
+                    me.output.toOut('There was an internal error. Please try refreshing the page.');
+                    me.log.log(errorMessage);
+                }
                 return Promise.reject(errorMessage);
             })
             .finally(() => {
@@ -481,18 +516,25 @@ class App {
         return (
             this.processContentPage()
             .then((locDoc) => {
+                // If stop was signaled already, we want to do the { doDig: false, doScrape: false } path. Just
+                // Follow it.
+                if (this.stop === true) {
+                    this.output.toOut('Stopping...');
+                    this.log.log('Stop was called. Will resolve with galleryMap we have.')
+                }
+
                 // Just download from here if all of our linkHrefs should already point directly at a valid imgUrl.
-                if ((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) {
+                if (((me.digOpts.doDig === false) && (me.digOpts.doScrape === false)) || (this.stop === true)) {
                     me.digger.redrawOutputFileOpts(me.galleryMap);
 
                     this.log.log('Downloading ContentHelper uris');
-                    
                     chrome.storage.local.set(
                         Storing.storePrevUriMap(me.galleryMap),
                         () => {
                             this.log.log('Setting prevUriMap');
                         }
                     );
+
                     return Promise.resolve(me.galleryMap);
                 }
                 else {
@@ -501,12 +543,27 @@ class App {
                     );                      
                 }
             })
-            .then((harvestedMap) => {
-                return me.presentFileOptions(harvestedMap);
+            .then((harvestedMap) => {                
+                me.presentFileOptions(harvestedMap).then(() => {
+                    return (
+                        (this.stop === true) ?
+                        Promise.reject(C.ACTION.STOP) :
+                        Promise.resolve(true)
+                    );
+                });
             })
             .catch((errorMessage) => {
-                me.output.toOut('There was an internal error. Please try refreshing the page.');
-                console.log(errorMessage);
+                // See if we're being asked to stop.
+                if (errorMessage === C.ACTION.STOP) {
+                    me.output.toOut('Stopping...');
+                    me.log.log('Stop was called. Did present file options.');
+                    this.output.clearNonFileOpts();
+                }
+                else {
+                    me.output.toOut('There was an internal error. Please try refreshing the page.');
+                    me.log.log(errorMessage);
+                }
+
                 return Promise.reject(errorMessage);
             })
             .finally(() => {
@@ -518,7 +575,9 @@ class App {
                     }
                 );
 
-                me.output.setIsDigging(false);     
+
+                me.output.setIsDigging(false); 
+                me.output.setIsScraping(false);    
             })
         );
     };
@@ -540,7 +599,7 @@ class App {
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the this.digger.
         return ( 
-            this.processContentPage()
+            me.processContentPage()
             .then((locDoc) => {
                 return me.digger.digGallery(
                     new GalleryOptions(locDoc.doc, locDoc.loc, new DigOpts(true, false), Object.assign({}, me.peeperMap))
@@ -556,28 +615,29 @@ class App {
                         p = p.then(() => { 
                             return Utils.getXhrResponse(C.ACTION.GET, uri, C.DOC_TYPE.DOC)
                             .then((d) => {
-                                if (me.stop) { 
-                                    return Promise.reject(C.ACTION.STOP); 
-                                };
-
-                                this.log.log('Executed load of gallery page ' + uri);
+                                me.log.log('Executed load of gallery page ' + uri);
                                 me.output.toOut('Loading gallery page ' + uri);
                                 
                                 chrome.browserAction.setBadgeText({ text: (C.ST.E + (++galleryCount) + C.ST.E) });
                                 chrome.browserAction.setBadgeBackgroundColor(C.COLOR.NEW_FOPTS);
 
-                                locDocs.push(new LocDoc(new URL(uri), d));
-
-                                return Promise.resolve(true);
+                                if (me.stop) { 
+                                    return Promise.reject(C.ACTION.STOP); 
+                                }
+                                else {
+                                    locDocs.push(new LocDoc(new URL(uri), d));
+                                    return Promise.resolve(true);
+                                }
                             }).catch((e) => {
                                 if (e === C.ACTION.STOP) {
-                                    this.log.log('Stop was called. Stopping digging operations.');
-                                    this.output.toOut('Stopping...');
-
-                                    return Promise.reject(false);
+                                    me.log.log('Stop was called. Stopping digging operations.');
+                                    me.output.toOut('Stopping...');
+                                    
+                                    return Promise.resolve(C.ACTION.STOP);
                                 }
-                                this.log.log('Failed to load gallery doc ' + uri)
-                                console.log('      Error: ' + e);
+
+                                me.log.log('Failed to load gallery doc ' + uri)
+                                me.log.log('      Error: ' + e);
                                 
                                 me.output.toOut('Failed to load gallery page ' + uri);
                                 galleryCount--;
@@ -593,7 +653,7 @@ class App {
                 // fetches keep going. Only the STOP command rejects.
                 return p;
             })
-            .then(() => {
+            .then((trueOrStop) => {
                 var p = Promise.resolve(true);
 
                 // Using the locDocs collected for each gallery page that is linked to from the
@@ -601,11 +661,11 @@ class App {
                 // calls on each locDoc. 
                 locDocs.forEach((lDoc) => {
                     if (me.stop === true) { 
-                        p = Promise.reject(STOP); 
+                        p = Promise.resolve(C.ACTION.STOP); 
                         return p; 
                     };
 
-                    this.log.log('creating dig promise for ' + lDoc.loc.href);
+                    me.log.log('creating dig promise for ' + lDoc.loc.href);
                     me.output.toOut('Beginning dig for ' + lDoc.loc.href);
 
                     // Build the promise chain of digging all the galleries linked to from the
@@ -615,25 +675,36 @@ class App {
                     // resolves with digGallery(...) harvested map, which we add to the combined map 
                     // at the end.
                     p = p.then(() => {
+                        if (me.stop === true) {
+                            return Promise.resolve(C.ACTION.STOP);
+                        }
+
                         return me.digger.digGallery(
                             new GalleryOptions(lDoc.doc, lDoc.loc, new DigOpts(true, false), {})
                         )
                         .then((harvestedMap) => {
-                            this.log.log('Received initial gallery map length: ' + Object.getOwnPropertyNames(harvestedMap).length + C.ST.E);
-                            this.log.log('Applying post-processing to: ' + lDoc.loc.href);
+                            me.log.log('Received initial gallery map length: ' + Object.getOwnPropertyNames(harvestedMap).length + C.ST.E);
+                            me.log.log('Applying post-processing to: ' + lDoc.loc.href);
                             var inst = Logicker.postProcessResponseData(harvestedMap, lDoc.loc.href);
 
-                            return me.digger.digGallery(
-                                new GalleryOptions(lDoc.doc, lDoc.loc, new DigOpts(inst.doScrape, inst.doDig), inst.processedMap)
-                            );
+                            if (me.stop === true) {
+                                me.log.log('Stopping... Resolving with the Logicker\'s post-processed-data');
+                                return Promise.resolve(int.processedMap);
+                            }
+                            else {
+                                return me.digger.digGallery(
+                                    new GalleryOptions(lDoc.doc, lDoc.loc, new DigOpts(inst.doScrape, inst.doDig), inst.processedMap)
+                                );
+                            }
                         })
                         .then((gMap) => {
                             me.output.toOut('Received file list for ' + lDoc.loc.href);
-                            this.log.log('Received ' + Object.getOwnPropertyNames(gMap).length + C.ST.E);
+                            me.log.log('Received ' + Object.getOwnPropertyNames(gMap).length + C.ST.E);
                             Object.assign(combinedMap, gMap);
                             
-                            if (this.stop === true) {
-                                return Promise.reject(C.ACTION.STOP)
+                            if (me.stop === true) {
+                                me.log.log('Stop was called. Resolving, so we show the file opts. (resolving with "STOP".)')
+                                return Promise.resolve(C.ACTION.STOP)
                             }
                             else {
                                 return Promise.resolve(true);
@@ -646,33 +717,42 @@ class App {
                 // harvested thumbUri -> zoomUri maps into "combinedMap";
                 return p;
             })
-            .then(() => {
-                if (this.stop === true) {
-                    return Promise.reject(C.ACTION.STOP);
+            .then((trueOrStop) => {
+                if (trueOrStop === C.ACTION.STOP) {
+                    me.output.toOut('Stopping...');
+                    me.log.log('Stop was called. Redrawing file opts and presenting them.');
                 }
 
                 // Taking the combined gallery maps, Make FileOpts for them. Then we resolve with the combined
                 // map, which takes those  FileOpts and makes FileEntry (checkbox and thumbnail) objects for
                 // them, and presentFileOptions(...) shows all the FileEntry objects.
                 me.digger.redrawOutputFileOpts(combinedMap);
-                this.log.log('Received combinedMap.');
+                me.log.log('Received combinedMap.');
                 me.output.toOut('Received file list of length: ' + Object.keys(combinedMap).length);
 
                 return Promise.resolve(combinedMap); 
             })
-            .then(me.presentFileOptions)
+            .then((cMap) => {
+                return me.presentFileOptions(cMap).then(() => {
+                    if (me.stop === true) {
+                        me.log.log()
+                        return Promise.reject(C.ACTION.STOP);
+                    }
+                });
+            })
             .catch((errorMessage) => {
-                // See if we're being asked to stop.
-                if (errorMessage === C.ACTION.STOP) {
-                    console.log("[App] Stop was called.")
-                    me.presentFileOptions(me.galleryMap);
-                    return Promise.resolve(true);
-                }
-                else {
-                    me.output.toOut('There was an internal error. Please try refreshing the page.');
-                    console.log('[App]: ' + errorMessage);
-                    return Promise.reject(errorMessage);
-                }
+                return new Promise((resolve, reject) => {
+                    // See if we're being asked to stop.
+                    if (errorMessage === C.ACTION.STOP) {
+                        me.output.toOut('Stopping...');
+                        me.log.log('Stop was called. Should have already shown file opts.');
+                    }
+                    else {
+                        me.output.toOut('There was an internal error. Please try refreshing the page.');
+                        me.log.log(errorMessage);
+                        reject(errorMessage);
+                    }
+                })
             })
             .finally(() => {
                 chrome.storage.local.set(
@@ -688,29 +768,7 @@ class App {
                 me.output.setIsScraping(false);
             })
         );
-    };
-
-
-    /**
-     * Tell the scraper and the digger to stop harvesting immediately and just resolve with what
-     * they've already found.
-     */
-    stopHarvesting() {
-        this.stop = true;
-
-        if (!!this.scraper) {
-            this.scraper.stopHarvesting();
-        }
-
-        if (!!this.digger) {
-            this.digger.stopHarvesting();
-        }
-
-        if (!!this.output) {
-            this.output.setIsScraping(false);
-            this.output.setIsDigging(false);
-        }
-    };
+    }
 }
 
 // Set the class on the window, just in case.
