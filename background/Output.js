@@ -1,6 +1,7 @@
+import { getColorMatrixTextureShapeWidthHeight } from '@tensorflow/tfjs-core/dist/backends/webgl/tex_util';
 import { default as C } from '../lib/C.js';
-import { FileEntry, Log } from '../lib/DataClasses.js';
-import Utils from './Utils.js';
+import { FileEntry, FileOption, Log } from '../lib/DataClasses.js';
+import { default as Utils } from './Utils.js';
 
 
 /**
@@ -104,6 +105,30 @@ class Output {
         }
     };
 
+
+    /**
+     * Clear everything from the filesDug <ul> that isn't of class "opt".
+     */
+    clearNonFileOpts() {
+        var childNodes = [];
+
+        try {
+            childNodes = this.filesDug.childNodes;
+        }
+        catch (err) {
+            this.log.log('Could not clear file entries, doc reference may be a Dead Object.');
+            return false;
+        }
+
+        for (let li of childNodes) {
+            if (li.className !== C.FE_STATE.OPT) {
+                this.filesDug.removeChild(li);
+            }
+        }
+
+        return true;
+    }
+
     
     /*
      * Reset the output to blank file data.
@@ -180,7 +205,7 @@ class Output {
      * Create a new <li> for the entry, name it with the id, and append it to the filesDug <ul>.
      */
     addNewEntry(id, uri) {
-        this.fileOptMap[id+C.ST.E] = uri;
+        this.fileOptMap[id + C.ST.E] = uri;
         
         return new Promise((resolve, reject) => { 
             setTimeout(() => {
@@ -439,7 +464,11 @@ class Output {
             }
 
             this.log.log('restoreFileList() is setting up the promise chaining.');
+
+            return pChain;
         }
+
+        return Promise.resolve(true);
     };
 
 
