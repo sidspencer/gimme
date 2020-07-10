@@ -1,22 +1,26 @@
-import { default as GCon } from '../lib/GCon.js';
+import { default as C } from '../lib/C.js';
 import { OptionEntry } from '../lib/DataClasses.js';
+import Utils from '../background/Utils.js';
 
 
 /*
  * Singleton which handles layout and serialization to and from the HTML5 form
  * for the options spec values.
  */
-class Dominatrix {    
+class Dominatrix { 
+    // Key for the static class reference on the options page window object.  
+    static ST_KEY = C.WIN_PROP.DOMINATRIX_ST;
+
     // Counters used in creating unique element ids.
     static entryCounter = 0;
     static subEntryCounter = 0;
 
     // Enumeration of section holder <div>s that exist on the options form page.
     static SectionElements = {
-        CONFIG: document.getElementById(GCon.OPT_CONF.SECTIONS.CONFIG),
-        MESSAGES: document.getElementById(GCon.OPT_CONF.SECTIONS.MESSAGES),
-        PROCESSINGS: document.getElementById(GCon.OPT_CONF.SECTIONS.PROCESSINGS),
-        BLESSINGS: document.getElementById(GCon.OPT_CONF.SECTIONS.BLESSINGS),
+        CONFIG: document.getElementById(C.OPT_CONF.SECTIONS.CONFIG),
+        MESSAGES: document.getElementById(C.OPT_CONF.SECTIONS.MESSAGES),
+        PROCESSINGS: document.getElementById(C.OPT_CONF.SECTIONS.PROCESSINGS),
+        BLESSINGS: document.getElementById(C.OPT_CONF.SECTIONS.BLESSINGS),
     };
 
 
@@ -32,12 +36,12 @@ class Dominatrix {
         var div = document.createElement('div');
 
         if (isSubEntry) {
-            div.id = GCon.DOMX_CONF.SUB_ENTRY_DIV_ID_PREFIX + (Dominatrix.subEntryCounter++);
-            div.className = GCon.DOMX_CONF.SUB_ENTRY_CLASS;
+            div.id = C.DOMX_CONF.SUB_ENTRY_DIV_PREFIX + (Dominatrix.subEntryCounter++);
+            div.className = C.DOMX_CONF.SUB_ENTRY_CLASS;
         }
         else {
-            div.id = GCon.DOMX_CONF.ENTRY_DIV_ID_PREFIX + (Dominatrix.entryCounter++);
-            div.className = GCon.DOMX_CONF.ENTRY_CLASS;
+            div.id = C.DOMX_CONF.ENTRY_DIV_PREFIX + (Dominatrix.entryCounter++);
+            div.className = C.DOMX_CONF.ENTRY_CLASS;
         }
 
         if (Array.isArray(values)) {
@@ -49,7 +53,7 @@ class Dominatrix {
                 }
 
                 var label = (!!value.label ? document.createElement('label') : false);
-                var valueId = div.id + '_' + GCon.DOMX_CONF.VALUE_ID_PREFIX + i;
+                var valueId = div.id + '_' + C.DOMX_CONF.VALUE_PREFIX + i;
 
                 // Create and append the label if we were told to label this.
                 if (!!label) {
@@ -65,7 +69,7 @@ class Dominatrix {
                 input.dataset.key = value.key;
                 div.appendChild(input);                
 
-                var inputValue = '';
+                var inputValue = C.ST.E;
                 
                 // For array values, use the div id of the subentry.
                 if (('values' in value) && Array.isArray(value.values)) {
@@ -92,8 +96,8 @@ class Dominatrix {
             // Create a delete button for the entry/subentry. If we're dealing with the first
             // subentry of a list of subentries, do not create a delete button for it.
             var deleteButton = document.createElement('button');
-            deleteButton.textContent = GCon.DOMX_CONF.DELETE_BUTTON_TEXT;
-            deleteButton.className = GCon.DOMX_CONF.DELETE_BUTTON_CLASS;
+            deleteButton.textContent = C.DOMX_CONF.DELETE_BUTTON_TEXT;
+            deleteButton.className = C.DOMX_CONF.DELETE_BUTTON_CLASS;
             deleteButton.addEventListener('click', () => {
                 // Remove the subentry title (like 'actions'), then the hidden input
                 // for the subentry, then the subentry itself.
@@ -105,9 +109,9 @@ class Dominatrix {
 
                 // If there is only 1 subentry left, find it and hide its delete button.
                 // otherwise, show all the subentries' delete buttons.
-                var remainingSubentries = section.querySelectorAll(':scope div.' + GCon.DOMX_CONF.SUB_ENTRY_CLASS);
+                var remainingSubentries = section.querySelectorAll(':scope div.' + C.DOMX_CONF.SUB_ENTRY_CLASS);
                 if (remainingSubentries.length === 1) {
-                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + GCon.DOMX_CONF.DELETE_BUTTON_CLASS);
+                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + C.DOMX_CONF.DELETE_BUTTON_CLASS);
                     deleteButton.style.display = 'none';
                 }
             });
@@ -147,8 +151,8 @@ class Dominatrix {
 
         // Build the 'add subentry' button, and insert it into the <div>.
         var addSubEntry = document.createElement('button');
-        addSubEntry.id = GCon.DOMX_CONF.ADD_SUB_ENTRY_ID_PREFIX + idx;
-        addSubEntry.className = GCon.DOMX_CONF.ADD_SUB_ENTRY_CLASS;
+        addSubEntry.id = C.DOMX_CONF.ADD_SUB_ENTRY_PREFIX + idx;
+        addSubEntry.className = C.DOMX_CONF.ADD_SUB_ENTRY_CLASS;
         addSubEntry.textContent = 'add subentry';
         rootNode.insertBefore(addSubEntry, refNode);                                                
 
@@ -158,7 +162,7 @@ class Dominatrix {
         addSubEntry.addEventListener('click', () => {
             // Create the label.
             var newLabel = (!!val.label ? document.createElement('label') : false);
-            var newValueId = div.id + '_' + GCon.DOMX_CONF.VALUE_ID_PREFIX + (idx + 1);
+            var newValueId = div.id + '_' + C.DOMX_CONF.VALUE_PREFIX + (idx + 1);
             if (!!newLabel) {
                 newLabel.id = 'label_' + newValueId
                 newLabel.textContent = val.label;
@@ -179,10 +183,10 @@ class Dominatrix {
             newInput.value = addedSubentryId;
 
             // Unhide all the subentries' delete buttons in the section.
-            var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + GCon.DOMX_CONF.DELETE_BUTTON_CLASS);
+            var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + C.DOMX_CONF.DELETE_BUTTON_CLASS);
             deleteButtons.forEach((dButton) => {
-                if (dButton.parentNode.className === GCon.DOMX_CONF.SUB_ENTRY_CLASS) {
-                    dButton.style.display = '';
+                if (dButton.parentNode.className === C.DOMX_CONF.SUB_ENTRY_CLASS) {
+                    dButton.style.display = C.ST.E;
                 }
             });
         });
@@ -264,7 +268,7 @@ class Dominatrix {
                 }
 
                 var subEntry = input.nextSibling;
-                if (!!subEntry && subEntry.className === GCon.DOMX_CONF.SUB_ENTRY_CLASS) {
+                if (!!subEntry && subEntry.className === C.DOMX_CONF.SUB_ENTRY_CLASS) {
                     entry[input.dataset.key].push(Dominatrix.getEntry(subEntry));
                 }
             }
@@ -285,7 +289,7 @@ class Dominatrix {
         
         // Get all of the div.ENTRY_CLASS dom nodes.
         section.childNodes.forEach((child) => {
-            if (child.nodeName === 'DIV' && child.className === GCon.DOMX_CONF.ENTRY_CLASS) {
+            if (child.nodeName === 'DIV' && child.className === C.DOMX_CONF.ENTRY_CLASS) {
                 divs.push(child);
             }
         });
@@ -339,6 +343,8 @@ class Dominatrix {
  * to/from storage.
  */
 class Optionator {
+    static initialized = false;
+
     // id properties of the elements in the configuration sections
     static ids = {
         CONFIG: [],
@@ -368,7 +374,7 @@ class Optionator {
         }
 
         chrome.storage.sync.get({
-                spec: GCon.OPT_CONF.DEFAULT_SPEC
+                spec: C.OPT_CONF.DEFAULT_SPEC
             }, 
             (store) => {
                 Optionator.layoutConfig(store.spec.config);
@@ -439,8 +445,8 @@ class Optionator {
                         // Similarly to the main forEach(), process each subobject key/value pair.
                         // (Could probably be recursive here.)
                         Object.keys(subObj).forEach((subKey) => {
-                            var subLabel = (GCon.OPT_CONF.LABELS[section][key + '_' + subKey] || '');
-                            var subText = (subObj[subKey] || '');
+                            var subLabel = (C.OPT_CONF.LABELS[section][key + '_' + subKey] || C.ST.E);
+                            var subText = (subObj[subKey] || C.ST.E);
 
                             subValues.push(
                                 new OptionEntry(subLabel, subText, subKey)
@@ -449,15 +455,15 @@ class Optionator {
 
                         // Add the values array to the object entry.
                         objEntry.push(
-                            new OptionEntry(GCon.OPT_CONF.LABELS[section][key], subValues, key)
+                            new OptionEntry(C.OPT_CONF.LABELS[section][key], subValues, key)
                         );
                     });
                 }
                 // Scalar values are simpler. Just process out their label, text, and key. 
                 // Then put them in the object entry.
                 else {
-                    var label = (GCon.OPT_CONF.LABELS[section][key] || '');
-                    var text = (obj[key] || '');
+                    var label = (C.OPT_CONF.LABELS[section][key] || C.ST.E);
+                    var text = (obj[key] || C.ST.E);
 
                     var valueObj = new OptionEntry(label, text, key);
 
@@ -482,7 +488,7 @@ class Optionator {
      * full of one-off configuration properties.
      */
     static layoutConfig(config) {
-        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.CONFIG, [config]);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.CONFIG, [config]);
     }
 
 
@@ -493,7 +499,7 @@ class Optionator {
      * regular expression.
      */
     static layoutMessages(messages) {
-        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.MESSAGES, messages);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.MESSAGES, messages);
     }
 
 
@@ -504,7 +510,7 @@ class Optionator {
      * "doScrape", and array of "actions" of varying types.
      */
     static layoutProcessings(processings) {
-        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.PROCESSINGS, processings);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.PROCESSINGS, processings);
     }
 
 
@@ -515,7 +521,7 @@ class Optionator {
      * the zoom item, and a "src" prop for the direct link to the resource.
      */
     static layoutBlessings(blessings) {
-        Optionator.layoutSpecSection(GCon.OPT_CONF.SECTIONS.BLESSINGS, blessings);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.BLESSINGS, blessings);
     }
 
 
@@ -534,8 +540,8 @@ class Optionator {
                 button.addEventListener('click', () => {
                     var section = button.parentElement.id;
                     Optionator.layoutSpecSection(
-                        GCon.OPT_CONF.SECTIONS[section], 
-                        GCon.OPT_CONF.DEFAULT_SPEC[section.toLowerCase()]
+                        C.OPT_CONF.SECTIONS[section], 
+                        C.OPT_CONF.DEFAULT_SPEC[section.toLowerCase()]
                     );
                 });
             });
@@ -548,23 +554,29 @@ class Optionator {
     }
 
     static getDefaultConfig() {
-        return GCon.OPT_CONF.DEFAULT_SPEC.config;
+        return C.OPT_CONF.DEFAULT_SPEC.config;
     }
 
     static getHalfBakedEnablingValue() {
-        return GCon.OPT_CONF.HALF_BAKED_VAL;
+        return C.OPT_CONF.HALF_BAKED_VAL;
     }
 }
 
-if (window.location.href.indexOf('options.html') === -1) {
-    console.log('[Optionator] some page other than Options called us. Return -- do nothing.');
+if (Utils.isOptionsPage(window)) {
+    // Setup the event listener to lay out the Options page. 
+    console.log('[Optionator] starting up, laying out the options/preferences form.');
+    Optionator.setupOptionsPageOnLoad();
+    Optionator.initialized = true;
 }
-else {
-    console.log('[Optionator] starting up, laying out the config form.');
+
+// Set the class on the background window just in case.
+if (!window[C.WIN_PROP.OPTIONATOR_CLASS] && Utils.isOptionsPage(window)) {
+    window[C.WIN_PROP.DOMINATRIX_CLASS] = Dominatrix;
+    window[C.WIN_PROP.OPTIONATOR_CLASS] = Optionator;
+
+    // Add hanler to set up the Options document on DOMContentLoaded.
     Optionator.setupOptionsPageOnLoad();
 }
 
-window['theOptionator'] = Optionator;
-window['theDominatrix'] = Dominatrix;
-
+// Export.
 export { Optionator as default, Dominatrix };
