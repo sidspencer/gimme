@@ -1,13 +1,14 @@
-import { default as GCon } from '../lib/GCon.js';
+import { default as C } from '../lib/C.js';
 import {
     DownloadSig,
     ContentMessage,
+    Log,
     LastLoc,
 } from '../lib/DataClasses.js';
 
 
 /**
- * Utils service/singleton for GimUtils. It holds all the random bric-a-brac
+ * Utils static class for Gimme. It holds all the random bric-a-brac
  * methods that make our coding a little easier.
  */
 class Utils {
@@ -18,8 +19,10 @@ class Utils {
     static listeners = [];
     static counter = 0;
     static domParser = new DOMParser();
-    static lastLoc = new LastLoc('localhost', '/gallery');
+    static lastLoc = new LastLoc(C.BLANK.LOCALHOST, C.BLANK.GALLERY);
+    static log = new Log(C.LOG_SRC.UTILS);
 
+    
     /**
      * Check if a variable really exists.
      */
@@ -48,7 +51,7 @@ class Utils {
      * Check the src/uri/href/filename for known audio extensions.
      */
     static isAllowedAudioType(name) {
-        var allowedRx = GCon.RECOG_RGX.AUDIO;
+        var allowedRx = C.RECOG_RGX.AUDIO;
         return allowedRx.test(name);
     };
 
@@ -57,7 +60,7 @@ class Utils {
      * Check the src/uri/href/filename for known video extensions.
      */
     static isAllowedVideoType(name) {
-        var allowedRx = GCon.RECOG_RGX.VIDEO;
+        var allowedRx = C.RECOG_RGX.VIDEO;
         return allowedRx.test(name);
     };
 
@@ -66,7 +69,7 @@ class Utils {
      * Check the src/uri/href/filename for known image extensions.
      */
     static isAllowedImageType(name) {
-        var allowedRx = GCon.RECOG_RGX.IMAGE;
+        var allowedRx = C.RECOG_RGX.IMAGE;
         return allowedRx.test(name);
     }
 
@@ -77,7 +80,7 @@ class Utils {
      * cached "locator".
      */
     static getBaseUri(loc) {
-        var baseUri = loc.href.substring(0, loc.href.lastIndexOf('/')+1);
+        var baseUri = loc.href.substring(0, loc.href.lastIndexOf(C.ST.WHACK)+1);
         return baseUri;
     };
 
@@ -87,7 +90,7 @@ class Utils {
      */
     static srcToUrl(src, loc) {
         if (!Utils.exists(src)) { 
-            src = `${GCon.MIME_TYPE.DATA}:`; 
+            src = `${C.DOC_TYPE.DATA}:`; 
         }
 
         var cleansedUrl = new URL(src, Utils.getBaseUri(loc));
@@ -104,6 +107,37 @@ class Utils {
         return u.srcToUrl(src, l).href;
     };
     
+
+    /**
+     * Does it have a file extension? If not, it's probably a generated image. That
+     * is the usefulness of this method.
+     * 
+     * @param {string} name 
+     */
+    static hasNoFileExtension(name) {
+        if (!!name) {
+            let slashedParts = name.split('?')[0].split('/');
+            let sl = slashedParts[slashedParts.length - 1];
+            
+            // Test for a file extension, negated.
+            return (
+                !/\.(.+?)$/.test(sl)
+            );
+        }
+    }
+
+
+    /**
+     * This matches all the media mimetypes we support. 
+     * 
+     * @param {string} mimeType 
+     */
+    static isKnownMediaMimeType(mimeType) {
+        return (
+            !!mimeType && C.MIMETYPE_RGX.ALLMEDIA.test(mimeType)
+        );
+    }
+
 
     /**
      * Do we think we know what type this file is? And do we want it?
@@ -128,7 +162,7 @@ class Utils {
      */
     static isFetchableUri(uri) {
         return (
-           GCon.RECOG_RGX.PROTOCOL.test(uri)
+           C.RECOG_RGX.PROTOCOL.test(uri)
         );
     };
 
@@ -140,7 +174,7 @@ class Utils {
      */
     static isSupportedMediaUri(uri) {
         return (
-            GCon.RECOG_RGX.SUPPORTED.test(uri)
+            C.RECOG_RGX.SUPPORTED.test(uri)
         )
     }
 
@@ -149,7 +183,7 @@ class Utils {
      * Pull out the filename from a uri, or fallback to the whole thing.
      */
     static extractFilename(uri) {
-        var lsi = uri.lastIndexOf('/');
+        var lsi = uri.lastIndexOf(C.ST.WHACK);
         var filename = uri.substring((lsi === -1) ? 0 : (lsi + 1));
 
         return filename;
@@ -160,7 +194,11 @@ class Utils {
      * Promise-wrapper for doing an XHR
      */
     static getXhrResponse(method, uri, responseType) {
-        var prop = (responseType === GCon.MIME_TYPE.DOC || responseType === GCon.MIME_TYPE.BLOB) ? 'responseXML' : 'response';
+        var prop = (
+            (responseType === C.DOC_TYPE.DOC || responseType === C.DOC_TYPE.BLOB) ? 
+            C.SEL_PROP.R_XML : 
+            C.SEL_PROP.R
+        );
         return Utils.sendXhr(method, uri, [prop], responseType);
     }
 
@@ -205,10 +243,13 @@ class Utils {
                 }
             };
             
+            // Again, using the old-school "function" so that "this"
+            // points o the XHR.
             xhr.onerror = function onXhrError() {
                 errorHandler(this.status, uri);
             };
 
+            // Perform the fetch.
             xhr.open(method, uri, true);
             if (responseType) {
                 xhr.responseType = responseType;
@@ -254,8 +295,8 @@ class Utils {
      */
     static sendTabMessage(tabMessage) {
         return new Promise((resolve, reject) => {
-            tabMessage.senderId = ContentMessage.GIMME_ID;
-            tabMessage.message.senderId = ContentMessage.GIMME_ID;
+            tabMessage.senderId = ContentMessage.GIMME_ID_ID;
+            tabMessage.message.senderId = ContentMessage.GIMME_ID_ID;
             
             chrome.tabs.sendMessage(
                 tabMessage.tab.id,
@@ -292,7 +333,7 @@ class Utils {
             delete Utils.dlCallbacks[prp];
         }
     
-        for (var i1 = 0; i1 < GCon.UTILS_CONF.DL_CHAIN_COUNT; i1++) {
+        for (var i1 = 0; i1 < C.UTILS_CONF.DL_CHAIN_COUNT; i1++) {
             Utils.dlChains.push(
                 Promise.resolve(true).then(() => {
                     return new Promise((resolve, reject) => {
@@ -311,16 +352,20 @@ class Utils {
      * Add its downloading to one of the DL_CHAIN_COUNT download promise chains.
      */
     static downloadFile(uri, destFilename, output) {
-        if (uri.lastIndexOf('/') === uri.length - 1) { 
+        if (uri.lastIndexOf(C.ST.WHACK) === uri.length - 1) { 
             return Promise.resolve(new DownloadSig(0, uri, destFilename)); 
-        };
+        }
+
+        if (!destFilename) {
+            destFilename = C.F_NAMING.DEFAULT_FN;
+        }
 
         // If it's not an expected file type, slap jpg on the end.
-        if (!(GCon.RECOG_RGX.SUPPORTED.test(destFilename))) {
+        if (!(C.RECOG_RGX.SUPPORTED.test(destFilename))) {
             destFilename = destFilename + '.jpg';
         }
 
-        var dlIndex = Utils.dlCounter % GCon.UTILS_CONF.DL_CHAIN_COUNT;
+        var dlIndex = Utils.dlCounter % C.UTILS_CONF.DL_CHAIN_COUNT;
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
         
@@ -338,8 +383,8 @@ class Utils {
     static buildDlChain(uri, destFilename, output, num) {
         output.toOut('Downloading file ' + num);
 
-        chrome.browserAction.setBadgeText({ text: '' + num + '' });
-        chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.DOWNLOADING);
+        chrome.browserAction.setBadgeText({ text: C.ST.E + num + C.ST.E });
+        chrome.browserAction.setBadgeBackgroundColor(C.COLOR.DOWNLOADING);
 
         return Utils.dlInChain(uri, destFilename);
     }
@@ -358,14 +403,14 @@ class Utils {
         }
 
         // Create a salted directory for the images to live in.
-        var hackedPageName = '';
-        var slashIndex = loc.pathname.lastIndexOf('/');
-        var dotIndex = loc.pathname.lastIndexOf('.');
+        var hackedPageName = C.ST.E;
+        var slashIndex = loc.pathname.lastIndexOf(C.ST.WHACK);
+        var dotIndex = loc.pathname.lastIndexOf(C.ST.DOT);
 
         if (slashIndex != -1 && dotIndex != -1) {
             hackedPageName = loc.pathname.substring(
-                loc.pathname.lastIndexOf('/')+1, 
-                loc.pathname.lastIndexOf('.')-1
+                loc.pathname.lastIndexOf(C.ST.WHACK)+1, 
+                loc.pathname.lastIndexOf(C.ST.DOT)-1
             );
         }
         else {
@@ -388,7 +433,7 @@ class Utils {
                     filename: destFilename,
                     conflictAction: 'uniquify',
                     saveAs: false,
-                    method: GCon.ACTION.GET
+                    method: C.ACTION.GET
                 },
                 (downloadId) => {
                     if (downloadId) {
@@ -396,8 +441,8 @@ class Utils {
                         chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
                     }
                     else {
-                        console.log('[Utils] no downloadId for uri ' + uri);
-                        console.log('[Utils] download error was: ' + chrome.runtime.lastError);
+                        Utils.log.log('no downloadId for uri ' + uri);
+                        Utils.log.log('download error was: ' + chrome.runtime.lastError);
                         resolve(new DownloadSig(0, uri, destFilename));
                     }
                 });
@@ -451,16 +496,16 @@ class Utils {
         for (var i = 0; i < fileOpts.length-1; i++) {
             if (!fileOpts[i].uri.match(/preview/)) {
                 promises.push(new Promise((resolve, reject) => {
-                    console.log('[Utils] Adding file option to zip file for download: ' + JSON.stringify(fileOpts[i]));
+                    Utils.log.log('Adding file option to zip file for download: ' + JSON.stringify(fileOpts[i]));
 
-                    return Utils.sendXhr(GCon.ACTION.GET, fileOpts[i].uri, ['response'], GCon.MIME_TYPE.BLOB)
+                    return Utils.sendXhr(C.ACTION.GET, fileOpts[i].uri, ['response'], C.DOC_TYPE.BLOB)
                         .then((r) => {
                             zip.file(fileOpts[i].filePath, r);
-                            console.log('[Utils] File added to zip successfully.');
+                            Utils.log.log('File added to zip successfully.');
                             resolve();
                         })
                         .catch((error) => {
-                            console.log('[Utils] adding file o zip failed: ' + JSON.stringify(error));
+                            Utils.log.log('adding file o zip failed: ' + JSON.stringify(error));
                             resolve();
                         });
                 }));
@@ -469,17 +514,17 @@ class Utils {
 
         return Promise.all(promises).then(() => {
             zip.generateAsync({
-                type: GCon.MIME_TYPE.BLOB
+                type: C.DOC_TYPE.BLOB
             })
             .then((content) => {
-                a.download = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf('/')) + '.zip';
+                a.download = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf(C.ST.WHACK)) + '.zip';
                 a.href = URL.createObjectURL(content);
                 chrome.extension.getBackgroundPage().document.querySelector('body').appendChild(a);
                 a.click();
                 a.remove();
             })
             .catch((err) => {
-                console.log('[Utils] failed to create zip file.')
+                Utils.log.log('failed to create zip file.')
             });
         });
     };
@@ -499,7 +544,7 @@ class Utils {
                         resolve(downloadItems);
                     }
                     else {
-                        console.log('[Utils] Error starting download: ' + chrome.runtime.lastError);
+                        Utils.log.log('Error starting download: ' + chrome.runtime.lastError);
                         resolve(downloadItems);
                     }
                 }
@@ -513,14 +558,17 @@ class Utils {
      */
     static setInStorage(items) {
         return new Promise((resolve, reject) => {
-            chrome.storage.local.set(items, () => {
-                if (chrome.runtime.lastError) {
-                    reject(chrome.runtime.lastError);
+            chrome.storage.local.set(
+                items, 
+                () => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    }
+                    else {
+                        resolve(true);
+                    }
                 }
-                else {
-                    resolve(true);
-                }
-            });
+            );
         });
     };
 
@@ -530,14 +578,17 @@ class Utils {
      */
     static getFromStorage(keys) {
         return new Promise((resolve, reject) => {
-            chrome.storage.local.get(keys, (items) => {
-                if (chrome.runtime.lastError) {
-                    reject(chrome.runtime.lastError);
+            chrome.storage.local.get(
+                keys, 
+                (items) => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    }
+                    else {
+                        resolve(items);
+                    }
                 }
-                else {
-                    resolve(items);
-                }
-            });
+            );
         });
     };
 
@@ -575,7 +626,7 @@ class Utils {
      */
     static loadUriDoc(uri, id) {
         return new Promise((resolve, reject) => {
-            id = (!id && id !== 0) ? GCon.UTILS_CONF.DEFAULT_IFRAME_ID : id;
+            id = (!id && id !== 0) ? C.UTILS_CONF.DEFAULT_IFRAME : id;
 
             // Create the iframe, removing the old one if needed.
             var bgDoc = chrome.extension.getBackgroundPage().document;
@@ -583,7 +634,7 @@ class Utils {
             var iframe = bgDoc.getElementById(id);
             if (iframe) { iframe.remove(); };
 
-            iframe = bgDoc.createElement('iframe');
+            iframe = bgDoc.createElement(C.SEL_PROP.IFRAME);
             iframe.id = id;   
             
             // Set a timeout for waiting for the iframe to load. We can't afford to 
@@ -593,7 +644,7 @@ class Utils {
                 iframe.remove();
                 delete Utils.listeners[listenerId];
 
-                reject(GCon.UTILS_CONF.LISTENER_TIMED_OUT);
+                reject(C.UTILS_CONF.LISTENER_TIMED_OUT);
             }, 7000);
 
             // Add a message listener for the ContentPeeper's loading message.
@@ -604,7 +655,7 @@ class Utils {
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
 
-                    var iframeDoc = Utils.domParser.parseFromString(request.docOuterHtml, GCon.MIME_TYPE.HTML);
+                    var iframeDoc = Utils.domParser.parseFromString(request.docOuterHtml, C.DOC_TYPE.HTML);
                     resolve(iframeDoc);
                     
                     iframe.remove();
@@ -629,9 +680,101 @@ class Utils {
     static toPrettyJson(obj) {
         return JSON.stringify(obj).replace(/\{/g, '{\n\t').replace(/\}/g, '\n}').replace(/\,/g,',\n\t');
     };
+
+
+    /**
+     * Are we on a page that contains all these page tokens?
+     * @param {Array<string>|string} pageTokens 
+     */
+    static isPage(win, pageTokens) {
+        var itIs = false;
+
+        // If we were passed in a non-empty string or array, use it for 
+        // matching. Otherwise, leave itIs = false.
+        if (!!pageTokens && !!pageTokens.length && pageTokens.length > 0) {
+            var tokens = [];
+
+            // The tokens array either gets set to the pageTokens input if
+            // it's an array, or if pageTokens is a string it's added as the
+            // sole element of a new array.
+            if (Array.isArray(pageTokens)) {
+                tokens = pageTokens;
+            }
+            else {
+                tokens.push(pageTokens);
+            }
+
+            // Do a logical "and" on all of the tokens to determine if we're
+            // on that page or not.
+            itIs = true;
+            tokens.forEach((tok) => {
+                if (win.location.href.indexOf(tok) != -1) {
+                    itIs = itIs && true;
+                }
+                else {
+                    itIs = false;
+                }
+            });
+        }
+       
+        // Always false if the pageTokens input is not a non-zero string or array<string>.
+        return itIs;
+    }
+
+    
+    /**
+     * Are we on the background page?
+     */
+    static isBackgroundPage(win) {
+        let h = win.location.href;
+        let isPage = (
+            (h.indexOf(C.WAY.CH) === 0) && 
+            (h.indexOf(C.PAGE.BACKGROUND) !== -1)
+        );
+
+        return isPage;
+        //return Utils.isPage(win, [C.WAY.CH_WW, C.ST.WHACK + C.PAGE.BACKGROUND]);
+    }
+
+    
+    /**
+     * Are we on the popup page?
+     */
+    static isPopupPage(win) {
+        let h = win.location.href;
+        let isPage = (
+            (h.indexOf(C.WAY.CH) === 0) && 
+            (h.indexOf(C.PAGE.POPUP) !== -1)
+        );
+
+        return isPage;
+        //return Utils.isPage(win, [C.WAY.CH_WW, C.ST.WHACK + C.PAGE.POPUP]);
+    }
+
+
+    /**
+     * Are we on the options page?
+     */
+    static isOptionsPage(win) {
+        let h = win.location.href;
+        let isPage = (
+            (h.indexOf(C.WAY.CH) === 0) && 
+            (h.indexOf(C.PAGE.OPTIONS) !== -1)
+        );
+
+        return isPage;
+        //return Utils.isPage(win, [C.WAY.CH_CWW, C.ST.WHACK + C.PAGE.OPTIONS]);
+    }
 }
-Utils.resetDownloader();
 
-window[GCon.WIN_PROP.UTILS_ST] = Utils;
 
+// Set our static instance on the background window object, and reset the downloader if
+// This is the first run through this file and we're on the background page.
+if (!window[C.WIN_PROP.UTILS_CLASS] && Utils.isBackgroundPage(window)) {
+    window[C.WIN_PROP.UTILS_CLASS] = Utils;
+    Utils.resetDownloader();
+}
+
+
+// Export.
 export default Utils;
