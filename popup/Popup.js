@@ -351,12 +351,20 @@ class Popup {
 
 
         /**
-         * Stop any digging or scraping currently happening.
+         * Stop any digging or scraping currently happening. Fire off a STOP event, and provide
+         * it with a silly dictionary (and it has the time triggered).
          */
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage((bgWindow) => {
                 me.log.log('stop button was pressed. Stopping.');
-                bgWindow[EP].stopHarvesting(window.document);
+                
+                var evt = new Event(C.ACTION.STOP, { 
+                    'stop': 'stop', 
+                    'STOP': 'STOP',
+                    'time': Date.now(), 
+                });
+                
+                bgWindow.document.dispatchEvent(evt);
             });
         });
 
