@@ -60,16 +60,20 @@
     "alarms",
     "downloads",
     "storage",
-    "http://*/*",
-    "https://*/*",
-    "file:///*/*",
-    "chrome-extension://*/*"
+    "*://*/*"
   ],
 
   "web_accessible_resources": [
-    "content/bundle.js",
-    "lib/GimmeConstants.js",
-    "lib/DataClasses.js",
+    "content/*.js",
+    "lib/*.js",
+    "options/*.js",
+    "background/*.js",
+    "popup/*.js",
+    "popup/bundle.js.map",
+    "background/bundle.js.map",
+    "options/bundle.js.map",
+    "content/bundle.js.map",
+    "lib/bundle.js.map",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js.map",
     "node_modules/@tensorflow/tfjs/dist/tf.esm.js.map",
