@@ -1002,7 +1002,7 @@ class Digger {
     }
 }
 
-if (!window[C.WIN_PROP.DIGGER_CLASS] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.DIGGER_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.DIGGER_CLASS] = Digger;
 }
 

@@ -875,7 +875,7 @@ class Logicker {
 }
 
 // Set the class on the background window just in case.
-if (!window[C.WIN_PROP.LOGICKER_CLASS] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.LOGICKER_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.LOGICKER_CLASS] = Logicker;
 }
 

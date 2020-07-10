@@ -498,17 +498,17 @@ class Output {
 
 
 // Set the class on every window object we're exposed to.
-if (!window[C.WIN_PROP.OUTPUT_CLASS]) {
+if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_CLASS)) {
     window[C.WIN_PROP.OUTPUT_CLASS] = Output;
 }
 
 // Set the instance on the Background page -- though we never want its document really.
-if (!window[C.WIN_PROP.OUTPUT_INST] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
 }
 
 // Set the instance on the Popup page.
-if (!window[C.WIN_PROP.OUTPUT_INST] && Utils.isPopupPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST) && Utils.isPopupPage(window)) {
     window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
 }
 

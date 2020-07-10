@@ -232,7 +232,7 @@ class EventPage {
 }
 
 // Set the class on the background window just in case.
-if (!window[EP] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(EP) && Utils.isBackgroundPage(window)) {
     window[EP] = EventPage;
 }
 

@@ -770,7 +770,7 @@ class Utils {
 
 // Set our static instance on the background window object, and reset the downloader if
 // This is the first run through this file and we're on the background page.
-if (!window[C.WIN_PROP.UTILS_CLASS] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.UTILS_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.UTILS_CLASS] = Utils;
     Utils.resetDownloader();
 }

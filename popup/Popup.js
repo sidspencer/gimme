@@ -380,9 +380,12 @@ class Popup {
 
 // Set a new instance of the popup on the window object if it's not already there.
 // Only do this if we're on the popup page.
-if (!window[C.WIN_PROP.POPUP_INST] && Utils.isPopupPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.POPUP_INST) && Utils.isPopupPage(window)) {
     // Make sure Output has been initialized.
-    if (!Output.getInstance()) {
+    if (!!Output.getInstance()) {
+        window[C.WIN_PROP.OUTPUT_INST] = Output.getInstanceSetToDoc(window.document);
+    }
+    else {
         window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
     }
     

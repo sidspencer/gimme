@@ -46,11 +46,11 @@ class Voyeur {
     };
 }
 
+
 // Set the class on the background window just in case.
-if (!window[C.WIN_PROP.VOYEUR_CLASS] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.VOYEUR_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.VOYEUR_CLASS] = Voyeur;
 }
-
 
 // Export
 export default Voyeur;

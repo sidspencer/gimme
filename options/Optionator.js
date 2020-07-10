@@ -570,11 +570,11 @@ if (Utils.isOptionsPage(window)) {
 }
 
 // Set the class on the background window just in case.
-if (!window[C.WIN_PROP.OPTIONATOR_CLASS] && Utils.isOptionsPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.OPTIONATOR_CLASS) && Utils.isOptionsPage(window)) {
     window[C.WIN_PROP.DOMINATRIX_CLASS] = Dominatrix;
     window[C.WIN_PROP.OPTIONATOR_CLASS] = Optionator;
 
-    // Add hanler to set up the Options document on DOMContentLoaded.
+    // Add handler to set up the Options document on DOMContentLoaded.
     Optionator.setupOptionsPageOnLoad();
 }
 

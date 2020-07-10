@@ -714,7 +714,7 @@ class App {
 }
 
 // Set the class on the window, just in case.
-if (!window[C.WIN_PROP.APP_CLASS] && Utils.isBackgroundPage(window)) {
+if (!window.hasOwnProperty(C.WIN_PROP.APP_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.APP_CLASS] = App;
 }
 

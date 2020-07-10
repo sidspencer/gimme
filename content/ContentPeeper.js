@@ -25,6 +25,8 @@ class ContentPeeper {
      */
     constructor()
     {
+        ContentPeeper.instance = this;
+
         // Send a message to the background when window load is complete.
         var setWindowLoadComplete = () => {
             window.removeEventListener(C.EVT.LOAD, setWindowLoadComplete, false);
@@ -66,6 +68,14 @@ class ContentPeeper {
         chrome.runtime.onMessage.addListener((req, sender, res) => {
             this.peepAroundOnceContentLoaded(req, sender, res, false);
         });
+    }
+
+
+    /**
+     * Get the singleton instance.
+     */
+    static getInstance() {
+        return ContentPeeper.instance;
     }
 
 
@@ -309,8 +319,13 @@ class ContentPeeper {
 }
 
 // Any page we're on needs one ContentPeeper instance.
-if (!ContentPeeper.instance) {
-    ContentPeeper.instance = new ContentPeeper();
+if (!window.hasOwnProperty(C.WIN_PROP.CONTENT_PEEPER_INST)) {
+    if (!!ContentPeeper.getInstance()) {
+        window[C.WIN_PROP.CONTENT_PEEPER_INST] = ContentPeeper.getInstance();
+    }
+    else {
+        window[C.WIN_PROP.CONTENT_PEEPER_INST] = new ContentPeeper();
+    }
 }
 
 // export;
