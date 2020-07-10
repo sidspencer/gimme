@@ -57,8 +57,8 @@ class Popup {
                 var length = Object.values(uriMap).length;
                 chrome.runtime.getBackgroundPage((bgWindow) => {
                     // Alias the static class Utils, and get the Output common instance..
-                    var ut = Utils; //bgWindow[C.WIN_PROP.UTILS_CLASS];
-                    var out = Output.instance; //bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+                    var ut = Utils;
+                    var out = Output.getInstanceSetToDoc(window.document);
                     out.setDoc(document);
 
                     // If it's still doing a dig/scrape, just say so and return.
