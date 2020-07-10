@@ -65,12 +65,18 @@ class Digger {
      */
     constructor(aScraper, someInspectionOptions) {
         this.scraper = aScraper;
-        this.output = window[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+        this.output = Output.getInstance();
 
         this.inspectionOptions = someInspectionOptions;
 
         this.setupOptions();
         this.setupScrapingTools();
+
+        // Listen for the stop event.
+        this.stop = false;
+        document.addEventListener(C.ACTION.STOP, (evt) => {
+            this.stop = true;
+        });
     }
 
 
@@ -162,9 +168,11 @@ class Digger {
                 new FileOption((idx++), uri, thumbUri, filePath, Utils.downloadFile)
             );
         }
-
+        
         chrome.browserAction.setBadgeText({ text: C.ST.E + idx + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.AVAILABLE_FOPTS);
+
+        return Promise.resolve(uriMap);
     }
 
 
@@ -225,21 +233,22 @@ class Digger {
             return Promise.resolve(this.harvestedUriMap);
         }).catch((err) => {
             var harvestCount = Object.keys(this.harvestedUriMap).length;
-            var message = C.LOG_SRC_SRC.DIGGER;
 
             // Stop is implemented as a reject(STOP) from digNextBatchLink(...).
             // Other rejects are probably from real errors.
             if (err === C.ACTION.STOP) {
-                message = message + 'STOP was signaled. Rejecting all promises.';
+                 me.log.log(`STOP was signaled. Rejecting all promises. Setting ${harvestCount} pairs in storage.`);
+                return this.resolveDigHarvest(this.harvestedUriMap).then((hMap) => {
+                    return this.redrawOutputFileOpts(hMap);
+                });
             }
             else {
-                message = message + 
+                me.log.log(
                     'Caught error in digGalleryBatches\'s Promise.all() while resolving dig harvest promises: ' + 
-                    JSON.stringify(err);
+                    JSON.stringify(err) + '\n\tResolving with the ' + harvestCount + ' uris already harvested.'
+                );
+                return Promise.resolve(this.harvestedUriMap);
             }
-
-            me.log.log(message + '\n        Resolving with the ' + harvestCount + ' uris already harvested.');
-            return Promise.resolve(this.harvestedUriMap);
         });  
     }  
 
@@ -783,7 +792,12 @@ class Digger {
             startingPromise = 
                 Utils.getXhrResponse(C.ACTION.GET, zoomPageUrl.href, C.DOC_TYPE.DOC)
                 .catch((e) => {
-                    me.log.log('processZoomPage xhr error: ' + e)
+                    if (e === C.ACTION.STOP) {
+                        me.log.log(`Got STOP event. Not loading zoomPageUrl "${ zoomPageUrl.href }" for thumbnail "${ thumbUrl.href }".`);
+                        return Promise.resolve(me.galleryMap);
+                    }
+
+                    me.log.log('processZoomPage xhr error: ' + JSON.stringify(e));
                     return Promise.resolve(e);
                 });
         }
