@@ -1,8 +1,8 @@
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
-import { default as GCon } from '../lib/GCon.js';
-import { ScrapeDefinition } from '../lib/DataClasses.js';
+import { default as C } from '../lib/C.js';
+import { ScrapeDefinition, Log } from '../lib/DataClasses.js';
 
 
 /**
@@ -10,13 +10,15 @@ import { ScrapeDefinition } from '../lib/DataClasses.js';
  * functions for scraping a node.
  */
 class Scraper {
+    // static key to 
     // Configuration needed to scrape.
     config = {
         opts: {},
-        loc: GCon.BLANK_VAL.LOC,
+        loc: C.BLANK.LOC,
         node: undefined,
     };
     output = {};
+    log = new Log(C.LOG_SRC.SCRAPER)
     stop = false;
 
 
@@ -27,7 +29,7 @@ class Scraper {
      * @param {Output} anOutput 
      */
     constructor() {
-        this.output = window[GCon.WIN_PROP.OUTPUT_INST];
+        this.output = window[C.WIN_PROP.OUTPUT_CLASS].getInstance();
     }
 
 
@@ -38,7 +40,7 @@ class Scraper {
     static getElementUrls(inputSpec) {
         var tagUrls = [];
         var defaultSpec = {
-            loc: GCon.BLANK_VAL.LOC,
+            loc: C.BLANK.LOC,
             selector: '*',
             propPaths: [ 'currentSrc', 'href' ]
         };
@@ -46,7 +48,7 @@ class Scraper {
         
         // Check for missing values. We can use the defaults unless there is no root node.
         if (!spec.root) {
-            console.log('[Scraper] getElementUrls called with no root node.');
+            this.log.log('getElementUrls called with no root node.');
             return [];
         }
         if (!spec.loc) { spec.loc = defaultSpec.loc; }
@@ -75,7 +77,7 @@ class Scraper {
      */
     getAllCssBackgroundUrls(root, loc) {
         if (!root) {
-            console.log('[Scraper] No root node. Returning blank array.');
+            this.log.log('No root node. Returning blank array.');
             return [];
         }
 
@@ -93,10 +95,10 @@ class Scraper {
                         return;
                     }
 
-                    var bgSrc = bgVal.replace(/^url\(/, '').replace(/\)$/, '').replace(/\'/g, '').replace(/\"/g, '');                
+                    var bgSrc = bgVal.replace(/^url\(/, C.ST.E).replace(/\)$/, C.ST.E).replace(/\'/g, C.ST.E).replace(/\"/g, C.ST.E);                
 
                     if (Utils.exists(bgSrc)) {
-                        var cleansedUrl = Utils.srcToUrl(bgSrc, (loc || GCon.BLANK_VAL.LOC));
+                        var cleansedUrl = Utils.srcToUrl(bgSrc, (loc || C.BLANK.LOC));
                         
                         // Add to the list if an OK url.
                         if (Utils.exists(cleansedUrl)) {
@@ -116,7 +118,7 @@ class Scraper {
      */
     getAllVideoUrls(node, loc) {
         if (!Utils.exists(node)) {
-            console.log('[Scraper] No root node. Returning blank array.');
+            this.log.log('No root node. Returning blank array.');
             return [];
         }
 
@@ -126,7 +128,7 @@ class Scraper {
         var videos = node.querySelectorAll(':scope video, a[href], source');
         if (videos.length > 0) {
             videos.forEach(function getVideoCurrentSrc(vid) {
-                var vidSrc = '';
+                var vidSrc = C.ST.E;
 
                 if (vid) {
                     // First try for currentSrc. It's on the media elements.
@@ -147,8 +149,8 @@ class Scraper {
                     }
 
                     // Only grab video srcs. turn the src into a uri, push it if it worked.
-                    if (vidSrc && vidSrc.match(GCon.RECOG_RGX.VIDEO)) {
-                        var cleansedUrl = Utils.srcToUrl(vidSrc, (loc || GCon.BLANK_VAL.LOC));
+                    if (vidSrc && vidSrc.match(C.RECOG_RGX.VIDEO)) {
+                        var cleansedUrl = Utils.srcToUrl(vidSrc, (loc || C.BLANK.LOC));
 
                         if (Utils.exists(cleansedUrl)) {
                             urlList.push(cleansedUrl);
@@ -167,11 +169,11 @@ class Scraper {
      */
     getAllJsUrls(node, loc, selector) {
         if (!Utils.exists(node)) {
-            console.log('[Scraper] No root node. Returning blank array.');
+            this.log.log('No root node. Returning blank array.');
             return [];
         }
 
-        selector = (Utils.exists(selector) ? selector : GCon.DEF_SEL.ALL_JS_SELECTOR);
+        selector = (Utils.exists(selector) ? selector : C.DEF_SEL.ALL_JS_SELECTOR);
 
         var urlList = [];
 
@@ -183,7 +185,7 @@ class Scraper {
                 return;
             }
 
-            var js = '';
+            var js = C.ST.E;
             var atts = t.attributes;
             var jsAtts = [
                 'onclick',
@@ -221,7 +223,7 @@ class Scraper {
             // Grab all the srcs/urls we can find in the big concatenated javascript string.
             if (js) {
                 // Find all the matches that we can for things looking like media files.
-                var possibleMatches = js.match(GCon.RECOG_RGX.ALL_MEDIA) || [];
+                var possibleMatches = js.match(C.RECOG_RGX.ALL_MEDIA) || [];
 
                 possibleMatches.forEach(function extractUriFromMatch(match) {
                     if (Utils.exists(match) && (typeof match === 'string')) {
@@ -232,7 +234,7 @@ class Scraper {
                         // If we can, push it.
                         if (Array.isArray(splits) && splits.length > 1) {
                             var possibleHref = splits[1];
-                            var allowedHref = '';
+                            var allowedHref = C.ST.E;
 
                             if (!allowedHref && (this.options.imgs === true)) {
                                 if (Utils.isAllowedImageFile(possibleHref)) {
@@ -250,7 +252,7 @@ class Scraper {
                                 }
                             }
 
-                            var possibleUrl = Utils.srcToUrl(allowedHref, (loc || BLANK_LOC));
+                            var possibleUrl = Utils.srcToUrl(allowedHref, (loc || C.BLANK.LOC));
                             if (Utils.exists(possibleUrl)) {
                                 urlList.push(possibleUrl);
                             }
@@ -269,7 +271,7 @@ class Scraper {
      */
     getAllAudioUrls(node, loc) {
         if (!Utils.exists(node)) {
-            console.log('[Scraper] No root node. Returning blank array.');
+            this.log.log('No root node. Returning blank array.');
             return [];
         }
 
@@ -303,7 +305,7 @@ class Scraper {
      */
     getAllImgUrls(node, loc) {
         if (!Utils.exists(node)) {
-            console.log('[Scraper] No root node. Returning blank array.');
+            this.log.log('No root node. Returning blank array.');
             return [];
         }
 
@@ -318,13 +320,13 @@ class Scraper {
      */
     getAllQsUrls(d, l) {
         if (!Utils.exists(l) && !Utils.exists(d.location)) {
-            console.log('[Scraper] No this.config.location. Returning blank array.');
+            this.log.log('No this.config.location. Returning blank array.');
             return [];
         }
 
-        var loc = (l || d.location || BLANK_LOC);
+        var loc = (l || d.location || C.BLANK.LOC);
         var urls = [];
-        var qsVars = '';
+        var qsVars = C.ST.E;
 
         if (!!loc && !!loc.search) {
             qsVars = loc.search.split('&');        
@@ -338,9 +340,9 @@ class Scraper {
             var pair = qsVars[i].split('=');
             var val = ((pair.length === 1) ? pair[0].substring(1) : pair[1]);
             
-            // If it has a '.' and is of a known media type, then push it into the 
+            // If it has a C.ST.DOT and is of a known media type, then push it into the 
             // uri list after URL-ifying it.
-            if (val && (val.indexOf('.') !== -1) && Utils.isKnownMediaFile(val)) {
+            if (val && (val.indexOf(C.ST.DOT) !== -1) && Utils.isKnownMediaFile(val)) {
                 var url = new URL(val, Utils.getBaseUri(loc));
 
                 if (Utils.exists(url)) {
@@ -440,7 +442,7 @@ class Scraper {
         var audioUris = [];
         var qsUris = [];
 
-        console.log('[Scraper] options: ' + JSON.stringify(this.config.opts));
+        this.log.log('options: ' + JSON.stringify(this.config.opts));
 
         if (this.config.opts.imgs && this.stop !== true) {
             this.output.toOut('Scraping all images.')
@@ -472,19 +474,21 @@ class Scraper {
             qsUris = this.scrapeAllQsUris(this.config.node, (this.config.loc || this.config.node.location));
         }
         else {
-            console.log('[Scraper] skipping qs scrape. No location information.')
+            this.log.log('skipping qs scrape. No location information.')
         }
 
         if (this.stop === true) {
-            console.log('[Scraper] Stop was called. Returning what has been scraped thus far.');
+            this.log.log('Stop was called. Returning what has been scraped thus far.');
         }
 
-        console.log('[Scraper] Found imgUris: ' + JSON.stringify(imgUris));
-        console.log('[Scraper] Found cssBgUris: ' + JSON.stringify(cssBgUris));
-        console.log('[Scraper] Found jsUris: ' + JSON.stringify(jsUris));
-        console.log('[Scraper] Found videoUris: ' + JSON.stringify(videoUris));
-        console.log('[Scraper] Found audioUris: ' + JSON.stringify(audioUris));
-        console.log('[Scraper] Found qsUris: ' + JSON.stringify(qsUris));
+        // TODO: Do we even need these log statements ever?
+        //
+        // this.log.log('Found imgUris: ' + JSON.stringify(imgUris));
+        // this.log.log('Found cssBgUris: ' + JSON.stringify(cssBgUris));
+        // this.log.log('Found jsUris: ' + JSON.stringify(jsUris));
+        // this.log.log('Found videoUris: ' + JSON.stringify(videoUris));
+        // this.log.log('Found audioUris: ' + JSON.stringify(audioUris));
+        // this.log.log('Found qsUris: ' + JSON.stringify(qsUris));
 
         // Turn it into a silly map with the same values as keys. 
         var harvestedUris = []
@@ -503,16 +507,17 @@ class Scraper {
             {}
         );
 
-        console.log('[Scraper] harvested map of length: ' + harvestedUris.length);
-        chrome.browserAction.setBadgeText({ text: '' + harvestedUris.length + '' });
-        chrome.browserAction.setBadgeBackgroundColor(GCon.B_COLOR.SCRAPED);
+        this.log.log('harvested map of length: ' + harvestedUris.length);
+        chrome.browserAction.setBadgeText({ text: C.ST.E + harvestedUris.length + C.ST.E });
+        chrome.browserAction.setBadgeBackgroundColor(C.COLOR.SCRAPED);
         
+        var me = this;
         return (new Promise(function(resolve, reject) {
             chrome.storage.local.set({
                     prevUriMap: harvestedUriMap,
                 },
-                function storageSet() {
-                    console.log('[Scraper] Set prevUriMap in storage');
+                () => {
+                    me.log.log('Set prevUriMap in storage');
                     resolve(harvestedUriMap);
                 }
             );
@@ -529,6 +534,10 @@ class Scraper {
     };
 }
 
-window[GCon.WIN_PROP.SCRAPER_CLASS] = Scraper;
+// Set the class on the background window just in case.
+if (!window[C.WIN_PROP.SCRAPER_CLASS] && Utils.isBackgroundPage(window)) {
+    window[C.WIN_PROP.SCRAPER_CLASS] = Scraper;
+}
 
+// Export the scraper.
 export default Scraper;
