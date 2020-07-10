@@ -5,15 +5,15 @@ import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
-import { default as GCon } from '../lib/GCon.js';
-import { InspectionOptions } from '../lib/DataClasses.js';
+import { default as C } from '../lib/C.js';
+import { InspectionOptions, Log } from '../lib/DataClasses.js';
 
 
+const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
 
 class EventPage {
     // The active EventPage.app instance, stored statically.
     static app = undefined;
-
 
     //
     // Digging
@@ -28,9 +28,8 @@ class EventPage {
      */
     static goDig(parentDocument) {
         var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-
-        out.setDoc(parentDocument);
+        
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
 
@@ -52,8 +51,7 @@ class EventPage {
     static goDigFileOptions(parentDocument) {
         var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
 
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
         var scraper = new Scraper();
@@ -72,8 +70,7 @@ class EventPage {
     static goDigImageGallery(parentDocument) {
         var inspectionOptions = new InspectionOptions(true, true, false, true, false, false);
 
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -92,8 +89,7 @@ class EventPage {
     static goDigVideoGallery(parentDocument) {
         var inspectionOptions = new InspectionOptions(false, false, true, true, false, false);
     
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -111,8 +107,7 @@ class EventPage {
     static goDigGalleryGallery(parentDocument) {
         var inspectionOptions = new InspectionOptions(true, true, true, true, false, false); 
         
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -139,8 +134,7 @@ class EventPage {
     static goScrape(parentDocument) {
         var inspectionOptions = new InspectionOptions(true); 
     
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -160,8 +154,7 @@ class EventPage {
     static goScrapeFileOptions(parentDocument) {
         var inspectionOptions = new InspectionOptions(true);
 
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -180,8 +173,7 @@ class EventPage {
     static goScrapeImages(parentDocument) {
         var inspectionOptions = new InspectionOptions(true, true, false, true, false, true);
         
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -200,8 +192,7 @@ class EventPage {
     static goScrapeVideos(parentDocument) {
         var inspectionOptions = new InspectionOptions(false, false, true, true, false, true);
 
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
         var scraper = new Scraper();
@@ -227,8 +218,7 @@ class EventPage {
      * set to the currently running instance of App.
      */
     static stopHarvesting(parentDocument) {
-        var out = window[GCon.WIN_PROP.OUTPUT_INST];
-        out.setDoc(parentDocument);
+        var out = window[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(parentDocument);
 
         if (!!EventPage.app) {   
             out.hideStopButton();
@@ -241,6 +231,10 @@ class EventPage {
     }
 }
 
-window[GCon.WIN_PROP.EVENTPAGE_ST] = EventPage;
+// Set the class on the background window just in case.
+if (!window[EP] && Utils.isBackgroundPage(window)) {
+    window[EP] = EventPage;
+}
 
+// export.
 export default EventPage;
