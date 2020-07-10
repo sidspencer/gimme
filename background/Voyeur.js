@@ -1,4 +1,5 @@
 import { default as Utils } from './Utils.js';
+import C from '../lib/C.js';
 
 /** 
  * Singleton.
@@ -6,6 +7,8 @@ import { default as Utils } from './Utils.js';
  * see what media is being requested.
  */
 class Voyeur {
+    static ST_KEY = C.WIN_PROP.VOYEUR_ST;
+
     static uris = [];
     static isWatching = false;
 
@@ -43,6 +46,11 @@ class Voyeur {
     };
 }
 
-window['theVoyeur'] = Voyeur;
+// Set the class on the background window just in case.
+if (!window[C.WIN_PROP.VOYEUR_CLASS] && Utils.isBackgroundPage(window)) {
+    window[C.WIN_PROP.VOYEUR_CLASS] = Voyeur;
+}
 
+
+// Export
 export default Voyeur;
