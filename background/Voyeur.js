@@ -1,5 +1,6 @@
 import { default as Utils } from './Utils.js';
 import C from '../lib/C.js';
+import { Log } from '../lib/DataClasses.js';
 
 /** 
  * Singleton.
@@ -11,6 +12,7 @@ class Voyeur {
 
     static uris = [];
     static isWatching = false;
+    static log = new Log(C.LOG_SRC.VOYEUR);
 
 
     /**
@@ -18,6 +20,8 @@ class Voyeur {
      */
     static start() {
         if (Voyeur.isWatching) { return; };
+
+        Voyeur.log.log('Starting watch on all loading media.');
 
         Utils.queryActiveTab().then((tab) => {
             Utils.addMediaHeadersListener(Voyeur.watchMedia, tab.windowId, tab.id);
@@ -40,6 +44,8 @@ class Voyeur {
      */
     static stop() {
         if (!this.isWatching) { return; };
+
+        Voyeur.log.log('Stopping watch on all loading media.')
         
         Utils.removeMediaHeadersListener(Voyeur.watchMedia);
         Voyeur.isWatching = false;
@@ -50,6 +56,12 @@ class Voyeur {
 // Set the class on the background window just in case.
 if (!window.hasOwnProperty(C.WIN_PROP.VOYEUR_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.VOYEUR_CLASS] = Voyeur;
+
+    // Event Listener for STOP.
+    window.document.addEventListener(C.ACTION.STOP, () => {
+        Voyeur.log.log('Got STOP event.');
+        Voyeur.stop();
+    });
 }
 
 // Export
