@@ -199,6 +199,7 @@ class Utils {
             C.SEL_PROP.R_XML : 
             C.SEL_PROP.R
         );
+
         return Utils.sendXhr(method, uri, [prop], responseType);
     }
 
@@ -208,11 +209,20 @@ class Utils {
      */
     static sendXhr(method, uri, props, responseType) {
         return new Promise((resolve, reject) => {
+            // Get an unused key for this xhr. The do-while will usually only run one iteration.
+            var xhr = new XMLHttpRequest();
+
+            // Error handler function.
             var errorHandler = (theStatus) => {
                 reject(theStatus);
             };
 
-            var xhr = new XMLHttpRequest();
+
+            // Nullify and delete the xhr.
+            var deleteXhr = () => {
+                xhr = null;
+            };
+
 
             // Left as a old-school function def so "this" will point at the xhr and not
             // accidentally cause bad closures.
@@ -240,14 +250,26 @@ class Utils {
                     else {
                         errorHandler(this.status, uri);
                     }
+
+                    xhr = null;
                 }
             };
             
+
             // Again, using the old-school "function" so that "this"
             // points o the XHR.
             xhr.onerror = function onXhrError() {
                 errorHandler(this.status, uri);
+                xhr = null;
             };
+
+
+            // When STOP event is dispatched, abort gets called.
+            xhr.onabort = function onXhrAbort() {
+                Utils.log.log(`Got STOP event, aborting XHR for ${uri}`);
+                xhr = null;
+            };
+
 
             // Perform the fetch.
             xhr.open(method, uri, true);
@@ -255,6 +277,15 @@ class Utils {
                 xhr.responseType = responseType;
             }
             xhr.send();
+
+
+            // Event Listener for STOP to cancel the in-flight xhr.
+            window.document.addEventListener(C.ACTION.STOP, function abortXhrOnStop() {
+                if (!!xhr) { 
+                    xhr.abort(); 
+                    reject(C.ACTION.STOP);
+                }
+            });
         });
     }
 
@@ -382,6 +413,7 @@ class Utils {
      */
     static buildDlChain(uri, destFilename, output, num) {
         output.toOut('Downloading file ' + num);
+
 
         chrome.browserAction.setBadgeText({ text: C.ST.E + num + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.DOWNLOADING);
@@ -637,6 +669,7 @@ class Utils {
             iframe = bgDoc.createElement(C.SEL_PROP.IFRAME);
             iframe.id = id;   
             
+
             // Set a timeout for waiting for the iframe to load. We can't afford to 
             // just never complete the promise. Wait 7 seconds.
             var listeningTimeoutId = setTimeout(() => {
@@ -646,6 +679,7 @@ class Utils {
 
                 reject(C.UTILS_CONF.LISTENER_TIMED_OUT);
             }, 7000);
+
 
             // Add a message listener for the ContentPeeper's loading message.
             // It will fire for every page or frame loaded, as it is always injected.
@@ -666,7 +700,20 @@ class Utils {
                 return true;
             }; 
             chrome.runtime.onMessage.addListener(Utils.listeners[listenerId]);
-                 
+
+
+            // Listen for STOP events.
+            window.document.addEventListener(C.ACTION.STOP, (evt) => {
+                Utils.log.log(`Got STOP event. Load stopping for iframe with id "${iframe.id}", and it will be removed.`);
+                clearTimeout(listeningTimeoutId);
+                chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
+                delete Utils.listeners[listenerId];
+
+                iframe.stop();
+                iframe.remove();
+            });
+            
+            
             // Set the src (it begins loading here)
             iframe.src = uri;
             bgDoc.body.appendChild(iframe);
@@ -774,7 +821,6 @@ if (!window.hasOwnProperty(C.WIN_PROP.UTILS_CLASS) && Utils.isBackgroundPage(win
     window[C.WIN_PROP.UTILS_CLASS] = Utils;
     Utils.resetDownloader();
 }
-
 
 // Export.
 export default Utils;
