@@ -45,7 +45,8 @@ module.exports = {
                             ['@babel/plugin-transform-runtime', {
                                 'regenerator': false,
                                 'useESModules': true,
-                            }]
+                            }],
+                            'es6-promise'
                         ]
                     }
                 }
