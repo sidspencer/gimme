@@ -142,18 +142,10 @@ class Utils {
     /**
      * Do we think we know what type this file is? And do we want it?
      */
-    static isKnownMediaType(name) {
+    static isKnownMediaFile(name) {
         return (
             !!name && (Utils.isAllowedImageType(name) || Utils.isAllowedVideoType(name) || Utils.isAllowedAudioType(name))  
         );
-    };
-
-
-    /**
-     * Kind of degenerate...
-     */
-    static isKnownMediaFile(name) {
-        return Utils.isKnownMediaType(name);
     };
 
 
@@ -166,6 +158,29 @@ class Utils {
         );
     };
 
+
+    /**
+     * Does the filename have a dot in it?
+     * 
+     * @param {string} filename 
+     */
+    static doesFilenameHaveDot(filename) {
+        return (
+            filename.indexOf(C.ST.DOT) !== -1
+        );
+    }
+
+
+    /**
+     * What's the index of the dot in the filename?
+     * 
+     * @param {string} filename 
+     */
+    static indexOfDot(filename) {
+        return (
+            filename.indexOf(C.ST.DOT)
+        );
+    }
 
     /**
      * Is this a URI filetype that we support?
@@ -587,17 +602,23 @@ class Utils {
 
     /**
      * A promise-based wrapper for setting storage items.
+     * The cb's return value is ignored completely.
      */
-    static setInStorage(items) {
+    static setInStorage(itemsToStore, cb) {
         return new Promise((resolve, reject) => {
             chrome.storage.local.set(
-                items, 
+                itemsToStore, 
                 () => {
                     if (chrome.runtime.lastError) {
                         reject(chrome.runtime.lastError);
                     }
                     else {
                         resolve(true);
+                    }
+
+                    // Make sure callback is defined, a function, and not an object.
+                    if (!!cb && typeof(cb) === 'function' && !cb.toString) {
+                        cb();
                     }
                 }
             );
@@ -623,6 +644,26 @@ class Utils {
             );
         });
     };
+
+
+    /**
+     * See if the param is actually the boolean value "true". Not something coerced.
+     * 
+     * @param {any} test 
+     */
+    static isTrue(test) {
+        return (test === true);
+    }
+
+
+    /**
+     * See if the param is actually the string value of C.ACTION.STOP ("STOP").
+     * 
+     * @param {any} test 
+     */
+    static isSTOP(test) {
+        return (test === C.ACTION.STOP);
+    }
 
 
     /**
