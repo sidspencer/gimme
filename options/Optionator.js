@@ -7,7 +7,7 @@ import Utils from '../background/Utils.js';
  * Singleton which handles layout and serialization to and from the HTML5 form
  * for the options spec values.
  */
-class Dominatrix { 
+class Dominatrix extends CommonStaticBase { 
     // Key for the static class reference on the options page window object.  
     static ST_KEY = C.WIN_PROP.DOMINATRIX_ST;
 
@@ -22,6 +22,16 @@ class Dominatrix {
         PROCESSINGS: document.getElementById(C.OPT_CONF.SECTIONS.PROCESSINGS),
         BLESSINGS: document.getElementById(C.OPT_CONF.SECTIONS.BLESSINGS),
     };
+
+
+    /**
+     * Set up the Logger and STOP handlers.
+     */
+    static setup() {
+        if (!Utils.exists(Dominatrix.log)) {
+            super.setup(C.LOG_SRC.DOMINATRIX);
+        }
+    }
 
 
     /**
@@ -336,15 +346,14 @@ class Dominatrix {
         return Dominatrix.getEntries(Dominatrix.SectionElements.BLESSINGS);
     };
 }
+Dominatrix.setup();
 
 
 /**
  * Static class which handles getting, setting, and processing the options spec values
  * to/from storage.
  */
-class Optionator {
-    static initialized = false;
-
+class Optionator extends CommonStaticBase {
     // id properties of the elements in the configuration sections
     static ids = {
         CONFIG: [],
@@ -360,6 +369,16 @@ class Optionator {
         PROCESSINGS: Dominatrix.insertProcessingEntry,
         BLESSINGS: Dominatrix.insertBlessingEntry,
     };
+
+
+    /**
+     * Setup the Log, and a STOP listener event handler.
+     */
+    static setup() {
+        if (!Utils.exists(Optionator.log)) {
+            super.setup(C.LOG_SRC.OPTIONATOR);
+        }
+    }
 
 
     /**
@@ -402,9 +421,9 @@ class Optionator {
         spec.processings = Dominatrix.getProcessingEntries();
         spec.blessings = Dominatrix.getBlessingEntries();
 
-        console.log('Trying to set spec:');
-        console.log(JSON.stringify(spec));
-        console.log('\n');
+        this.lm('Trying to set spec:');
+        this.lm(JSON.stringify(spec));
+        this.lm('\n');
 
         chrome.storage.sync.set({
                 spec: spec,
@@ -529,7 +548,7 @@ class Optionator {
      * Set up the event listener which kicks off building the Options page on
      * 'DOMContentLoaded'.
      */
-    static setupOptionsPageOnLoad() {
+    static buildOptionsPageUi() {
         // Do setup on DOMContentLoaded.
         document.addEventListener('DOMContentLoaded', () => {
             // Load the spec from storage, and trigger the layout.
@@ -561,12 +580,13 @@ class Optionator {
         return C.OPT_CONF.HALF_BAKED_VAL;
     }
 }
+Optionator.setup();
 
+// Only lay out the options content if we're on the options page.
 if (Utils.isOptionsPage(window)) {
     // Setup the event listener to lay out the Options page. 
-    console.log('[Optionator] starting up, laying out the options/preferences form.');
-    Optionator.setupOptionsPageOnLoad();
-    Optionator.initialized = true;
+    this.lm('[Optionator] starting up, laying out the options/preferences form.');
+    Optionator.buildOptionsPageUi();
 }
 
 // Set the class on the background window just in case.
@@ -575,7 +595,7 @@ if (!window.hasOwnProperty(C.WIN_PROP.OPTIONATOR_CLASS) && Utils.isOptionsPage(w
     window[C.WIN_PROP.OPTIONATOR_CLASS] = Optionator;
 
     // Add handler to set up the Options document on DOMContentLoaded.
-    Optionator.setupOptionsPageOnLoad();
+    Optionator.buildOptionsPageUi();
 }
 
 // Export.
