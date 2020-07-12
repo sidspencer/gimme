@@ -1,6 +1,8 @@
 .DS_Store
 node_modules/
 distro/
+WHERE_I_LEFT_OFF.txt
+WHERE_YOU_LEFT_OFF.txt
 background/bundle.js
 background/bundle.js.map
 content/bundle.js
