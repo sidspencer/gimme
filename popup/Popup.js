@@ -8,18 +8,17 @@ import {
     Storing, 
     FileOption,
     Log,
+    StopEvent,
 } from '../lib/DataClasses.js';
+import CommonBase from '../lib/CommonBase.js';
 
 
 /**
  * Controller for the popup window UI.
  */
-class Popup {
-    // Hold the instance of the popup.
+class Popup extends CommonBase {
+    // Hold the instance of the singleton popup.
     static instance = undefined;
-
-    // the logger.
-    log = new Log(C.LOG_SRC.POPUP);
 
 
     /**
@@ -27,7 +26,8 @@ class Popup {
      * the preferences, and connect the button event handlers.
      */
     constructor() {
-        this.log.log('Popup constructor called.');
+        // set up Log, and STOP event handlers.
+        super(C.LOG_SRC.POPUP);
 
         // Set up event handlers for the UI. All actual work is done in the background scripts.
         document.addEventListener("DOMContentLoaded", () => {
@@ -36,6 +36,7 @@ class Popup {
             this.connectEventHandlers();    
         });
 
+        // Set the static instance.
         Popup.instance = this;
     }
 
@@ -47,11 +48,11 @@ class Popup {
     setFileOptionList() {
         var me = this;
 
-        chrome.storage.local.get(
-            Storing.storePrevUriMap({}), 
-            (store) => {
+        Utils.getFromStorage(Storing.storePrevUriMap({}))
+            .then((store) => {
                 var uriMap = store.prevUriMap
-                
+                var me = this;
+
                 // If we're still in the digging/scraping stages, restore the textual file-list.
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
                 var length = Object.values(uriMap).length;
@@ -64,18 +65,21 @@ class Popup {
                     // If it's still doing a dig/scrape, just say so and return.
                     if (out.appIsScraping || out.appIsDigging) {
                         var descriptionOfWork = out.appIsScraping ? 'scraping...' : 'digging...';
-                        out.toOut('Currently ' + descriptionOfWork);
+                        var outMessage = `Currently ${descriptionOfWork}`;
+                        
+                        out.toOut(outMessage);
                         out.restoreFileList();
-                        return;
+
+                        return C.CAN_FN.PR_RS(outMessage);
                     }
                     
                     // Otherwise, if there is a previousUriMap, make the file options.
                     if (length) {
-                        me.log.log(
+                        me.lm(
                             'Got persisted uris:\n' + 
                             '    ' + JSON.stringify(uriMap));
 
-                        me.log.log(
+                        me.lm(
                             '[Popup] Got checked uris:\n' +
                             '        ' + JSON.stringify(out.checkedFileOptUris)
                         );
@@ -94,7 +98,7 @@ class Popup {
                             var uri = uriMap[thumbUri];
 
                             if (!uri || !uri.replace || uri.indexOf(C.ST.DOT) === 0) {
-                                me.log.log('Bad uri string for download: ' + JSON.stringify(uri));
+                                me.lm('Bad uri string for download: ' + JSON.stringify(uri));
                                 continue;
                             }
 
@@ -109,13 +113,13 @@ class Popup {
 
                             out.addFileOption(new FileOption(optId+C.ST.E, uri, thumbUri, filePath, ut.downloadFile));
                             
-                            var cb = document.getElementById( C.ELEMENT_ID.CB_PREFIX + optId);
-                            if (!!cb) {
-                                if (out.checkedFileOptUris.indexOf(cb.value) !== -1) {
+                            var cBox = document.getElementById( C.ELEMENT_ID.CB_PREFIX + optId);
+                            if (Utils.exists(cBox)) {
+                                if (out.checkedFileOptUris.indexOf(cBox.value) !== -1) {
                                     checkedItemCount++;   
-                                    cb.dataset.filePath = C.ST.E;
-                                    cb.checked = true;
-                                    cb.disabled = true;
+                                    cBox.dataset.filePath = C.ST.E;
+                                    cBox.checked = true;
+                                    cBox.disabled = true;
                                 }
                             }
                         }
@@ -138,8 +142,15 @@ class Popup {
                         out.toOut('hit a button to begin.');
                     }
                 });
-            }
-        );
+
+                return C.CAN_FN.PR_RS_DEF();
+            })
+            .catch((err) => {
+                out.toOut('Problem loading previous results. My apologies.');
+                this.lm('Could not get the prevUriMap. err: ' + JSON.stringify(err));
+                
+                return C.CAN_FN.PR_RJ(err);
+            });
     }
 
 
@@ -148,12 +159,16 @@ class Popup {
      */
     static clearPreviousUriMap() {         
         chrome.browserAction.setBadgeText({ text: C.ST.E });
-        chrome.storage.local.set(
-            Storing.storePrevUriMap({}),
-            () => {
-                console.log(C.LOG_SRC.POPUP + 'Cleared prev uri map');
-            }
-        );
+        
+        Utils.setInStorage(Storing.storePrevUriMap({}))
+            .then(() => {
+                this.instance.lm( 'Cleared prev uri map');
+                return C.CAN_FN.PR_RS_DEF();
+            })
+            .catch((err) => {
+                this.instance.lm(`Could not clear prevUriMap. Continuing, but that is weird. Error was:\n     ${JSON.stringify(err)}`);
+                return C.CAN_FN.PR_RJ(err);
+            });
     }
 
 
@@ -161,47 +176,53 @@ class Popup {
      Read storage for the spec json.
     */
     readSpec() {
-        chrome.storage.sync.get({
-            spec: {
-                config: C.OPT_CONF.CANNED_CONFIG,
-                messages: [],
-                processings: [],
-                blessings: [],
-            }
-        }, 
-        (store) => {
-            // Set the options on the Digger and Logicker through static methods, and on
-            // Output's common instance. 
-            chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
-                var d = Digger; //bgWindow[C.WIN_PROP.DIGGER_CLASS];
-                var l = Logicker; //bgWindow[C.WIN_PROP.LOGICKER_CLASS];
-                var o = Output.instance //bgWindow[C.WIN_PROP.OUTPUT_CLASS].instance;
-
-                d.setBatchSize(store.spec.config.dlBatchSize);
-                d.setChannels(store.spec.config.dlChannels);
-
-                l.setMinZoomHeight(store.spec.config.minZoomHeight);
-                l.setMinZoomWidth(store.spec.config.minZoomWidth);
-                l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
-
-                l.setMessages(store.spec.messages);
-                l.setProcessings(store.spec.processings);
-                l.setBlessings(store.spec.blessings);
-
-                o.setEnableHalfBakedFeatures(
-                    (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
-                );
-            });
-
-            // Show all the buttons if the user enabled the half-baked features.
-            if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
-                var bcs = document.getElementsByClassName('buttonColumn');
-
-                for (var b = 0; b < bcs.length; b++) {
-                    bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
+        Utils.getFromStorage({
+                spec: {
+                    config: C.OPT_CONF.CANNED_CONFIG,
+                    messages: [],
+                    processings: [],
+                    blessings: [],
                 }
-            }
-        });
+            })
+            .then((store) => {
+                // Set the options on the Digger and Logicker through static methods, and on
+                // Output's common instance. 
+                chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
+                    var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
+                    var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
+                    var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+
+                    d.setBatchSize(store.spec.config.dlBatchSize);
+                    d.setChannels(store.spec.config.dlChannels);
+
+                    l.setMinZoomHeight(store.spec.config.minZoomHeight);
+                    l.setMinZoomWidth(store.spec.config.minZoomWidth);
+                    l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
+
+                    l.setMessages(store.spec.messages);
+                    l.setProcessings(store.spec.processings);
+                    l.setBlessings(store.spec.blessings);
+
+                    o.setEnableHalfBakedFeatures(
+                        (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
+                    );
+                });
+
+                // Show all the buttons if the user enabled the half-baked features.
+                if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
+                    var bcs = document.getElementsByClassName('buttonColumn');
+
+                    for (var b = 0; b < bcs.length; b++) {
+                        bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
+                    }
+                }
+
+                return C.CAN_FN.PR_RS_DEF();
+            })
+            .catch((err) => {
+                this.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
+                return C.CAN_FN.PR_RJ(err);
+            });
     }
 
 
@@ -268,8 +289,7 @@ class Popup {
             chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
                 Popup.clearPreviousUriMap();
                 
-                var out = Output.instance;
-                out.setDoc(document); 
+                var out = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(window.document);
                           
                 out.clearFilesDug();
                 out.resetFileData();
@@ -356,14 +376,9 @@ class Popup {
          */
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage((bgWindow) => {
-                me.log.log('stop button was pressed. Stopping.');
+                me.lm('stop button was pressed. Stopping.');
                 
-                var evt = new Event(C.ACTION.STOP, { 
-                    'stop': 'stop', 
-                    'STOP': 'STOP',
-                    'time': Date.now(), 
-                });
-                
+                var evt = new StopEvent();
                 bgWindow.document.dispatchEvent(evt);
             });
         });
@@ -374,11 +389,13 @@ class Popup {
          */
         document.getElementById(C.ELEMENT_ID.TOGGLE_VOYEUR).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage(function toggleVoyeur(bgWindow) {
-                if (bgWindow.theVoyeur.isWatching) {
-                    bgWindow.theVoyeur.stop();
+                var voy = bgWindow[C.WIN_PROP.VOYEUR_CLASS];
+
+                if (voy.isWatching) {
+                    voy.stop();
                 }
                 else {
-                    bgWindow.theVoyeur.start();
+                    voy.start();
                 }
             });
         });
@@ -390,7 +407,7 @@ class Popup {
 // Only do this if we're on the popup page.
 if (!window.hasOwnProperty(C.WIN_PROP.POPUP_INST) && Utils.isPopupPage(window)) {
     // Make sure Output has been initialized.
-    if (!!Output.getInstance()) {
+    if (Utils.exists(Output.getInstance())) {
         window[C.WIN_PROP.OUTPUT_INST] = Output.getInstanceSetToDoc(window.document);
     }
     else {
@@ -400,7 +417,6 @@ if (!window.hasOwnProperty(C.WIN_PROP.POPUP_INST) && Utils.isPopupPage(window)) 
     // Construct our popup
     window[C.WIN_PROP.POPUP_INST] = new Popup();
 }
-
 
 // Export.
 export default Popup;
