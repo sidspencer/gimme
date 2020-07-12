@@ -1,19 +1,29 @@
 import { default as Utils } from './Utils.js';
 import C from '../lib/C.js';
 import { Log } from '../lib/DataClasses.js';
+import CommonStaticBase from '../lib/CommonStaticBase.js';
 
 /** 
  * Singleton.
  * Web Navigation listener for GimmeGimmeGimme. Listens to web requests in order to 
  * see what media is being requested.
  */
-class Voyeur {
+class Voyeur extends CommonStaticBase {
     static ST_KEY = C.WIN_PROP.VOYEUR_ST;
 
     static uris = [];
     static isWatching = false;
-    static log = new Log(C.LOG_SRC.VOYEUR);
 
+
+    /**
+     * Do setup for this static class. Call the super constructor to make a log
+     * and setup STOP handlers.
+     */
+    static setup() {
+        if (!Utils.exists(Voyeur.log)) {
+            super.setup(C.LOG_SRC.VOYEUR);
+        }
+    }
 
     /**
      * Start watching the network traffic. 
