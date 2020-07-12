@@ -1,4 +1,5 @@
 import { default as C } from '../lib/C.js';
+import CommonBase from '../lib/CommonBase.js';
 import { 
     ContentMessage, 
     ContentPeeperMessage,
@@ -10,14 +11,13 @@ import {
  * Client-Script for Gimme. Returns the location object, and will
  * scrape the page via a prop and a selector if asked.
  */
-class ContentPeeper {
+class ContentPeeper extends CommonBase {
     // static instance.
     static instance = undefined;
 
     // instance properties.
     loadComplete = false;
     peepingAround = false;
-    log = new Log(C.LOG_SRC.CONTENT_PEEPER)
 
     /**
      * Constructor which sets up the event handlers for window load complete,
@@ -25,14 +25,15 @@ class ContentPeeper {
      */
     constructor()
     {
-        ContentPeeper.instance = this;
+        // Set up Log, and set up STOP listener.
+        super(C.LOG_SRC.CONTENT_PEEPER);
 
         // Send a message to the background when window load is complete.
         var setWindowLoadComplete = () => {
             window.removeEventListener(C.EVT.LOAD, setWindowLoadComplete, false);
             this.loadComplete = true;
     
-            //log.log('Content Tab\'s Window.load() fired.');        
+            //this.lm(('Content Tab\'s Window.load() fired.');        
     
             chrome.runtime.sendMessage(
                 new ContentPeeperMessage( 
@@ -50,8 +51,7 @@ class ContentPeeper {
                 document.removeEventListener(C.EVT.RSC, setDocLoadComplete, false);
                 this.loadComplete = true;
     
-                //log.log('Content Tab\'s Window.document.readyState is "complete".');                    
-    
+                // Send the message with the doc's URL and HTML to Gimme's backend.
                 chrome.runtime.sendMessage(
                     new ContentPeeperMessage( 
                         'ContentPeeper doc complete',
@@ -63,11 +63,13 @@ class ContentPeeper {
         };
         document.addEventListener(C.EVT.RSC, setDocLoadComplete, false);
 
-
         // Do the content-peeping around for the backend when it messages us.
         chrome.runtime.onMessage.addListener((req, sender, res) => {
             this.peepAroundOnceContentLoaded(req, sender, res, false);
         });
+
+        // Set the static instance.
+        ContentPeeper.instance = this;
     }
 
 
@@ -84,17 +86,17 @@ class ContentPeeper {
      * Note: returns true, as this is aync.
      */
     peepAroundOnceContentLoaded(req, sender, res, secondTry) {
-        //log.log('Got message with request: ' + JSON.stringify(req));
+        //this.lm(('Got message with request: ' + JSON.stringify(req));
 
         // Don't respond if we didn't get all of the data we need.
         if (!req || !sender || !res) {
-            //log.log('Peep action request missing required fields. Not responding,');
+            //this.lm(('Peep action request missing required fields. Not responding,');
             return false;
         }
 
         // Don't even respond if it's not gimme. return blank if we have a no-good window object.
-        if (req.senderId !== ContentMessage.GIMME_ID_ID) {
-            log.log('Sent message by someone other than gimme, "' + req.senderId + '". Not responding.');
+        if (req.senderId !== ContentMessage.GIMME_ID) {
+            this.lm(`Sent message by not Gimme, but someone called "${req.senderId}". Not responding.`);
             return false;
         }
 
@@ -112,7 +114,7 @@ class ContentPeeper {
 
             if (!allImagesComplete) {
                 if (!secondTry) {
-                    //log.log('Not all images complete. Trying again in 2 seconds.');
+                    //this.lm(('Not all images complete. Trying again in 2 seconds.');
                     
                     setTimeout(() => {
                         this.peepAroundOnceContentLoaded(req, sender, res, true);
@@ -121,7 +123,7 @@ class ContentPeeper {
                     return true;
                 }
                 else {
-                    //log.log('Proceeding though not all images are loaded.');
+                    //this.lm(('Proceeding though not all images are loaded.');
                 }   
             }            
         } 
@@ -163,7 +165,7 @@ class ContentPeeper {
 
         // If the page hasn't loaded, set up event listeners to call once we've loaded.
         if (!secondTry && !this.loadComplete) {
-            //log.log('DOM not loaded. Setting event handlers.');
+            //this.lm(('DOM not loaded. Setting event handlers.');
             
             // set one for page load.
             var load = (event) => {
@@ -197,11 +199,11 @@ class ContentPeeper {
         this.peepingAround = false;
         
 
-        // log.log('-----------------------------');
+        // this.lm(('-----------------------------');
         // console.log(req);
         // console.log(resPayload);
-        // log.log('-----------------------------')
-        // log.log('Sending response');
+        // this.lm(('-----------------------------')
+        // this.lm(('Sending response');
 
         res(resPayload);
         return true;
@@ -212,7 +214,7 @@ class ContentPeeper {
       * If our loc or doc is bad.
       */ 
     badDocumentProc(payload) {
-        log.log('Bad locator or bad document. Stopping.');
+        this.lm('Bad locator or bad document. Stopping.');
         
         resPayload.status = 'error';
         resPayload.error = 'Bad locator or bad document';
@@ -225,7 +227,7 @@ class ContentPeeper {
      * Default function to call if not a command we know.
      */
     errorProc(payload) {
-        log.log('Bad command sent. Stopping.');
+        this.lm('Bad command sent. Stopping.');
         
         payload.status = 'what?';
         payload.error = 'No such command';
@@ -238,7 +240,7 @@ class ContentPeeper {
      * Function to call if we're already peeping around right now.
      */
     alreadyPeepingAround(payload) {
-        log.log('Already peeping around. Not starting another peeping.');
+        this.lm('Already peeping around. Not starting another peeping.');
 
         payload.status = 'peeping around';
         payload.error = 'Already peeping around';
