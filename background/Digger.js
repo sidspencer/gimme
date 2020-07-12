@@ -9,13 +9,14 @@ import {
     UriPair, 
     Log
 } from '../lib/DataClasses.js'
+import CommonBase from '../lib/CommonBase.js';
 
 
 /** 
  * Worker bee for GimmeGimmeGimme. Looks through various types of linked media, resolves
  * the harvested map of thumbnail URLs -> full-size URLs to the popup.
  */
-class Digger {
+class Digger extends CommonBase {
     // members for tracking the thumb -> zoomUri pairs.
     startingGalleryMap = {};
     harvestedUriMap = {};
@@ -36,12 +37,6 @@ class Digger {
     batchCount = 0;
     inspectionOptions = {};
     soleInspectionOption = false;
-
-    // flag to stop and just return what's already harvested.
-    stop = false;
-
-    // Logging.
-    log = new Log(C.LOG_SRC.DIGGER);
 
     // Map of inspection-scraping DiggerScrapeKey -> Scraper Method pairs.
     SCRAPING_TOOLS = {};
@@ -64,19 +59,19 @@ class Digger {
      * @param {InspecionOptions} someInspectionOptions 
      */
     constructor(aScraper, someInspectionOptions) {
+        // Set up Log and STOP handler.
+        super(C.LOG_SRC.DIGGER);
+
+        // set class refs.
         this.scraper = aScraper;
         this.output = Output.getInstance();
 
+        // set the inspection options.
         this.inspectionOptions = someInspectionOptions;
 
+        // Do additional setup.
         this.setupOptions();
         this.setupScrapingTools();
-
-        // Listen for the stop event.
-        this.stop = false;
-        document.addEventListener(C.ACTION.STOP, (evt) => {
-            this.stop = true;
-        });
     }
 
 
@@ -665,7 +660,7 @@ class Digger {
         var zoomFilename = Utils.extractFilename(zoomPageUri);
 
         // Resolve if we can tell the zoom page URI points directly to media.
-        if (Utils.isKnownMediaType(zoomPageUri)) {
+        if (Utils.isKnownMediaFileOrEndpoint(zoomPageUri)) {
             this.output.toOut('Found direct link to media: ' + zoomFilename);
             return Promise.resolve(new UriPair(thumbUri, zoomPageUri));
         }
@@ -756,7 +751,7 @@ class Digger {
         })
         .then((pair) => {
              // Double-check that we got a good result before reporting success.
-            if (Utils.isKnownMediaType(pair.zoomUri) || Utils.hasNoFileExtension(pair.zoomUri)) {
+            if (Utils.isKnownMediaFileOrEndpoint(pair.zoomUri)) {
                 return this.reportDigSuccess(pair.thumbUri, pair.zoomUri);
             }
             else {

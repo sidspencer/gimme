@@ -1,3 +1,4 @@
+import { default as CommonBase } from '../lib/CommonBase.js';
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
@@ -9,7 +10,7 @@ import { ScrapeDefinition, Log } from '../lib/DataClasses.js';
  * Factory function for the Scraper for Gimme. It holds all the
  * functions for scraping a node.
  */
-class Scraper {
+class Scraper extends CommonBase {
     // static key to 
     // Configuration needed to scrape.
     config = {
@@ -18,8 +19,6 @@ class Scraper {
         node: undefined,
     };
     output = {};
-    log = new Log(C.LOG_SRC.SCRAPER)
-    stop = false;
 
 
     /**
@@ -29,13 +28,11 @@ class Scraper {
      * @param {Output} anOutput 
      */
     constructor() {
-        this.output = Output.getInstance();
+        // set up Log and STOP handler.
+        super(C.LOG_SRC.SCRAPER);
 
-         // Listen for the stop event.
-         this.stop = false;
-         document.addEventListener(C.ACTION.STOP, (evt) => {
-             this.stop = true;
-         });
+        // Get instance of Output singleton.
+        this.output = Output.getInstance();
     }
 
 
@@ -348,7 +345,7 @@ class Scraper {
             
             // If it has a C.ST.DOT and is of a known media type, then push it into the 
             // uri list after URL-ifying it.
-            if (val && (val.indexOf(C.ST.DOT) !== -1) && Utils.isKnownMediaFile(val)) {
+            if (Utils.isKnownMediaFileOrEndpoint(val)) {
                 var url = new URL(val, Utils.getBaseUri(loc));
 
                 if (Utils.exists(url)) {
