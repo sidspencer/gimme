@@ -211,24 +211,6 @@ class EventPage {
     static undefineApp() {
         EventPage.app = undefined;
     }
-
-
-    /**
-     * For the stop button. EventPage has the closure variable "EventPage.app" always
-     * set to the currently running instance of App.
-     */
-    static stopHarvesting(parentDocument) {
-        var out = Output.getInstanceSetToDoc(parentDocument);
-
-        if (!!EventPage.app) {   
-            out.hideStopButton();
-            out.toOut('Stopping...');
-            EventPage.app.stopHarvesting();
-        }
-        else {
-            out.toOut('No digging or scraping in progress. There is nothing to stop.');
-        }
-    }
 }
 
 // Set the class on the background window just in case.
