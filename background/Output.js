@@ -1,5 +1,6 @@
 import { getColorMatrixTextureShapeWidthHeight } from '@tensorflow/tfjs-core/dist/backends/webgl/tex_util';
 import { default as C } from '../lib/C.js';
+import CommonBase from '../lib/CommonBase.js';
 import { FileEntry, FileOption, Log } from '../lib/DataClasses.js';
 import { default as Utils } from './Utils.js';
 
@@ -7,7 +8,7 @@ import { default as Utils } from './Utils.js';
 /**
  * Factory function for bridging the services with the UI.
  */
-class Output {
+class Output extends CommonBase {
     // static instance of Output.
     static instance = undefined;
 
@@ -22,7 +23,6 @@ class Output {
     doc = undefined;
     filesDug = undefined;
     out = undefined;
-    log = new Log(C.LOG_SRC.OUTPUT);
 
     /**
      * Set what document this Output is for, and get the #filesDug and #output elements on that document.
@@ -30,15 +30,18 @@ class Output {
      * @param {Document} doc 
      */
     constructor(doc) {
-        if (!!doc) {
-            doc.addEventListener('DOMContentLoaded', () => {
-                this.setDoc(doc)
-            });
+        // setup the log and the stop event handler.
+        super(C.LOG_SRC.OUTPUT);
+
+        // Set the doc, or show an error.
+        if (Utils.exists(doc)) {
+            this.setDoc(doc)
         }
         else {
-            this.log.log('Constructor called with a non-existant document. Someone has to call Output.setDoc()')
+            this.lm('Constructor called with a non-existant document. Someone has to call setDoc(), or we are a dead Output.')
         }
 
+        // Set the static instance for this singleton.
         Output.instance = this;
     }
 
@@ -52,8 +55,8 @@ class Output {
             this.out.textContent = newContent;
         }
         catch(error) {
-            this.log.log('Could not write to doc, it may be a Dead Object.');
-            this.log.log('tried to say: ' + newContent);
+            this.lm('Could not write to doc, it may be a Dead Object.');
+            this.lm('tried to say: ' + newContent);
         }
     };
 
@@ -71,7 +74,7 @@ class Output {
             this.out = this.doc.getElementById(C.ELEMENT_ID.OUTPUT);
         }
         catch(err) {
-            this.log.log('Could not get elements from doc, it may be a Dead Object.');
+            this.lm('Could not get elements from doc, it may be a Dead Object.');
             this.toOut('Trouble initializing. Please refresh the page.');
         }
     }
@@ -96,7 +99,7 @@ class Output {
             childNodes = this.filesDug.childNodes;
         }
         catch(err) {
-            this.log.log('Cannot clear file entries, doc reference may be a Dead Object.');
+            this.lm('Cannot clear file entries, doc reference may be a Dead Object.');
             return;
         }
 
@@ -116,7 +119,7 @@ class Output {
             childNodes = this.filesDug.childNodes;
         }
         catch (err) {
-            this.log.log('Could not clear file entries, doc reference may be a Dead Object.');
+            this.lm('Could not clear file entries, doc reference may be a Dead Object.');
             return false;
         }
 
@@ -151,7 +154,7 @@ class Output {
             entry = this.doc.getElementById(C.ELEMENT_ID.FE_PREFIX + idx);
         }
         catch(error) {
-            this.log.log('Cannot set entry as downloading. doc reference may be a Dead Object.');
+            this.lm('Cannot set entry as downloading. doc reference may be a Dead Object.');
             return;
         }
         
@@ -171,7 +174,7 @@ class Output {
             fEntry = this.doc.getElementById(C.ELEMENT_ID.FE_PREFIX + id);
         }
         catch(error) {
-            this.log.log('Cannot change file entry state. doc ref may be a Dead Object.');
+            this.lm('Cannot change file entry state. doc ref may be a Dead Object.');
             return;
         }
         
@@ -214,7 +217,7 @@ class Output {
                     newLi = this.doc.createElement(C.SEL_PROP.LI);
                 }
                 catch(error) {
-                    this.log.log('Could not create new file entry. doc reference might be a Dead Object.');
+                    this.lm('Could not create new file entry. doc reference might be a Dead Object.');
                     resolve({
                         id: (id + C.ST.E),
                         uri: uri,
@@ -245,7 +248,7 @@ class Output {
             fileLi = this.doc.querySelector(`#${C.ELEMENT_ID.FE_PREFIX + id}`);
         }
         catch(error) {
-            this.log.log('Could not delete entry. doc reference may be a Dead Object.');
+            this.lm('Could not delete entry. doc reference may be a Dead Object.');
             return;
         }
 
@@ -266,7 +269,7 @@ class Output {
             checkbox = this.doc.createElement(C.SEL_PROP.INPUT);
         }
         catch(error) {
-            this.log.log('Could not create file option checkbox. doc reference may be a Dead Object.');
+            this.lm('Could not create file option checkbox. doc reference may be a Dead Object.');
             return;
         }
         
@@ -342,7 +345,7 @@ class Output {
             this.doc.getElementById(C.ELEMENT_ID.BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;
         }
         catch(error) {
-            this.log.log('Could not hide dig/scrape buttons. doc ref may be a Dead Object.');
+            this.lm('Could not hide dig/scrape buttons. doc ref may be a Dead Object.');
         }
     };
 
@@ -355,7 +358,7 @@ class Output {
             this.doc.getElementById(C.ELEMENT_ID.ACTION_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;       
         }
         catch(error) {
-            this.log.log('Could not hide action buttons. doc ref may be a Dead Object.');
+            this.lm('Could not hide action buttons. doc ref may be a Dead Object.');
         } 
     };
 
@@ -377,7 +380,7 @@ class Output {
             }
         }
         catch(error) {
-            this.log.log('Could not show dig/scrape buttons. doc ref may be a Dead Object.');
+            this.lm('Could not show dig/scrape buttons. doc ref may be a Dead Object.');
         }        
     };
 
@@ -394,7 +397,7 @@ class Output {
             this.doc.getElementById(C.ELEMENT_ID.GET_ALL_JPG_OPTS).focus();
         }
         catch(error) {
-            this.log.log('Could not show action buttons. doc maybe is a Dead Object.');
+            this.lm('Could not show action buttons. doc maybe is a Dead Object.');
         }
     };
 
@@ -410,7 +413,7 @@ class Output {
             this.doc.getElementById(C.ELEMENT_ID.STOP_BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.BLOCK;
         }
         catch(error) {
-            this.log.log('Could not show stop button. doc ref may be a Dead Object.')
+            this.lm('Could not show stop button. doc ref may be a Dead Object.')
         }
     };
 
@@ -423,7 +426,7 @@ class Output {
             this.doc.getElementById(C.ELEMENT_ID.STOP_BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;
         }
         catch(error) {
-            this.log.log('Could not hide stop button. doc ref may be a Dead Object.')
+            this.lm('Could not hide stop button. doc ref may be a Dead Object.')
         }
     };
 
@@ -463,7 +466,7 @@ class Output {
                 });
             }
 
-            this.log.log('restoreFileList() is setting up the promise chaining.');
+            this.lm('restoreFileList() is setting up the promise chaining.');
 
             return pChain;
         }
