@@ -1,4 +1,3 @@
-import { isFunction } from '@tensorflow/tfjs-core/dist/util';
 import { default as C } from '../lib/C.js';
 import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
 import {
@@ -19,6 +18,8 @@ class Utils extends CommonStaticBase {
     static dlCounter = 0;
     static dlCallbacks = {};
     static listeners = [];
+    static xhrsInFlight = {};
+    static xhrIdSeed = 0;
     static counter = 0;
     static domParser = new DOMParser();
     static lastLoc = new LastLoc(C.BLANK.LOCALHOST, C.BLANK.GALLERY);
@@ -248,19 +249,31 @@ class Utils extends CommonStaticBase {
     static sendXhr(method, uri, props, responseType) {
         return new Promise((resolve, reject) => {
             // Get an unused key for this xhr. The do-while will usually only run one iteration.
-            var xhr = new XMLHttpRequest();
+            // Then create the object, setting it on the in-flight map and in the xhr local var.
+            var xhrId = '0';
+            do {
+                xhrId = `${(Utils.xhrIdSeed++)}`;
+            } while (Utils.xhrsInFlight.hasOwnProperty(xhrId));
 
-            // Error handler function.
-            var errorHandler = (theStatus) => {
-                reject(theStatus);
-            };
+            // Create the XHR in the tracking map and get a var handle to it.
+            var xhr = Utils.xhrsInFlight[xhrId] = new XMLHttpRequest();
 
 
-            // Nullify and delete the xhr.
-            var deleteXhr = () => {
+            // Error handler function. Logs the error status,
+            // then deletes the xhr from the array and sets the var reference
+            // to nul, then rejects with theStatus.
+            var errorHandler = (errorStatus) => {
+                // Log the error.
+                Utils.lm(`XHR Error in sendXhr():\n    ${errorStatus}`);
+
+                // delete the xhr as best we can.
+                delete Utils.xhrsInFlight[xhrId];
                 xhr = null;
-            };
 
+                // reject with the error status we were called with.
+                reject(errorStatus);
+            };
+            
 
             // Left as a old-school function def so "this" will point at the xhr and not
             // accidentally cause bad closures.
@@ -286,9 +299,11 @@ class Utils extends CommonStaticBase {
                         }
                     }
                     else {
-                        errorHandler(this.status, uri);
+                        errorHandler(this.status);
                     }
 
+                    // delete the xhr as best we can.
+                    delete Utils.xhrsInFlight[xhrId];
                     xhr = null;
                 }
             };
@@ -297,15 +312,23 @@ class Utils extends CommonStaticBase {
             // Again, using the old-school "function" so that "this"
             // points o the XHR.
             xhr.onerror = function onXhrError() {
-                errorHandler(this.status, uri);
-                xhr = null;
+                errorHandler(this.status);
             };
+
+
+            // Event Listener for StopEvent to cancel the in-flight xhr.
+            window.document.addEventListener(C.ACTION.STOP, (evt) => {
+                if (Utils.exists(xhr)) { 
+                    xhr.abort(); 
+                    reject(C.ACTION.STOP);
+                }
+            });
 
 
             // When STOP event is dispatched, abort gets called.
             xhr.onabort = function onXhrAbort() {
-                Utils.log.log(`Got STOP event, aborting XHR for ${uri}`);
-                xhr = null;
+                Utils.lm(`${C.ST.STOP_BANG} aborted XHR for uri: ${uri}.`);
+                errorHandler(C.ACTION.STOP);
             };
 
 
@@ -315,15 +338,6 @@ class Utils extends CommonStaticBase {
                 xhr.responseType = responseType;
             }
             xhr.send();
-
-
-            // Event Listener for STOP to cancel the in-flight xhr.
-            window.document.addEventListener(C.ACTION.STOP, function abortXhrOnStop() {
-                if (!!xhr) { 
-                    xhr.abort(); 
-                    reject(C.ACTION.STOP);
-                }
-            });
         });
     }
 
@@ -511,8 +525,8 @@ class Utils extends CommonStaticBase {
                         chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
                     }
                     else {
-                        Utils.log.log('no downloadId for uri ' + uri);
-                        Utils.log.log('download error was: ' + chrome.runtime.lastError);
+                        Utils.lm('no downloadId for uri ' + uri);
+                        Utils.lm('download error was: ' + chrome.runtime.lastError);
                         resolve(new DownloadSig(0, uri, destFilename));
                     }
                 });
@@ -559,42 +573,68 @@ class Utils extends CommonStaticBase {
      */
     static downloadInZip(fileOpts) {
         var zip = new JSZip();
-        var a = chrome.extension.getBackgroundPage().document.createElement('a');
-
         var promises = [];
 
         for (var i = 0; i < fileOpts.length-1; i++) {
+            if (Utils.isSTOP()) {
+                Utils.lm(`${C.ST.STOP_BANG} aborting zip creation, rejecting from downloadInZip().`);
+                return C.CAN_FN.PR_RJ_STOP();
+            }
+
+            // Create an array of promises for fetching each file as a BLOB and setting that data in the
+            // zip file.
             if (!fileOpts[i].uri.match(/preview/)) {
                 promises.push(new Promise((resolve, reject) => {
-                    Utils.log.log('Adding file option to zip file for download: ' + JSON.stringify(fileOpts[i]));
+                    Utils.lm(`Adding file option to zip file for download:\n     ${JSON.stringify(fileOpts[i])}`);
 
+                    // Get the data for each file as a BLOB and add it to the zip.
                     return Utils.sendXhr(C.ACTION.GET, fileOpts[i].uri, ['response'], C.DOC_TYPE.BLOB)
                         .then((r) => {
                             zip.file(fileOpts[i].filePath, r);
-                            Utils.log.log('File added to zip successfully.');
-                            resolve();
+                            Utils.lm(`File added to zip successfully: ${fileOpts[i].filePath}`);
+
+                            resolve(true);
                         })
                         .catch((error) => {
-                            Utils.log.log('adding file o zip failed: ' + JSON.stringify(error));
-                            resolve();
+                            Utils.lm(
+                                `Adding file to zip failed for: ${fileOpts[i].filePath}.\n    ` +
+                                `However, resolving to preserve the other file data. Error: ${JSON.stringify(error)}`
+                            );
+
+                            resolve(false);
                         });
                 }));
             }
         }
 
+        // Get all the promises executed, do not STOP, and download the zip file if all goes well.
         return Promise.all(promises).then(() => {
+            if (Utils.isSTOP()) {
+                Utils.lm(`${C.ST.STOP_BANG} right after fetching/adding all the file blobs. So downloading it. Not Stopping!`);
+            }
+
             zip.generateAsync({
                 type: C.DOC_TYPE.BLOB
             })
             .then((content) => {
-                a.download = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf(C.ST.WHACK)) + '.zip';
-                a.href = URL.createObjectURL(content);
-                chrome.extension.getBackgroundPage().document.querySelector('body').appendChild(a);
-                a.click();
-                a.remove();
+                if (Utils.isSTOP()) {
+                    Utils.lm(`${C.ST.STOP_BANG} but we created the zip successfully. So downloading it. Not Stopping!`);
+                }
+
+                // Setup the download filename and href, then download it directly.
+                var zipFilename = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf(C.ST.WHACK)) + '.zip';
+                var zipUri = URL.createObjectURL(content);
+            
+                // Download. Reclaim the object uri memory on finally, but return the downloadFile() promise result.
+                var prm = Utils.downloadFile(zipUri, zipFilename, Output.getInstance());
+                prm.finally(() => { URL.revokeObjectURL(zipUri); });
+
+                // return the downloadFile() promise result.
+                return prm;
             })
             .catch((err) => {
-                Utils.log.log('failed to create zip file.')
+                Utils.lm(`failed to create zip file. Error: ${err}`);
+                return Promise.reject(err);
             });
         });
     };
@@ -614,7 +654,7 @@ class Utils extends CommonStaticBase {
                         resolve(downloadItems);
                     }
                     else {
-                        Utils.log.log('Error starting download: ' + chrome.runtime.lastError);
+                        Utils.lm('Error starting download: ' + chrome.runtime.lastError);
                         resolve(downloadItems);
                     }
                 }
@@ -671,6 +711,16 @@ class Utils extends CommonStaticBase {
      */
     static isTrue(test) {
         return (test === true);
+    }
+
+
+    /**
+     * See if the param is actually the boolean value "false". Not something coerced.
+     * 
+     * @param {any} test 
+     */
+    static isFalse(test) {
+        return (test === false);
     }
 
 
@@ -763,7 +813,7 @@ class Utils extends CommonStaticBase {
 
             // Listen for STOP events.
             window.document.addEventListener(C.ACTION.STOP, (evt) => {
-                Utils.log.log(`${C.ST.STOP_BANG} Stopping load for iframe with id "${iframe.id}", and it will be removed.`);
+                Utils.lm(`${C.ST.STOP_BANG} Stopping load for iframe with id "${iframe.id}", and it will be removed.`);
                 clearTimeout(listeningTimeoutId);
                 chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
                 delete Utils.listeners[listenerId];
