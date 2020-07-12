@@ -1,6 +1,7 @@
 import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm';
 import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
 import { default as Utils } from './Utils.js';
+import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
 import { default as C } from '../lib/C.js';
 import {
     ContentMessage,
@@ -16,7 +17,7 @@ import {
  * Logicker static class for stateless rules about how to 
  * find things on pages in general, and for specific sites.
  */
-class Logicker {
+class Logicker extends CommonStaticBase {
     // service object
     static hasSpecialRules = false;
     static knownBadImgRegex = /^SUPER_FAKE_NOT_FOUND_IN_NATURE_ONLY_ZOOL$/;
@@ -27,12 +28,10 @@ class Logicker {
     static loadingModel = false;
     static modelLoadPromiseChain = Promise.resolve(true);
 
-    // The logger.
-    static log = new Log(C.LOG_SRC.LOGICKER);
-
     // Configurable options.
     static MinZoomHeight = C.L_CONF.MIN_ZOOM_HEIGHT;
     static MinZoomWidth = C.L_CONF.MIN_ZOOM_WIDTH;
+
 
     /**
      * Methods for setting the preferences options on the Logicker.
@@ -66,6 +65,16 @@ class Logicker {
         }
     }
 
+
+    /**
+     * Perform setup for static class. It calls super.setup() to create the static log instance
+     * and the event handler for STOP.
+     */
+    static setup() {
+        if (!Utils.exists(Logicker.log)) {
+            super.setup(C.LOG_SRC.LOGICKER);
+        }
+    }
 
     /**
      * Load the mobilenet image-matching model, and do it only once per instance.
@@ -873,6 +882,9 @@ class Logicker {
         return (new URL(value, loc.origin));
     };
 }
+
+// Call our static setup.
+Logicker.setup();
 
 // Set the class on the background window just in case.
 if (!window.hasOwnProperty(C.WIN_PROP.LOGICKER_CLASS) && Utils.isBackgroundPage(window)) {
