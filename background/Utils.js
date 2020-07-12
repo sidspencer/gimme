@@ -1,4 +1,6 @@
+import { isFunction } from '@tensorflow/tfjs-core/dist/util';
 import { default as C } from '../lib/C.js';
+import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
 import {
     DownloadSig,
     ContentMessage,
@@ -11,7 +13,7 @@ import {
  * Utils static class for Gimme. It holds all the random bric-a-brac
  * methods that make our coding a little easier.
  */
-class Utils {
+class Utils extends CommonStaticBase {
     // Static vars used by Utils to store state.
     static dlChains = [];
     static dlCounter = 0;
@@ -20,9 +22,19 @@ class Utils {
     static counter = 0;
     static domParser = new DOMParser();
     static lastLoc = new LastLoc(C.BLANK.LOCALHOST, C.BLANK.GALLERY);
-    static log = new Log(C.LOG_SRC.UTILS);
 
+
+    /**
+     * Do setup tasks, like calling super.setup() for STOP listening and
+     * log setup.
+     */
+    static setup() {
+        if (!Utils.exists(Utils.log)) {
+            super.setup(C.LOG_SRC.UTILS);
+        }
+    }
     
+
     /**
      * Check if a variable really exists.
      */
@@ -145,6 +157,17 @@ class Utils {
     static isKnownMediaFile(name) {
         return (
             !!name && (Utils.isAllowedImageType(name) || Utils.isAllowedVideoType(name) || Utils.isAllowedAudioType(name))  
+        );
+    };
+
+
+    /**
+     * Do we think we know what type this file is? Is it extension-less, and therefore maybe a 
+     * media-generating endpoint?
+     */
+    static isKnownMediaFileOrEndpoint(name) {
+        return (
+            Utils.hasNoFileExtension(name) || Utils.isKnownMediaFile(name)  
         );
     };
 
@@ -341,8 +364,8 @@ class Utils {
      */
     static sendTabMessage(tabMessage) {
         return new Promise((resolve, reject) => {
-            tabMessage.senderId = ContentMessage.GIMME_ID_ID;
-            tabMessage.message.senderId = ContentMessage.GIMME_ID_ID;
+            tabMessage.senderId = ContentMessage.GIMME_ID;
+            tabMessage.message.senderId = ContentMessage.GIMME_ID;
             
             chrome.tabs.sendMessage(
                 tabMessage.tab.id,
@@ -604,7 +627,7 @@ class Utils {
      * A promise-based wrapper for setting storage items.
      * The cb's return value is ignored completely.
      */
-    static setInStorage(itemsToStore, cb) {
+    static setInStorage(itemsToStore) {
         return new Promise((resolve, reject) => {
             chrome.storage.local.set(
                 itemsToStore, 
@@ -614,11 +637,6 @@ class Utils {
                     }
                     else {
                         resolve(true);
-                    }
-
-                    // Make sure callback is defined, a function, and not an object.
-                    if (!!cb && typeof(cb) === 'function' && !cb.toString) {
-                        cb();
                     }
                 }
             );
@@ -745,13 +763,18 @@ class Utils {
 
             // Listen for STOP events.
             window.document.addEventListener(C.ACTION.STOP, (evt) => {
-                Utils.log.log(`Got STOP event. Load stopping for iframe with id "${iframe.id}", and it will be removed.`);
+                Utils.log.log(`${C.ST.STOP_BANG} Stopping load for iframe with id "${iframe.id}", and it will be removed.`);
                 clearTimeout(listeningTimeoutId);
                 chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
                 delete Utils.listeners[listenerId];
 
-                iframe.stop();
-                iframe.remove();
+                if (Utils.exists(iframe)) {
+                    if (Utils.exists(iframe.contentWindow) && isFunction(iframe.contentWindow.stop)) { 
+                        iframe.contentWindow.stop();
+                        iframe.src = C.ST.HASH; 
+                    };
+                    iframe.remove();
+                }
             });
             
             
@@ -855,6 +878,8 @@ class Utils {
     }
 }
 
+// do setup.
+Utils.setup();
 
 // Set our static instance on the background window object, and reset the downloader if
 // This is the first run through this file and we're on the background page.
