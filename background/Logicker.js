@@ -216,7 +216,7 @@ class Logicker extends CommonStaticBase {
                         //me.log.log('found blessed zoomImg: ' + zoomImg[blessing.src]);
 
                         if (blessing.src.indexOf(C.SEL_PROP.STYLE) === 0) {
-                            var parts = blessing.src.split(C.ST.DOT);
+                            var parts = blessing.src.split(C.ST.D);
                             zoomImgUri = Logicker.extractUrl(zoomImg[parts[0]][parts[1]]);
                         }
                         else {
@@ -239,7 +239,7 @@ class Logicker extends CommonStaticBase {
                 zoomImgUri = bg.replace(C.ST.URL_P, C.ST.E)
                     .replace(/"/g, C.ST.E)
                     .replace(/'/g, C.ST.E)
-                    .replace(C.ST.END_PAREN, C.ST.E);
+                    .replace(C.ST.END_P, C.ST.E);
             }
         }
 
@@ -288,10 +288,10 @@ class Logicker extends CommonStaticBase {
         // Pick out the basic filenames of the src and dest. No file extensions.
         var sname = thumbUrl.path.replace(/\/$/, C.ST.E)
             .substring(thumbUrl.pathname.lastIndexOf(C.ST.WHACK) + 1)
-            .substring(0, thumbUrl.pathname.lastIndexOf(C.ST.DOT));
+            .substring(0, thumbUrl.pathname.lastIndexOf(C.ST.D));
         var zname = zoomUrl.pathname.replace(/\/$/, C.ST.E)
             .substring(zoomUrl.pathname.lastIndexOf(C.ST.WHACK + 1))
-            .substring(0, zoomUrl.pathname.lastIndexOf(C.ST.DOT));
+            .substring(0, zoomUrl.pathname.lastIndexOf(C.ST.D));
 
         // Do the low-hanging fruit first. Just don't hit your head on it.
         // first: The happiest of paths.
@@ -697,8 +697,8 @@ class Logicker extends CommonStaticBase {
                             if (thumbUri2.indexOf(C.F_NAMING.W_PREVIEWS_W) !== -1) {
                                 thumbUri2 = thumbUri2.replace(C.F_NAMING.PREVIEWS_W, C.ST.E);
                             }
-                            if (thumbUri2.indexOf(C.ST.Q_MARK) !== -1) {
-                                thumbUri2 = thumbUri.substring(0, thumbUri.indexOf(C.ST.Q_MARK));
+                            if (thumbUri2.indexOf(C.ST.Q_MK) !== -1) {
+                                thumbUri2 = thumbUri.substring(0, thumbUri.indexOf(C.ST.Q_MK));
                             }
                             newGalleryMap[thumbUri] = thumbUri2; 
                         }
@@ -746,12 +746,12 @@ class Logicker extends CommonStaticBase {
 
         // strip of the querystring if there is one.
         var bareSrc = src;        
-        var srcQsIndex = bareSrc.indexOf(C.ST.Q_MARK);
+        var srcQsIndex = bareSrc.indexOf(C.ST.Q_MK);
         if (srcQsIndex !== -1) { bareSrc = bareSrc.substring(0, srcQsIndex); };
 
-        // if there's no extension C.ST.DOT, and we're not of protocol 'data:' or 'blob:', 
+        // if there's no extension C.ST.D, and we're not of protocol 'data:' or 'blob:', 
         // it's probably not a good <img>.
-        var extIndex = bareSrc.lastIndexOf(C.ST.DOT);
+        var extIndex = bareSrc.lastIndexOf(C.ST.D);
         if (extIndex === -1) { return; };
 
         // Get just the name without the extension.
@@ -804,7 +804,7 @@ class Logicker extends CommonStaticBase {
         }
 
         // Iterate through the path of properties to get the value.
-        var pathParts = propPath.split(C.ST.DOT);
+        var pathParts = propPath.split(C.ST.D);
         var iterator = tag;
         var lastIterator = undefined;
         for(var i = 0; (!!iterator && i < pathParts.length); i++) {

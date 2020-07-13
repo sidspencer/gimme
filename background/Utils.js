@@ -190,7 +190,7 @@ class Utils extends CommonStaticBase {
      */
     static doesFilenameHaveDot(filename) {
         return (
-            filename.indexOf(C.ST.DOT) !== -1
+            filename.indexOf(C.ST.D) !== -1
         );
     }
 
@@ -202,7 +202,7 @@ class Utils extends CommonStaticBase {
      */
     static indexOfDot(filename) {
         return (
-            filename.indexOf(C.ST.DOT)
+            filename.indexOf(C.ST.D)
         );
     }
 
@@ -327,7 +327,7 @@ class Utils extends CommonStaticBase {
 
             // When STOP event is dispatched, abort gets called.
             xhr.onabort = function onXhrAbort() {
-                Utils.lm(`${C.ST.STOP_BANG} aborted XHR for uri: ${uri}.`);
+                Utils.lm(`aborted XHR for uri: ${uri}.`);
                 errorHandler(C.ACTION.STOP);
             };
 
@@ -489,12 +489,12 @@ class Utils extends CommonStaticBase {
         // Create a salted directory for the images to live in.
         var hackedPageName = C.ST.E;
         var slashIndex = loc.pathname.lastIndexOf(C.ST.WHACK);
-        var dotIndex = loc.pathname.lastIndexOf(C.ST.DOT);
+        var dotIndex = loc.pathname.lastIndexOf(C.ST.D);
 
         if (slashIndex != -1 && dotIndex != -1) {
             hackedPageName = loc.pathname.substring(
                 loc.pathname.lastIndexOf(C.ST.WHACK)+1, 
-                loc.pathname.lastIndexOf(C.ST.DOT)-1
+                loc.pathname.lastIndexOf(C.ST.D)-1
             );
         }
         else {
@@ -577,7 +577,7 @@ class Utils extends CommonStaticBase {
 
         for (var i = 0; i < fileOpts.length-1; i++) {
             if (Utils.isSTOP()) {
-                Utils.lm(`${C.ST.STOP_BANG} aborting zip creation, rejecting from downloadInZip().`);
+                Utils.lm(`aborting zip creation, rejecting from downloadInZip().`);
                 return C.CAN_FN.PR_RJ_STOP();
             }
 
@@ -610,7 +610,7 @@ class Utils extends CommonStaticBase {
         // Get all the promises executed, do not STOP, and download the zip file if all goes well.
         return Promise.all(promises).then(() => {
             if (Utils.isSTOP()) {
-                Utils.lm(`${C.ST.STOP_BANG} right after fetching/adding all the file blobs. So downloading it. Not Stopping!`);
+                Utils.lm(`right after fetching/adding all the file blobs. So downloading it. Not Stopping!`);
             }
 
             zip.generateAsync({
@@ -618,7 +618,7 @@ class Utils extends CommonStaticBase {
             })
             .then((content) => {
                 if (Utils.isSTOP()) {
-                    Utils.lm(`${C.ST.STOP_BANG} but we created the zip successfully. So downloading it. Not Stopping!`);
+                    Utils.lm(`but we created the zip successfully. So downloading it. Not Stopping!`);
                 }
 
                 // Setup the download filename and href, then download it directly.
@@ -813,7 +813,7 @@ class Utils extends CommonStaticBase {
 
             // Listen for STOP events.
             window.document.addEventListener(C.ACTION.STOP, (evt) => {
-                Utils.lm(`${C.ST.STOP_BANG} Stopping load for iframe with id "${iframe.id}", and it will be removed.`);
+                Utils.lm(`Stopping load for iframe with id "${iframe.id}", and it will be removed.`);
                 clearTimeout(listeningTimeoutId);
                 chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
                 delete Utils.listeners[listenerId];

@@ -150,7 +150,7 @@ class Digger extends CommonBase {
         var idx = 0;
         for (var thumbUri in uriMap) { 
             var uri = uriMap[thumbUri];
-            var queryPos = uri.lastIndexOf(C.ST.Q_MARK);
+            var queryPos = uri.lastIndexOf(C.ST.Q_MK);
 
             if (queryPos === -1) {
                 queryPos = uri.length;
@@ -164,7 +164,7 @@ class Digger extends CommonBase {
             );
         }
         
-        chrome.browserAction.setBadgeText({ text: C.ST.E + idx + C.ST.E });
+        chrome.browserAction.setBadgeText({ text: (C.ST.E + idx + C.ST.E) });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.AVAILABLE_FOPTS);
 
         return Promise.resolve(uriMap);
@@ -666,7 +666,7 @@ class Digger extends CommonBase {
         }
         
         // Construct the ID used by loadUriDoc() to identify the <iframe>
-        var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf(C.ST.DOT)));  
+        var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf(C.ST.D)));  
         this.log.log('uriDocId: ' + uriDocId);
         this.output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + C.ST.E);
 

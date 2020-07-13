@@ -343,7 +343,7 @@ class Scraper extends CommonBase {
             var pair = qsVars[i].split('=');
             var val = ((pair.length === 1) ? pair[0].substring(1) : pair[1]);
             
-            // If it has a C.ST.DOT and is of a known media type, then push it into the 
+            // If it has a C.ST.D and is of a known media type, then push it into the 
             // uri list after URL-ifying it.
             if (Utils.isKnownMediaFileOrEndpoint(val)) {
                 var url = new URL(val, Utils.getBaseUri(loc));

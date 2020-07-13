@@ -1,7 +1,6 @@
 import { default as Utils } from './Utils.js';
-import C from '../lib/C.js';
-import { Log } from '../lib/DataClasses.js';
-import CommonStaticBase from '../lib/CommonStaticBase.js';
+import { default as C } from '../lib/C.js';
+import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
 
 /** 
  * Singleton.
@@ -9,8 +8,6 @@ import CommonStaticBase from '../lib/CommonStaticBase.js';
  * see what media is being requested.
  */
 class Voyeur extends CommonStaticBase {
-    static ST_KEY = C.WIN_PROP.VOYEUR_ST;
-
     static uris = [];
     static isWatching = false;
 
@@ -73,6 +70,7 @@ if (!window.hasOwnProperty(C.WIN_PROP.VOYEUR_CLASS) && Utils.isBackgroundPage(wi
         Voyeur.stop();
     });
 }
+
 
 // Export
 export default Voyeur;
