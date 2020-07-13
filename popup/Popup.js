@@ -1,13 +1,9 @@
 import { default as C } from '../lib/C.js';
 import { default as Output } from '../background/Output.js';
 import { default as Utils } from '../background/Utils.js'
-import { default as Digger } from '../background/Digger.js';
-import { default as Logicker } from '../background/Logicker.js';
-import { default as EventPage } from '../background/EventPage.js';
 import {
     Storing, 
     FileOption,
-    Log,
     StopEvent,
 } from '../lib/DataClasses.js';
 import CommonBase from '../lib/CommonBase.js';
@@ -58,9 +54,8 @@ class Popup extends CommonBase {
                 var length = Object.values(uriMap).length;
                 chrome.runtime.getBackgroundPage((bgWindow) => {
                     // Alias the static class Utils, and get the Output common instance..
-                    var ut = Utils;
-                    var out = Output.getInstanceSetToDoc(window.document);
-                    out.setDoc(document);
+                    var ut = bgWindow[C.WIN_PROP.UTILS_CLASS];
+                    var out = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(window.document);
 
                     // If it's still doing a dig/scrape, just say so and return.
                     if (out.appIsScraping || out.appIsDigging) {
@@ -77,7 +72,8 @@ class Popup extends CommonBase {
                     if (length) {
                         me.lm(
                             'Got persisted uris:\n' + 
-                            '    ' + JSON.stringify(uriMap));
+                            '    ' + JSON.stringify(uriMap)
+                        );
 
                         me.lm(
                             '[Popup] Got checked uris:\n' +
@@ -97,23 +93,23 @@ class Popup extends CommonBase {
                         for (var thumbUri in uriMap) { 
                             var uri = uriMap[thumbUri];
 
-                            if (!uri || !uri.replace || uri.indexOf(C.ST.DOT) === 0) {
-                                me.lm('Bad uri string for download: ' + JSON.stringify(uri));
+                            if (!uri || !uri.replace || uri.indexOf(C.ST.D) === 0) {
+                                me.lm(`Bad uri string for download: ${JSON.stringify(uri)}`);
                                 continue;
                             }
 
-                            var queryPos = uri.lastIndexOf(C.ST.Q_MARK);
+                            var queryPos = uri.lastIndexOf(C.ST.Q_MK);
 
                             if (queryPos === -1) {
                                 queryPos = uri.length;
                             }
 
-                            var filePath = dir + C.ST.WHACK + uri.substring(uri.lastIndexOf(C.ST.WHACK) + 1, queryPos)
+                            var filePath = dir + C.ST.WHACK + uri.substring(uri.lastIndexOf(C.ST.WHACK) + 1, queryPos);
                             var optId = (idx--);
 
-                            out.addFileOption(new FileOption(optId+C.ST.E, uri, thumbUri, filePath, ut.downloadFile));
+                            out.addFileOption(new FileOption((optId + C.ST.E), uri, thumbUri, filePath, ut.downloadFile));
                             
-                            var cBox = document.getElementById( C.ELEMENT_ID.CB_PREFIX + optId);
+                            var cBox = document.getElementById(C.ELEMENT_ID.CB_PREFIX + optId);
                             if (Utils.exists(cBox)) {
                                 if (out.checkedFileOptUris.indexOf(cBox.value) !== -1) {
                                     checkedItemCount++;   
@@ -375,9 +371,7 @@ class Popup extends CommonBase {
          * it with a silly dictionary (and it has the time triggered).
          */
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage((bgWindow) => {
-                me.lm('stop button was pressed. Stopping.');
-                
+            chrome.runtime.getBackgroundPage((bgWindow) => {                
                 var evt = new StopEvent();
                 bgWindow.document.dispatchEvent(evt);
             });
