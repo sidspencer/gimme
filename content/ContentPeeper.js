@@ -258,11 +258,11 @@ class ContentPeeper extends CommonBase {
         // If we were asked for it, return an array of propValues for the propname and selector.
         var linkSelector = req.linkSelector;
         var hrefProp = req.linkHrefProp;
-        var hrefPropArr = (hrefProp ? hrefProp.split(C.ST.DOT) : [hrefProp]);
+        var hrefPropArr = (hrefProp ? hrefProp.split(C.ST.D) : [hrefProp]);
         
         var thumbSubselector = req.thumbSubselector;
         var srcProp = req.thumbSrcProp;
-        var srcPropArr = (srcProp ? srcProp.split(C.ST.DOT) : [srcProp]);
+        var srcPropArr = (srcProp ? srcProp.split(C.ST.D) : [srcProp]);
         
         var useRawValues = req.useRawValues;
 
