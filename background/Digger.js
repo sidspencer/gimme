@@ -253,12 +253,18 @@ class Digger extends CommonBase {
      */
     digNextBatch(galleryMap) {
         var diggingBatch = [];
+        var me = this;
         var startingOutputId = (++this.batchCount) * Digger.BATCH_SIZE;
         
         // Set up the output entry, and enter the uriPair's digDeep() execution
         // into the promise batch's array. Skip nulls. 
         var allThumbUris = Object.keys(galleryMap);    
         for (var i = 0; i < Digger.BATCH_SIZE && allThumbUris.length > 0; i++) {
+            if (me.isSTOP()) {
+                this.lm('Rejecting while building the diggingBatch() chain. ');
+                return Promise.reject(C.ACTION.STOP);
+            }
+
             // Pop a thumb/link pair from the map.
             var thumbUri = allThumbUris[i];
             var zoomPageUri = galleryMap[thumbUri];
@@ -275,11 +281,19 @@ class Digger extends CommonBase {
         // it'll kill the whole batch.
         return (
             Promise.all(diggingBatch)
-            .then((pairs) => {
-                return this.harvestBatch(pairs);
-            }).catch((err) => {
-                return this.logDiggingErrorsAndContinue(err);
-            })
+                .then((pairs) => {
+                    if (me.isSTOP() !== false) { this.lm(`${C.ST.STOP_BANG} Letthing this harvestBatch occur. Stop was signaled, however.`)};
+
+                    return this.harvestBatch(pairs);
+                }).catch((err) => {
+                    if (me.isSTOP(err)) {
+                        this.lm(`${C.ST.STOP_BANG} Rejecting the promise chain instead of coninuing. Effectively killing digNextBatch().`);
+                        return Promise.reject(C.ACTION.STOP);
+                    }
+                    else {
+                        return this.logDiggingErrorsAndContinue(err);
+                    }
+                })
         );
     }
 
@@ -713,7 +727,8 @@ class Digger extends CommonBase {
         // Extract the filenames for better output.
         var thumbFilename = Utils.extractFilename(thumbUri);
         var zoomFilename = Utils.extractFilename(zoomPageUri);            
-
+        var me = this;
+        
         this.output.toOut('Finding zoom-media for thumbnail named ' + thumbFilename + C.ST.E);
         this.log.log('working on ' + zoomPageUri);
 
@@ -724,7 +739,7 @@ class Digger extends CommonBase {
         // Catch *all* reject()s here. Always resolve(). Otherwise, we'll break the promise chain.
         var p = Utils.sendXhr('HEAD', zoomPageUri)
         .then((xhr) => {
-            if (this.stop === true) {
+            if (me.isSTOP()) {
                 return Promise.reject(C.ACTION.STOP);
             }
             
@@ -1011,6 +1026,8 @@ class Digger extends CommonBase {
     }
 }
 
+
+// Set the class instance on the window if ithi is the background window.
 if (!window.hasOwnProperty(C.WIN_PROP.DIGGER_CLASS) && Utils.isBackgroundPage(window)) {
     window[C.WIN_PROP.DIGGER_CLASS] = Digger;
 }
