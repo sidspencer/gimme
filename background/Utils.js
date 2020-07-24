@@ -264,7 +264,7 @@ class Utils extends CommonStaticBase {
             // to nul, then rejects with theStatus.
             var errorHandler = (errorStatus) => {
                 // Log the error.
-                Utils.lm(`XHR Error in sendXhr():\n    ${errorStatus}`);
+                Utils.lm(`XHR Error in sendXhr():\n    ${JSON.stringify(errorStatus)}`);
 
                 // delete the xhr as best we can.
                 delete Utils.xhrsInFlight[xhrId];
@@ -501,7 +501,7 @@ class Utils extends CommonStaticBase {
             hackedPageName = "gallery";
         }
 
-        return ('Gimme-' + loc.hostname + '__' + hackedPageName + '__' + (new Date()).getTime());
+        return (`Gimme-${loc.hostname}-${hackedPageName}-${(new Date()).getTime()}`);
     }
 
 
@@ -530,7 +530,7 @@ class Utils extends CommonStaticBase {
                         resolve(new DownloadSig(0, uri, destFilename));
                     }
                 });
-            }, 300);
+            }, 777);
         });
     };
 
