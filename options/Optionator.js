@@ -190,7 +190,7 @@ class Dominatrix extends CommonStaticBase {
             rootNode.insertBefore(newInput, addSubEntry);
             
             // Add the subentry to the <div>.
-            var addedSubentryId = this.addEntry(val.values, rootNode, true, newValueId);
+            var addedSubentryId = Dominatrix.addEntry(val.values, rootNode, true, newValueId);
             newInput.value = addedSubentryId;
 
             // Unhide all the subentries' delete buttons in the section.
@@ -422,9 +422,9 @@ class Optionator extends CommonStaticBase {
         spec.processings = Dominatrix.getProcessingEntries();
         spec.blessings = Dominatrix.getBlessingEntries();
 
-        this.lm('Trying to set spec:');
-        this.lm(JSON.stringify(spec));
-        this.lm('\n');
+        CommonStaticBase.lm('Trying to set spec:');
+        CommonStaticBase.lm(JSON.stringify(spec));
+        CommonStaticBase.lm('\n');
 
         chrome.storage.sync.set({
                 spec: spec,
@@ -497,8 +497,8 @@ class Optionator extends CommonStaticBase {
             });
 
             // Call the proper Dominatrix layout function, and add the id to our tracking object.
-            var entryId = this.InsertionFunctions[section](objEntry);
-            this.ids[section].push(entryId);
+            var entryId = Optionator.InsertionFunctions[section](objEntry);
+            Optionator.ids[section].push(entryId);
         });
     }
 
@@ -568,7 +568,7 @@ class Optionator extends CommonStaticBase {
 
             // Hook up the "set" button.
             document.getElementById('set').addEventListener('click', () => { 
-                this.setSpec(); 
+                Optionator.setSpec(); 
             });
         });
     }
@@ -586,12 +586,12 @@ Optionator.setup();
 // Only lay out the options content if we're on the options page.
 if (Utils.isOptionsPage(window)) {
     // Setup the event listener to lay out the Options page. 
-    this.lm('[Optionator] starting up, laying out the options/preferences form.');
+    CommonStaticBase.lm('[Optionator] starting up, laying out the options/preferences form.');
     Optionator.buildOptionsPageUi();
 }
 
 // Set the class on the background window just in case.
-if (!window.hasOwnProperty(C.WIN_PROP.OPTIONATOR_CLASS) && Utils.isOptionsPage(window)) {
+if (Utils.isOptionsPage(window)) {
     window[C.WIN_PROP.DOMINATRIX_CLASS] = Dominatrix;
     window[C.WIN_PROP.OPTIONATOR_CLASS] = Optionator;
 
