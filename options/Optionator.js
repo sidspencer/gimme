@@ -1,6 +1,7 @@
 import { default as C } from '../lib/C.js';
 import { OptionEntry } from '../lib/DataClasses.js';
-import Utils from '../background/Utils.js';
+import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
+import { default as Utils } from '../background/Utils.js';
 
 
 /*
@@ -600,3 +601,5 @@ if (!window.hasOwnProperty(C.WIN_PROP.OPTIONATOR_CLASS) && Utils.isOptionsPage(w
 
 // Export.
 export { Optionator as default, Dominatrix };
+
+
