@@ -1,13 +1,11 @@
 {
   "manifest_version": 2,
-  "developer": {
-    "name": "thirdlogan",
-    "url": "htp://github.com/thirdlogan/"
-  },
+  "author": "thirdlogan",
+  "homepage_url": "http://github.com/thirdlogan/gimme/",
 
   "name": "GimmeGimmeGimme",
   "short_name": "gimme",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
   "incognito": "spanning",
 
