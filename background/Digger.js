@@ -985,13 +985,9 @@ class Digger extends CommonBase {
     }
 
 
-    /**
-     * Stop digging batches and just return what's already been harvested. All the functionality
-     * of the stop flag is inside digNextBatchLink(...).
-     */
-    stopHarvesting() {
-        this.stop = true;
-    };
+    //
+    // .static.
+    //    1. setters for options config of batch size and channels.
 
 
     /*
@@ -1029,10 +1025,11 @@ class Digger extends CommonBase {
 }
 
 
-// Set the class instance on the window if ithi is the background window.
-if (!window.hasOwnProperty(C.WIN_PROP.DIGGER_CLASS) && Utils.isBackgroundPage(window)) {
+// Set the class instance on the window if this is the background window.
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.DIGGER_CLASS)) {
     window[C.WIN_PROP.DIGGER_CLASS] = Digger;
 }
+
 
 // export.
 export default Digger;

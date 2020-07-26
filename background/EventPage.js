@@ -12,9 +12,10 @@ import { InspectionOptions, Log } from '../lib/DataClasses.js';
 const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
 
 class EventPage {
-    // The active EventPage.app instance, stored statically.
+    // The definitively active EventPage's app instance, stored statically.
     static app = undefined;
 
+    
     //
     // Digging
     //
@@ -32,13 +33,14 @@ class EventPage {
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
-
         var scraper = new Scraper();
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-        EventPage.app.digGallery()
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.digGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -58,8 +60,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
         
-        EventPage.app.digFileOptions()
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.digFileOptions()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -77,9 +81,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-
-        EventPage.app.digGallery()
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.digGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -96,8 +101,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-        EventPage.app.digGallery()
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.digGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -114,8 +121,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-        EventPage.app.digGalleryGallery()
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.digGalleryGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -141,8 +150,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-        EventPage.app.scrape(inspectionOptions)
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.scrape(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -161,9 +172,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-
-        EventPage.app.scrapeFileOptions(inspectionOptions)
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.scrapeFileOptions(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -180,9 +192,10 @@ class EventPage {
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
-
-        EventPage.app.scrape(inspectionOptions)
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.scrape(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -198,10 +211,11 @@ class EventPage {
         var scraper = new Scraper();
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
-        
 
-        EventPage.app.scrape(inspectionOptions)
-            .finally(EventPage.undefineApp);
+        return(
+            EventPage.app.scrape(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -210,13 +224,16 @@ class EventPage {
      */
     static undefineApp() {
         EventPage.app = undefined;
+        return(true);
     }
 }
 
+
 // Set the class on the background window just in case.
-if (!window.hasOwnProperty(EP) && Utils.isBackgroundPage(window)) {
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(EP)) {
     window[EP] = EventPage;
 }
+
 
 // export.
 export default EventPage;

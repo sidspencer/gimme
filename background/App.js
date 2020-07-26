@@ -1086,10 +1086,12 @@ class App extends CommonBase {
     }
 }
 
+
 // Set the class on the window, just in case.
-if (!window.hasOwnProperty(C.WIN_PROP.APP_CLASS) && Utils.isBackgroundPage(window)) {
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.APP_CLASS)) {
     window[C.WIN_PROP.APP_CLASS] = App;
 }
+
 
 // export.
 export default App;

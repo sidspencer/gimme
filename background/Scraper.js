@@ -529,7 +529,7 @@ class Scraper extends CommonBase {
 }
 
 // Set the class on the background window just in case.
-if (!window.hasOwnProperty(C.WIN_PROP.SCRAPER_CLASS) && Utils.isBackgroundPage(window)) {
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.SCRAPER_CLASS)) {
     window[C.WIN_PROP.SCRAPER_CLASS] = Scraper;
 }
 

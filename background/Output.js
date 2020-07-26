@@ -529,18 +529,18 @@ class Output extends CommonBase {
 }
 
 
-// Set the class on every window object we're exposed to.
+// Set the class on every Window object we're imported into.
 if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_CLASS)) {
     window[C.WIN_PROP.OUTPUT_CLASS] = Output;
 }
 
 // Set the instance on the Background page -- though we never want its document really.
-if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST) && Utils.isBackgroundPage(window)) {
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST)) {
     window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
 }
 
-// Set the instance on the Popup page.
-if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST) && Utils.isPopupPage(window)) {
+// Set the instance on the Popup page (Which belongs to a different Window instance).
+if (Utils.isPopupPage(window) && !window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST)) {
     window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
 }
 

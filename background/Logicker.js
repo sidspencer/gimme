@@ -886,11 +886,11 @@ class Logicker extends CommonStaticBase {
     };
 }
 
-// Call our static setup.
+// Call our static setup. It guards against 
 Logicker.setup();
 
 // Set the class on the background window just in case.
-if (!window.hasOwnProperty(C.WIN_PROP.LOGICKER_CLASS) && Utils.isBackgroundPage(window)) {
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.LOGICKER_CLASS)) {
     window[C.WIN_PROP.LOGICKER_CLASS] = Logicker;
 }
 
