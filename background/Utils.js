@@ -53,8 +53,9 @@ class Utils extends CommonStaticBase {
      */
     static isEmpty(obj) {
         for(var key in obj) {
-            if(obj.hasOwnProperty(key))
+            if(obj.hasOwnProperty(key)) {
                 return false;
+            }
         }
         return true;
     };
@@ -213,8 +214,8 @@ class Utils extends CommonStaticBase {
      */
     static isSupportedMediaUri(uri) {
         return (
-            C.RECOG_RGX.SUPPORTED.test(uri)
-        )
+            C.MIMETYPE_RGX.ALLSUPPORTED.test(uri)
+        );
     }
 
     
@@ -278,6 +279,11 @@ class Utils extends CommonStaticBase {
             // Left as a old-school function def so "this" will point at the xhr and not
             // accidentally cause bad closures.
             xhr.onreadystatechange = function onXhrRSC() {
+                if (Utils.isSTOP()) {
+                    errorHandler(this.status);
+                    return;
+                }
+
                 if (this.readyState == XMLHttpRequest.DONE) 
                 {
                     if (this.status == 200) {                        
@@ -316,21 +322,21 @@ class Utils extends CommonStaticBase {
             };
 
 
-            // Event Listener for StopEvent to cancel the in-flight xhr.
-            window.document.addEventListener(C.ACTION.STOP, (evt) => {
-                if (Utils.exists(xhr)) { 
-                    xhr.abort(); 
-                    reject(C.ACTION.STOP);
-                }
-            });
-
-
             // When STOP event is dispatched, abort gets called.
             xhr.onabort = function onXhrAbort() {
                 Utils.lm(`aborted XHR for uri: ${uri}.`);
                 errorHandler(C.ACTION.STOP);
             };
 
+            // Event listener for stop event.
+            var stopHandler = (evt) => {
+                window.document.removeEventListener(C.ACTION.STOP, stopHandler, false);
+
+                if (Utils.exists(Utils.xhrsInFlight[xhrId])) { 
+                    Utils.xhrsInFlight[xhrId].abort(); 
+                }                
+            };
+            window.document.addEventListener(C.ACTION.STOP, stopHandler, false);
 
             // Perform the fetch.
             xhr.open(method, uri, true);
@@ -466,7 +472,6 @@ class Utils extends CommonStaticBase {
     static buildDlChain(uri, destFilename, output, num) {
         output.toOut('Downloading file ' + num);
 
-
         chrome.browserAction.setBadgeText({ text: C.ST.E + num + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.DOWNLOADING);
 
@@ -512,24 +517,25 @@ class Utils extends CommonStaticBase {
         return new Promise((resolve, reject) => {
             setTimeout(() => { 
                 chrome.downloads.download(
-                {
-                    url: uri,
-                    filename: destFilename,
-                    conflictAction: 'uniquify',
-                    saveAs: false,
-                    method: C.ACTION.GET
-                },
-                (downloadId) => {
-                    if (downloadId) {
-                        Utils.dlCallbacks[downloadId] = Utils.buildDlCallback(downloadId, uri, destFilename, resolve);
-                        chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
+                    {
+                        url: uri,
+                        filename: destFilename,
+                        conflictAction: 'uniquify',
+                        saveAs: false,
+                        method: C.ACTION.GET
+                    },
+                    (downloadId) => {
+                        if (downloadId) {
+                            Utils.dlCallbacks[downloadId] = Utils.buildDlCallback(downloadId, uri, destFilename, resolve);
+                            chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
+                        }
+                        else {
+                            Utils.lm('no downloadId for uri ' + uri);
+                            Utils.lm('download error was: ' + chrome.runtime.lastError);
+                            resolve(new DownloadSig(0, uri, destFilename));
+                        }
                     }
-                    else {
-                        Utils.lm('no downloadId for uri ' + uri);
-                        Utils.lm('download error was: ' + chrome.runtime.lastError);
-                        resolve(new DownloadSig(0, uri, destFilename));
-                    }
-                });
+                );
             }, 777);
         });
     };
@@ -540,26 +546,16 @@ class Utils extends CommonStaticBase {
      */
     static buildDlCallback(dlId, dlUri, dlFile, res) {
         return ((dlDelta) => {
-            if (dlDelta.id !== dlId) { return; }
-
-            if (!!dlDelta.state && dlDelta.state.current !== 'in_progress') {
-                chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
-                delete Utils.dlCallbacks[dlId];
-
-                res(new DownloadSig(dlId, dlUri, dlFile));
-                return;
-            }
-            else if (!!dlDelta.endTime && !!dlDelta.endTiUtils.current) {
-                chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
-                delete Utils.dlCallbacks[dlId];
-
-                res(new DownloadSig(dlId, dlUri, dlFile));
-                return;
-            }
-            else if (!!dlDelta.exists && !!dlDelta.exists.current) {
-                chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
-                delete Utils.dlCallbacks[dlId];
-
+            if (Utils.exists(dlDelta) && dlDelta.id === dlId) {
+                if (
+                    (Utils.exists(dlDelta.state) && dlDelta.state.current !== 'in_progress') ||
+                    (Utils.exists(dlDelta.endTime) && Utils.exists(dlDelta.endTime.current)) ||
+                    (Utils.exists(dlDelta.exists) && Utils.exists(dlDelta.exists.current)) 
+                ) {
+                    chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
+                    delete Utils.dlCallbacks[dlId];
+                }
+                
                 res(new DownloadSig(dlId, dlUri, dlFile));
                 return;
             }
@@ -725,16 +721,6 @@ class Utils extends CommonStaticBase {
 
 
     /**
-     * See if the param is actually the string value of C.ACTION.STOP ("STOP").
-     * 
-     * @param {any} test 
-     */
-    static isSTOP(test) {
-        return (test === C.ACTION.STOP);
-    }
-
-
-    /**
      * Add listener for all media requests.
      */
     static addMediaHeadersListener(listener, windowId, tabId) {
@@ -889,12 +875,11 @@ class Utils extends CommonStaticBase {
     static isBackgroundPage(win) {
         let h = win.location.href;
         let isPage = (
-            (h.indexOf(C.WAY.CH) === 0) && 
+            (h.indexOf(C.WAY.E) === 0) && 
             (h.indexOf(C.PAGE.BACKGROUND) !== -1)
         );
 
         return isPage;
-        //return Utils.isPage(win, [C.WAY.CH_WW, C.ST.WHACK + C.PAGE.BACKGROUND]);
     }
 
     
@@ -904,12 +889,11 @@ class Utils extends CommonStaticBase {
     static isPopupPage(win) {
         let h = win.location.href;
         let isPage = (
-            (h.indexOf(C.WAY.CH) === 0) && 
+            (h.indexOf(C.WAY.E) === 0) && 
             (h.indexOf(C.PAGE.POPUP) !== -1)
         );
 
         return isPage;
-        //return Utils.isPage(win, [C.WAY.CH_WW, C.ST.WHACK + C.PAGE.POPUP]);
     }
 
 
@@ -919,12 +903,11 @@ class Utils extends CommonStaticBase {
     static isOptionsPage(win) {
         let h = win.location.href;
         let isPage = (
-            (h.indexOf(C.WAY.CH) === 0) && 
+            (h.indexOf(C.WAY.E) === 0) && 
             (h.indexOf(C.PAGE.OPTIONS) !== -1)
         );
 
         return isPage;
-        //return Utils.isPage(win, [C.WAY.CH_CWW, C.ST.WHACK + C.PAGE.OPTIONS]);
     }
 }
 
