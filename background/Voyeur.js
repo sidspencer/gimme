@@ -28,7 +28,7 @@ class Voyeur extends CommonStaticBase {
     static start() {
         if (Voyeur.isWatching) { return; };
 
-        Voyeur.log.log('Starting watch on all loading media.');
+        Voyeur.lm('Starting watch on all loading media.');
 
         Utils.queryActiveTab().then((tab) => {
             Utils.addMediaHeadersListener(Voyeur.watchMedia, tab.windowId, tab.id);
