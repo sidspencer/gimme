@@ -22,18 +22,23 @@ class Popup extends CommonBase {
      * the preferences, and connect the button event handlers.
      */
     constructor() {
-        // set up Log, and STOP event handlers.
-        super(C.LOG_SRC.POPUP);
+        if (Utils.exists(Popup.instance)) {
+            Popup.instance.lm('Popup constructor called when there\'s already a valid Popup.instance.');
+        }
+        else {
+            // set up Log, and STOP event handlers.
+            super(C.LOG_SRC.POPUP);
 
-        // Set up event handlers for the UI. All actual work is done in the background scripts.
-        document.addEventListener("DOMContentLoaded", () => {
-            this.setFileOptionList();
-            this.readSpec();
-            this.connectEventHandlers();    
-        });
+            // Set the static instance.
+            Popup.instance = this;
 
-        // Set the static instance.
-        Popup.instance = this;
+            // Set up event handlers for the UI. All actual work is done in the background scripts.
+            document.addEventListener("DOMContentLoaded", () => {
+                Popup.instance.setFileOptionList();
+                Popup.instance.readSpec();
+                Popup.instance.connectEventHandlers();    
+            });
+        }
     }
 
     
@@ -47,7 +52,6 @@ class Popup extends CommonBase {
         Utils.getFromStorage(Storing.storePrevUriMap({}))
             .then((store) => {
                 var uriMap = store.prevUriMap
-                var me = this;
 
                 // If we're still in the digging/scraping stages, restore the textual file-list.
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
@@ -69,7 +73,7 @@ class Popup extends CommonBase {
                     }
                     
                     // Otherwise, if there is a previousUriMap, make the file options.
-                    if (length) {
+                    if (length > 0) {
                         me.lm(
                             'Got persisted uris:\n' + 
                             '    ' + JSON.stringify(uriMap)
@@ -143,7 +147,7 @@ class Popup extends CommonBase {
             })
             .catch((err) => {
                 out.toOut('Problem loading previous results. My apologies.');
-                this.lm('Could not get the prevUriMap. err: ' + JSON.stringify(err));
+                me.lm('Could not get the prevUriMap. err: ' + JSON.stringify(err));
                 
                 return C.CAN_FN.PR_RJ(err);
             });
@@ -158,11 +162,11 @@ class Popup extends CommonBase {
         
         Utils.setInStorage(Storing.storePrevUriMap({}))
             .then(() => {
-                this.instance.lm( 'Cleared prev uri map');
+                Popup.instance.lm( 'Cleared prev uri map');
                 return C.CAN_FN.PR_RS_DEF();
             })
             .catch((err) => {
-                this.instance.lm(`Could not clear prevUriMap. Continuing, but that is weird. Error was:\n     ${JSON.stringify(err)}`);
+                Popup.instance.lm(`Could not clear prevUriMap. Continuing, but that is weird. Error was:\n     ${JSON.stringify(err)}`);
                 return C.CAN_FN.PR_RJ(err);
             });
     }
@@ -216,7 +220,7 @@ class Popup extends CommonBase {
                 return C.CAN_FN.PR_RS_DEF();
             })
             .catch((err) => {
-                this.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
+                Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
                 return C.CAN_FN.PR_RJ(err);
             });
     }
@@ -226,7 +230,6 @@ class Popup extends CommonBase {
      * Connect up all the event handlers.
      */
     connectEventHandlers() {
-        var me = this; 
         var EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
 
         /**
