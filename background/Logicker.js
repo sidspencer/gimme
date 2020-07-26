@@ -86,11 +86,11 @@ class Logicker extends CommonStaticBase {
         return new Promise((resolve, reject) => {
             if (!!Logicker.mnModel) {
                 // If it's already loaded, resolve with it.
-                this.log.log('returning cached copy of model.');
+                this.lm('returning cached copy of model.');
                 resolve(Logicker.mnModel);
             }
             else if (Logicker.loadingModel === true) {
-                //this.log.log('Model is loading. We will wait a the end of the promise chain.');
+                //this.lm('Model is loading. We will wait a the end of the promise chain.');
                 
                 // If it's still loading, we chain onto the promise. This way we do not double-load,
                 // and we continue execution once it's been loaded by the first caller.
@@ -629,10 +629,10 @@ class Logicker extends CommonStaticBase {
         for (var i = 0; i < Logicker.messages.length; i++) {
             var m = Logicker.messages[i];
             
-            this.log.log('working on message: ' + JSON.stringify(m));
+            this.lm('working on message: ' + JSON.stringify(m));
 
             if (url.match(m.match)) {
-                this.log.log('uri matched: ' + url);
+                this.lm('uri matched: ' + url);
 
                 d.linkSelector = m.link;
                 d.linkHrefProp = m.href;
@@ -666,7 +666,7 @@ class Logicker extends CommonStaticBase {
             var p = Logicker.processings[i];
             var me = this;
 
-            //this.log.log('working on processing: ' + JSON.stringify(p));
+            //this.lm('working on processing: ' + JSON.stringify(p));
 
             // if the page uri matches, apply the processings to the galleryMap.
             var matcher = new RegExp(p.match);
@@ -835,7 +835,7 @@ class Logicker extends CommonStaticBase {
         // Do a url extraction from functions or javascript hrefs.
         if (typeof value === 'function' || /^(java)?script\:/.test(value)) {
             var text = value.toString();
-            value = URL_EXTRACTING_REGEX.exec(text);
+            value = C.L_CONF.URL_EXTRACTING_REGEX.exec(text);
 
             if (!!value && value.length) {
                 value = value[0];
@@ -853,29 +853,32 @@ class Logicker extends CommonStaticBase {
         // Because we do an XHR with the "document" response type to get the thumbs and links, the inferred src/href
         // may be set relative to the extension (as the origin of the fetched document is in the extension's space).
         // We need to transform these weird src/href values back into having the correct base uri -- the one of the page.
-        if (value.indexOf() === 0) {
-            if (value.match(C.WAY.CH_CWW + chrome.runtime.id + C.F_NAMING.W_BACKGROUND_W )) {
+        if (value.indexOf(C.WAY.HTTP) === 0) {
+            // We may be running in the extension's space. That could be a protocol of 
+            var rgxBackgroundPage = new RegExp('^(.+)?(-)?' + (C.WAY.E_CWW + chrome.runtime.id + C.F_NAMING.W_BACKGROUND_W), 'i');
+            var rgxExtBase = new RegExp('^(.+)?(-)?' + (C.WAY.E_CWW + chrome.runtime.id + C.ST.WHACK), 'i');
+            var rgxProtocol = new RegExp('^(.+)?(-)?' + C.WAY.E, 'i');
+
+            if (value.match(rgxBackgroundPage)) {
                 value = value.replace(
-                    C.WAY.CH_CWW + chrome.runtime.id + C.F_NAMING.W_BACKGROUND_W, 
+                    rgxBackgroundPage, 
                     loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf(C.ST.WHACK)+1)
                 ); 
             }
-            else if (value.match(C.WAY.CH_CWW + chrome.runtime.id + C.ST.WHACK) && dotdotCount > 0) {
+            else if (value.match(rgxExtBase) && dotdotCount > 0) {
                 var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf(C.ST.WHACK));
+                
                 for (var d = 0; d < dotdotCount; d++) {
                     trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf(C.ST.WHACK));
                 }
 
-                value = value.replace(
-                    C.WAY.CH_CWW + chrome.runtime.id + C.ST.WHACK, 
-                    loc.origin + trimmedPath + C.ST.WHACK
-                );
+                value = value.replace(rgxExtBase, loc.origin + trimmedPath + C.ST.WHACK);
             }
-            else if (value.match(C.WAY.CH_CWW + chrome.runtime.id + C.ST.WHACK)) {
-                value = value.replace(C.WAY.CH_CWW + chrome.runtime.id + C.ST.WHACK, loc.origin + C.ST.WHACK);
+            else if (value.match(rgxExtBase)) {
+                value = value.replace(rgxExtBase, loc.origin + C.ST.WHACK);
             }
             else {
-                value = value.replace(C.WAY.CH, loc.protocol);
+                value = value.replace(rgxProtocol, loc.protocol);
             }       
         }
 
