@@ -546,6 +546,8 @@ class Utils extends CommonStaticBase {
      */
     static buildDlCallback(dlId, dlUri, dlFile, res) {
         return ((dlDelta) => {
+            // If this event is for our downloadId, see if the download finished. If so,
+            // remove our event listener and resolve with a DownloadSig.
             if (Utils.exists(dlDelta) && dlDelta.id === dlId) {
                 if (
                     (Utils.exists(dlDelta.state) && dlDelta.state.current !== 'in_progress') ||
@@ -554,11 +556,15 @@ class Utils extends CommonStaticBase {
                 ) {
                     chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
                     delete Utils.dlCallbacks[dlId];
+
+                    res(new DownloadSig(dlId, dlUri, dlFile));
+                    return;
                 }
                 
-                res(new DownloadSig(dlId, dlUri, dlFile));
-                return;
+                // Or our download has not yet finished. Let's not resolve() early.
             }
+
+            // Or this is an event meant for a different downloadId. Let's not listen in.
         });
     }
 
