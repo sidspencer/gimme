@@ -5,6 +5,7 @@ import {
     Storing, 
     FileOption,
     StopEvent,
+    ResumeEvent,
 } from '../lib/DataClasses.js';
 import CommonBase from '../lib/CommonBase.js';
 
@@ -176,7 +177,8 @@ class Popup extends CommonBase {
      Read storage for the spec json.
     */
     readSpec() {
-        Utils.getFromStorage({
+        Utils.getFromStorage(
+            {
                 spec: {
                     config: C.OPT_CONF.CANNED_CONFIG,
                     messages: [],
@@ -222,7 +224,8 @@ class Popup extends CommonBase {
             .catch((err) => {
                 Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
                 return C.CAN_FN.PR_RJ(err);
-            });
+            }
+        );
     }
 
 
@@ -381,19 +384,21 @@ class Popup extends CommonBase {
         });
 
 
+        document.getElementById(C.ELEMENT_ID.RESUME).addEventListener(C.EVT.CLICK, () => {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
+                var evt = new ResumeEvent();
+                bgWindow.document.dispatchEvent(evt);
+            });
+        });
+
+
         /**
-         * Toggle the Voyeur.
+         * Toggle the Voyeur -- a very simple media request tracker-to-console-logger.
          */
         document.getElementById(C.ELEMENT_ID.TOGGLE_VOYEUR).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage(function toggleVoyeur(bgWindow) {
                 var voy = bgWindow[C.WIN_PROP.VOYEUR_CLASS];
-
-                if (voy.isWatching) {
-                    voy.stop();
-                }
-                else {
-                    voy.start();
-                }
+                voy.toggleVoying();
             });
         });
     }       
@@ -402,7 +407,7 @@ class Popup extends CommonBase {
 
 // Set a new instance of the popup on the window object if it's not already there.
 // Only do this if we're on the popup page.
-if (!window.hasOwnProperty(C.WIN_PROP.POPUP_INST) && Utils.isPopupPage(window)) {
+if (Utils.isPopupPage(window) && !window.hasOwnProperty(C.WIN_PROP.POPUP_INST)) {
     // Make sure Output has been initialized.
     if (Utils.exists(Output.getInstance())) {
         window[C.WIN_PROP.OUTPUT_INST] = Output.getInstanceSetToDoc(window.document);
@@ -411,8 +416,10 @@ if (!window.hasOwnProperty(C.WIN_PROP.POPUP_INST) && Utils.isPopupPage(window)) 
         window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
     }
     
-    // Construct our popup
-    window[C.WIN_PROP.POPUP_INST] = new Popup();
+    // Construct our single-ish-ton Popup.
+    window[C.WIN_PROP.POPUP_INST] = (
+        Utils.exists(Popup.instance) ? Popup.instance : new Popup()
+    );
 }
 
 // Export.
