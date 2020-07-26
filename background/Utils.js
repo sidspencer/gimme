@@ -874,6 +874,21 @@ class Utils extends CommonStaticBase {
         return itIs;
     }
 
+
+    /**
+     * Is this string uri using a browser-specific extension pseudoprotocol?
+     * A '/^(moz-|chrome-)?extension\:\/\//stuff/more.ext' uri?
+     * 
+     * @param {string} u 
+     */
+    static isExtensionUri(u) {
+        return (
+            (u.indexOf(C.WAY.E) === 0) ||
+            (u.indexOf(C.WAY.ED_E) === 0) ||
+            (u.indexOf(C.WAY.CH_E) === 0) ||
+            (u.indexOf(C.WAY.MZ_E) === 0)
+        );
+    }
     
     /**
      * Are we on the background page?
@@ -881,7 +896,7 @@ class Utils extends CommonStaticBase {
     static isBackgroundPage(win) {
         let h = win.location.href;
         let isPage = (
-            (h.indexOf(C.WAY.E) === 0) && 
+            this.isExtensionUri(h) && 
             (h.indexOf(C.PAGE.BACKGROUND) !== -1)
         );
 
@@ -895,7 +910,7 @@ class Utils extends CommonStaticBase {
     static isPopupPage(win) {
         let h = win.location.href;
         let isPage = (
-            (h.indexOf(C.WAY.E) === 0) && 
+            this.isExtensionUri(h) && 
             (h.indexOf(C.PAGE.POPUP) !== -1)
         );
 
@@ -909,7 +924,7 @@ class Utils extends CommonStaticBase {
     static isOptionsPage(win) {
         let h = win.location.href;
         let isPage = (
-            (h.indexOf(C.WAY.E) === 0) && 
+            this.isExtensionUri(h) && 
             (h.indexOf(C.PAGE.OPTIONS) !== -1)
         );
 
@@ -922,7 +937,7 @@ Utils.setup();
 
 // Set our static instance on the background window object, and reset the downloader if
 // This is the first run through this file and we're on the background page.
-if (!window.hasOwnProperty(C.WIN_PROP.UTILS_CLASS) && Utils.isBackgroundPage(window)) {
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.UTILS_CLASS)) {
     window[C.WIN_PROP.UTILS_CLASS] = Utils;
     Utils.resetDownloader();
 }
