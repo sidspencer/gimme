@@ -130,8 +130,8 @@ class Digger extends CommonBase {
             chrome.storage.local.set(
                 Storing.storePrevUriMap(h),
                 () => {                    
-                    me.log.log('Set prevUriMap in storage');
-                    me.log.log('---Returning dig harvest -> ' + Object.keys(h).length + '------');
+                    me.lm('Set prevUriMap in storage');
+                    me.lm('---Returning dig harvest -> ' + Object.keys(h).length + '------');
                     resolve(h);
                 }
             );
@@ -175,12 +175,14 @@ class Digger extends CommonBase {
      * Recursive wrapper around digNextBatch()
      */
     digNextBatchLink(galleryMap) {
-        if (this.stop === true) {
+        if (this.isSTOP()) {
             this.output.toOut('Stopping...');
             return Promise.reject(C.ACTION.STOP);
         }
         else if (Object.keys(galleryMap).length > 0) {
             return this.digNextBatch(galleryMap).then(() => {
+                if (me.isSTOP()) { return Promise.reject(C.ACTION.STOP); };
+
                 return this.digNextBatchLink(galleryMap);
             });
         }
@@ -220,7 +222,9 @@ class Digger extends CommonBase {
         var me = this;
         // Note, all these promises must resolve, or it'll kill the whole batch.
         return Promise.all(promises).then((resolvedUriMap__unused) => {
-            me.log.log(
+            if (me.isSTOP()) { return Promise.reject(C.ACTION.STOP); };
+
+            me.lm(
                 'Resolving digGalleryBatches with ' + 
                 Object.keys(this.harvestedUriMap).length + ' harvested entries.'
             );
@@ -233,9 +237,12 @@ class Digger extends CommonBase {
             // Other rejects are probably from real errors.
             if (err === C.ACTION.STOP) {
                  me.log.log(`STOP was signaled. Rejecting all promises. Setting ${harvestCount} pairs in storage.`);
-                return this.resolveDigHarvest(this.harvestedUriMap).then((hMap) => {
-                    return this.redrawOutputFileOpts(hMap);
-                });
+                return this.resolveDigHarvest(this.harvestedUriMap)
+                    .then((hMap) => {
+                        return this.redrawOutputFileOpts(hMap);
+                    }).then(() => {
+                        return Promise.reject(C.ACTION.STOP);
+                    });
             }
             else {
                 me.log.log(
@@ -272,7 +279,7 @@ class Digger extends CommonBase {
 
             // sanity check, then set up the dig.
             if (!!thumbUri && !!thumbUri.substring && !!zoomPageUri && !!zoomPageUri.substring) {
-                this.setUpOutput(thumbUri, startingOutputId + i);
+                this.setupOutput(thumbUri, startingOutputId + i);
                 diggingBatch.push(this.digDeep(thumbUri, zoomPageUri));     
             }     
         }
@@ -282,16 +289,16 @@ class Digger extends CommonBase {
         return (
             Promise.all(diggingBatch)
                 .then((pairs) => {
-                    if (me.isSTOP() !== false) { this.lm(`${C.ST.STOP_BANG} Letthing this harvestBatch occur. Stop was signaled, however.`)};
+                    if (!me.isSTOP()) { me.lm(`${C.ST.STOP_BANG} Letting this harvestBatch occur. Stop was signaled, however.`)};
 
-                    return this.harvestBatch(pairs);
+                    return me.harvestBatch(pairs);
                 }).catch((err) => {
                     if (me.isSTOP(err)) {
-                        this.lm(`${C.ST.STOP_BANG} Rejecting the promise chain instead of coninuing. Effectively killing digNextBatch().`);
+                        me.lm(`${C.ST.STOP_BANG} Rejecting the promise chain instead of continuing. Effectively killing digNextBatch().`);
                         return Promise.reject(C.ACTION.STOP);
                     }
                     else {
-                        return this.logDiggingErrorsAndContinue(err);
+                        return me.logDiggingErrorsAndContinue(err);
                     }
                 })
         );
@@ -330,7 +337,7 @@ class Digger extends CommonBase {
      * Put the thumbUri into the xhr tracking array, and give it an entry
      * in the popup's list UI.
      */
-    setUpOutput(thumbUri, id) {
+    setupOutput(thumbUri, id) {
         this.outputIdMap[thumbUri] = id;
         this.output.addNewEntry(id, thumbUri);
     }
@@ -352,20 +359,12 @@ class Digger extends CommonBase {
         });
 
         // Resolve. The value is unimportant in this rev.
-        return Promise.resolve({});
-    }
-
-
-    /**
-     * Take the passed-in map, and add all the src->uri mappings in from to
-     * said passed-in map. Set up the other tracking and ui needed. 
-     * UPDATES THE "to" AND "ids" MAPS IN-PLACE!
-     */
-    mergeGalleryMaps(from, to, ids) {
-        var fromKeys = Object.keys(from);
-        var nextId = fromKeys.length + Object.keys(to).length;
-
-        to = Object.assign(to, from);
+        // but reject if STOP.
+        return (
+            me.isSTOP() ?
+            Promise.reject(C.ACTION.STOP) :
+            Promise.resolve({})
+        );
     }
 
 
@@ -492,22 +491,6 @@ class Digger extends CommonBase {
                 var bestUri = Logicker.chooseBetterMatchingUri(src, bestUri, uris[k]);
             }
 
-            // Do a sanity check.
-            if (!Utils.isSupportedMediaUri(bestUri)) {
-                me.log.log(
-                    ' Rejecting "bestUri" as it is an unsupported media type.\n' +
-                    '         bestUri -> ' + bestUri + C.ST.E
-                )
-                return;
-            } 
-            
-            // Log that we're adding a new pair.
-            me.log.log(
-                ' New pair added to gallery click-map:\n' +
-                '         thumbSrc: ' + src + '\n' +
-                '         zoomPage: ' + bestUri + C.ST.E
-            );
-
             // Add this pair's full URLs to the map and the Output.
             var thumbUrl = new URL(src);
             var linkUrl = new URL(bestUri);
@@ -582,13 +565,19 @@ class Digger extends CommonBase {
      * Update the UI and that we dug a zoomUri. 
      */
     recordDigResult(thumbUri, zoomedImgUri, isFailure) {
-        var id = this.outputIdMap[thumbUri];
+        var id = C.ST.E;
+        if (Utils.exists(thumbUri) && Utils.exists(zoomedImgUri)) {
+            this.lm(
+                ' Zoomed image reported.\n' +
+                '         thumbUri: ' + thumbUri + '\n' +
+                '         zoomedImgUri: ' + zoomedImgUri + C.ST.E
+            );
 
-        this.log.log(
-            ' Zoomed image reported.\n' +
-            '         thumbUri: ' + thumbUri + '\n' +
-            '         zoomedImgUri: ' + zoomedImgUri + C.ST.E
-        );
+            id = this.outputIdMap[thumbUri];
+        }
+        else {
+            isFailure = true;
+        }
 
         // Set the entry as failed or dug.
         if (isFailure) {
@@ -610,7 +599,11 @@ class Digger extends CommonBase {
      */
     reportDigSuccess(thumbUri, zoomUri) {
         this.recordDigResult(thumbUri, zoomUri);
-        return new UriPair(thumbUri, zoomUri);
+
+        if (this.isSTOP()) {
+            return Promise.reject(C.ACTION.STOP);
+        }
+        return Promise.resolve(new UriPair(thumbUri, zoomUri));
     }
 
 
@@ -619,7 +612,12 @@ class Digger extends CommonBase {
      */
     reportDigFailure(thumbUri, zoomUri) {
         this.recordDigResult(thumbUri, zoomUri, true);
-        return null;
+
+        if (this.isSTOP()) {
+            return Promise.reject(C.ACTION.STOP);
+        }
+
+        return Promise.resolve(null);
     }
 
 
@@ -721,7 +719,7 @@ class Digger extends CommonBase {
                 (zoomPageUri || '-blank-') + ']'
             );
 
-            return Promise.resolve(this.reportDigFailure(thumbUri, zoomPageUri));
+            return this.reportDigFailure(thumbUri, zoomPageUri);
         }
         
         // Extract the filenames for better output.
@@ -730,7 +728,7 @@ class Digger extends CommonBase {
         var me = this;
         
         this.output.toOut('Finding zoom-media for thumbnail named ' + thumbFilename + C.ST.E);
-        this.log.log('working on ' + zoomPageUri);
+        this.lm('working on ' + zoomPageUri);
 
         // Do a HEAD request XHR to discover the content-type of the zoom-page. Either it is
         // media, and we resolve with it, it is an HTML doc and we process it, or skip it if
@@ -748,21 +746,25 @@ class Digger extends CommonBase {
             // Report anything other than HTML documents as found media.
             if (mimeType.indexOf(C.DOC_TYPE.HTML) !== -1) {
                 this.output.toOut('Found image detail page ' + zoomFilename);
-                
                 return (
-                    this.processZoomPage(false, new URL(thumbUri), new URL(zoomPageUri), searchDepth)
-                    .then((pair) => {
-                        return Promise.resolve(pair);
-                    })
+                    me.isSTOP() ? 
+                    () => { 
+                        return me.processZoomPage(false, 
+                            new URL(thumbUri), 
+                            new URL(zoomPageUri), 
+                            searchDepth
+                        ); 
+                    } :
+                    () => { 
+                        return Promise.reject(C.ACTION.STOP);
+                    }
                 );
             } 
             else if (Utils.isKnownMediaMimeType(mimeType)) {
                 this.output.toOut('Found media ' + zoomFilename);
-                return Promise.resolve(new UriPair(thumbUri, zoomPageUri));
             }
-            else {
-                return Promise.reject('Unknown Content-type ' + mimeType);
-            }
+
+            return Promise.resolve(new UriPair(thumbUri, zoomPageUri));
         })
         .then((pair) => {
              // Double-check that we got a good result before reporting success.
@@ -775,8 +777,8 @@ class Digger extends CommonBase {
             }
         })
         .catch((errorMessage) => {
-            this.log.log('digDeep error: ' + errorMessage);
-            return Promise.resolve(this.reportDigFailure(thumbUri, zoomPageUri));
+            me.lm('digDeep error: ' + errorMessage);
+            return this.reportDigFailure(thumbUri, zoomPageUri);
         });
 
         return p;
