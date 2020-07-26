@@ -1,7 +1,6 @@
 import { default as Utils } from './Utils.js';
 import { default as C } from '../lib/C.js';
 import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
-import { get, set } from 'core-js/fn/dict';
 
 /** 
  * Singleton.
