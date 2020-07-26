@@ -584,7 +584,7 @@ class Optionator extends CommonStaticBase {
 Optionator.setup();
 
 // Set the class on the background window just in case.
-if (Utils.isOptionsPage(window)) {
+if (Utils.isOptionsPage(window) && !window.hasOwnProperty(C.WIN_PROP.OPTIONATOR_CLASS)) {
     window[C.WIN_PROP.DOMINATRIX_CLASS] = Dominatrix;
     window[C.WIN_PROP.OPTIONATOR_CLASS] = Optionator;
 
