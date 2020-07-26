@@ -583,13 +583,6 @@ class Optionator extends CommonStaticBase {
 }
 Optionator.setup();
 
-// Only lay out the options content if we're on the options page.
-if (Utils.isOptionsPage(window)) {
-    // Setup the event listener to lay out the Options page. 
-    CommonStaticBase.lm('[Optionator] starting up, laying out the options/preferences form.');
-    Optionator.buildOptionsPageUi();
-}
-
 // Set the class on the background window just in case.
 if (Utils.isOptionsPage(window)) {
     window[C.WIN_PROP.DOMINATRIX_CLASS] = Dominatrix;
