@@ -1,10 +1,15 @@
 {
   "manifest_version": 2,
+  "developer": {
+    "name": "thirdlogan",
+    "url": "htp://github.com/thirdlogan/"
+  },
 
   "name": "GimmeGimmeGimme",
-  "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
+  "short_name": "gimme",
   "version": "0.4.9",
-  "offline_enabled": true,
+  "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
+  "incognito": "spanning",
 
   "applications": {
     "gecko": {
@@ -13,7 +18,7 @@
   },
 
   "icons": {
-    "16": "media/icon16.png",
+    "16": "media/icon16.png",   
     "24": "media/icon24.png",
     "32": "media/icon32.png",
     "48": "media/icon48.png",
@@ -51,7 +56,8 @@
   },
 
   "options_ui": {
-      "page": "options/options.html"
+      "page": "options/options.html",
+      "open_in_tab": true
   },
   
   "permissions": [
@@ -69,11 +75,11 @@
     "options/*.js",
     "background/*.js",
     "popup/*.js",
-    "popup/bundle.js.map",
-    "background/bundle.js.map",
-    "options/bundle.js.map",
-    "content/bundle.js.map",
-    "lib/bundle.js.map",
+    "popup/*.js.map",
+    "background/*.js.map",
+    "options/*.js.map",
+    "content/*.js.map",
+    "lib/*.js.map",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js.map",
     "node_modules/@tensorflow/tfjs/dist/tf.esm.js.map",
