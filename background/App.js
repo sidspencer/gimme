@@ -422,7 +422,7 @@ class App extends CommonBase {
                     // Based upon the Logicker's special rules for sites, either just
                     // resolve with the ContentPeeper's processed uri info, or do a scrape.
                     if (Utils.isFalse(me.digOpts.doScrape) || me.isSTOP()) {
-                        if (me.isSTOP) {
+                        if (me.isSTOP()) {
                             me.lm(
                                 `${C.ST.STOP_BANG} just after processContentPage() in scrape(). ` +
                                 `Continuing with the flow of just downloading ContentPeeper URIs of count: ${Object.keys(me.galleryMap).length}`
@@ -725,6 +725,7 @@ class App extends CommonBase {
         var me = this; 
         var alreadyStopping = false;
         var stoppedBeforeDig = false;
+        var p = Promise.resolve(true);
 
         // Begin by communicating with the ContentPeeper for information 
         // about the target page. Then present the user with choices on what to download,
@@ -752,10 +753,38 @@ class App extends CommonBase {
                     // Warm up the promise that will build our multi-gallery digging chain.
                     var p = Promise.resolve(true);
 
+                    // Fix the placement of this.
+                    if (me.isSTOP()) {
+                        me.output.toOut(MessageStrings.STOPPING_DDD);
+                        me.lsm(`while building gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
+                        
+                        // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
+                        // we don't reset p again the next time through (we're stuck in a forEach), and return p.
+                        if (Utils.isFalse(alreadyStopping)) {
+                            p = C.CAN_FN.PR_RS_STOP();
+                            alreadyStopping = true;
+                        }
+
+                        return p;
+                    }
+
                     // We make a simple chain of XHR promises fetching the linked-to gallery pages
                     var galleryCount = 0;
                     Object.values(mapOfGalleryLinks).forEach((uri) => { 
-                        if (!!uri && !!uri.trim()) {                   
+                        if (!!uri && !!uri.trim()) {
+                            if (me.isSTOP()) {
+                                me.output.toOut(MessageStrings.STOPPING_DDD);
+                                me.lsm(`while creating gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
+                                
+                                // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
+                                // we don't reset p again the next time through (we're stuck in a forEach), and return p.
+                                if (Utils.isFalse(alreadyStopping)) {
+                                    p = C.CAN_FN.PR_RS_STOP();
+                                    alreadyStopping = true;
+                                }
+                                return p;
+                            }
+
                             // If the URI was good enough, chain up the promise.
                             p = p.then(() => { 
                                 // A STOP here means we may have already fetched a few galleries, or we may not have. In
@@ -763,7 +792,7 @@ class App extends CommonBase {
                                 // XHRs.
                                 if (me.isSTOP()) {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
-                                    me.lsm(`while building gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
+                                    me.lsm(`while executing gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
                                     
                                     // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
                                     // we don't reset p again the next time through (we're stuck in a forEach), and return p.
@@ -786,7 +815,6 @@ class App extends CommonBase {
                                         chrome.browserAction.setBadgeText({ text: (C.ST.E + (++galleryCount) + C.ST.E) });
                                         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.NEW_FOPTS);
 
-                                        
                                         if (me.isSTOP()) { 
                                             // If we got a STOP now, just reject to get to this p.then()'s catch().
                                             return C.CAN_FN.PR_RJ_STOP(); 
