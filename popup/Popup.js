@@ -234,13 +234,13 @@ class Popup extends CommonBase {
      */
     connectEventHandlers() {
         var EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
-
+        
         /**
          * Scrape and dig, but don't automatically download. Instead, present the user with checkbox options
          * as to what files to download.
          */
         document.getElementById(C.ELEMENT_ID.DIG_FILE_OPTIONS).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doDiggingForOptions(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goDigFileOptions(window.document);
             });
         });
@@ -251,7 +251,7 @@ class Popup extends CommonBase {
          * Present the user with checkbox options as to what files to download.
          */
         document.getElementById(C.ELEMENT_ID.DIG_GALLERY_GALLERY).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doGalleryGalleryDigging(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goDigGalleryGallery(window.document);
             });
         });
@@ -262,7 +262,7 @@ class Popup extends CommonBase {
          * fires all the checkboxes' click events, causing them all the download.
          */
         document.getElementById(C.ELEMENT_ID.GET_ALL_FILE_OPTS).addEventListener(C.EVT.CLICK, () => {
-            document.querySelectorAll('input[type="checkbox"]').forEach(function initiateDownload(cbEl) {
+            document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
                 var evt = new MouseEvent(C.EVT.CLICK);
                 cbEl.dispatchEvent(evt);
             });
@@ -274,7 +274,7 @@ class Popup extends CommonBase {
          * fires the checkboxes' click events for all jpg files only.
          */
         document.getElementById(C.ELEMENT_ID.GET_ALL_JPG_OPTS).addEventListener(C.EVT.CLICK, () => {
-            document.querySelectorAll('input[type="checkbox"]').forEach(function initiateJpgDownload(cbEl) {
+            document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
                 if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg)$/, 'i'))) {
                     var evt = new MouseEvent(C.EVT.CLICK);
                     cbEl.dispatchEvent(evt);
@@ -288,7 +288,7 @@ class Popup extends CommonBase {
          * previouslyHarvestedUriMap, shows the scrape/dig buttons, and hides the "action buttons".
          */
         document.getElementById(C.ELEMENT_ID.CLEAR_FILE_LIST).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function clearTheFileList(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 Popup.clearPreviousUriMap();
                 
                 var out = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstanceSetToDoc(window.document);
@@ -306,7 +306,7 @@ class Popup extends CommonBase {
          * Scrape for all known types of media on a page.
          */
         document.getElementById(C.ELEMENT_ID.SCRAPE_FILE_OPTIONS).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doScrapingForOptions(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goScrapeFileOptions(window.document);
             });
         });
@@ -316,7 +316,7 @@ class Popup extends CommonBase {
          * Scrape a page, picking up all the included images.
          */
         document.getElementById(C.ELEMENT_ID.SCRAPE_IMAGES).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goScrapeImages(window.document);
             });
         });
@@ -326,7 +326,7 @@ class Popup extends CommonBase {
          * Scrape a page, picking up all the included videos.
          */
         document.getElementById(C.ELEMENT_ID.SCRAPE_VIDEOS).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goScrapeVideos(window.document);
             });
         });
@@ -336,7 +336,7 @@ class Popup extends CommonBase {
          * A big one, scrape a page for *any* media.
          */
         document.getElementById(C.ELEMENT_ID.SCRAPE).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goScrape(window.document);
             });
         });
@@ -346,7 +346,7 @@ class Popup extends CommonBase {
          * Dig an image gallery.
          */
         document.getElementById(C.ELEMENT_ID.DIG_IMAGE_GALLERY).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doImageGalleryDig(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goDigImageGallery(window.document);
             });
         });
@@ -356,7 +356,7 @@ class Popup extends CommonBase {
          * Dig a video gallery.
          */
         document.getElementById(C.ELEMENT_ID.DIG_VIDEO_GALLERY).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doVideoGalleryDig(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goDigVideoGallery(window.document);
             });
         });
@@ -366,7 +366,7 @@ class Popup extends CommonBase {
          * The big one, digging *everything* that could be from a gallery.
          */
         document.getElementById(C.ELEMENT_ID.DIG).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function doDigging(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 bgWindow[EP].goDig(window.document);
             });
         });
@@ -396,7 +396,7 @@ class Popup extends CommonBase {
          * Toggle the Voyeur -- a very simple media request tracker-to-console-logger.
          */
         document.getElementById(C.ELEMENT_ID.TOGGLE_VOYEUR).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage(function toggleVoyeur(bgWindow) {
+            chrome.runtime.getBackgroundPage((bgWindow) => {
                 var voy = bgWindow[C.WIN_PROP.VOYEUR_CLASS];
                 voy.toggleVoying();
             });
