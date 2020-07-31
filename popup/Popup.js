@@ -384,12 +384,14 @@ class Popup extends CommonBase {
         });
 
 
+        /*
         document.getElementById(C.ELEMENT_ID.RESUME).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage((bgWindow) => {
                 var evt = new ResumeEvent();
                 bgWindow.document.dispatchEvent(evt);
             });
         });
+        */
 
 
         /**
