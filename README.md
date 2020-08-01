@@ -18,3 +18,7 @@ Options/Preferences got broken at some point, with Dominatrix no longer building
 
 # building
 Execute "npm run pack" in the base directory to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files only
+
+
+# v0.4.8
+The Mozilla add-ons process has some great code analysis tools that picked up on eval usage, Function constructors, and my using innerHTML when textContent or even using a DOMParser object was actually the way to go. While the innerHTML was my lazy (and easily fixed) fault, the unsafe generated code and my loose CSP were actually artifacts of poor webpack and babel setup. v0.4.8 will be PR'd to master shortly.
