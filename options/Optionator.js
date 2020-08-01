@@ -67,7 +67,7 @@ class Dominatrix extends CommonStaticBase {
                 var valueId = div.id + '_' + C.DOMX_CONF.VALUE_PREFIX + i;
 
                 // Create and append the label if we were told to label this.
-                if (!!label) {
+                if (Utils.exists(label)) {
                     label.textContent = value.label;
                     label.for = valueId;
                     div.appendChild(label);
@@ -80,26 +80,33 @@ class Dominatrix extends CommonStaticBase {
                 input.dataset.key = value.key;
                 div.appendChild(input);                
 
+                //Dominatrix.lm(`--\nLabel: ${label}\nValue: ${JSON.stringify(value)}`);
+
                 var inputValue = C.ST.E;
-                
-                // For array values, use the div id of the subentry.
-                if (('values' in value) && Array.isArray(value.values)) {
+
+                // For array values, "text" is a misnomer, and actually is an array 
+                // of this OptionEntry's own sublist of OptionEntry prefs. We Build it out
+                // recursively.
+                if (Array.isArray(value.text)) {
                     // Now recurse to add the subentry values.
-                    var subEntryId = Dominatrix.addEntry(value.values, div, true);
+                    var subEntryId = Dominatrix.addEntry(value.text, div, true);
                     input.type = 'hidden';                    
                     inputValue = subEntryId;
                     
                     // Hook up the addSubEntry button to add new subentries. Only place the
                     // button after the last subentry value in the array. 
                     if ((i+1) === values.length || values[i+1].key !== value.key) {
-                        Dominatrix.buildAddSubEntryButton(i, div, value, subEntryId);
+                        Dominatrix.buildAddSubEntryButton(i, div, value.text, subEntryId);
                         i++;
                     }
                 }
-                // For scalar values, use value.text or the value itself.
+                // For scalar "text" values, use value.text directly as the inputValue, or fallback 
+                // to a 
                 else {
                     input.type = 'text';                    
-                    inputValue = (('text' in value) ? value.text.toString() : value.toString());;
+                    inputValue = Utils.asString(
+                        ('text' in value) ? value.text : value
+                    );
                 }
                 input.value = inputValue;
             }
@@ -190,7 +197,7 @@ class Dominatrix extends CommonStaticBase {
             rootNode.insertBefore(newInput, addSubEntry);
             
             // Add the subentry to the <div>.
-            var addedSubentryId = Dominatrix.addEntry(val.values, rootNode, true, newValueId);
+            var addedSubentryId = Dominatrix.addEntry(val, rootNode, true, newValueId);
             newInput.value = addedSubentryId;
 
             // Unhide all the subentries' delete buttons in the section.
