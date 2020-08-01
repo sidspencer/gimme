@@ -62,6 +62,21 @@ class Utils extends CommonStaticBase {
 
 
     /**
+     * If the val is a proper object, it may have a toString(). If it's a
+     * little degenerate, it might not, so we interpolate in that case.
+     *
+     * @param {Object} val 
+     */
+    static asString(val) {
+        return (
+            (Utils.exists(val) && Utils.exists(val.toString)) ?
+            val.toString() :
+            `${val}`
+        );
+    }
+
+
+    /**
      * Check the src/uri/href/filename for known audio extensions.
      */
     static isAllowedAudioType(name) {
