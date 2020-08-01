@@ -562,7 +562,7 @@ class Utils extends CommonStaticBase {
                     let prevDlState = dlDelta.state.previous;
 
                     if (currDlState === C.DLS.CPT) {
-                        Utils.lm(`Download ${dlId} to "${dlFile}" completed successfully.`);
+                        //Utils.lm(`Download ${dlId} to "${dlFile}" completed successfully.`);
                         Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
                     }
                     else if (currDlState === C.DLS.INT && prevDlState !== C.DLS.INT) {
@@ -570,11 +570,14 @@ class Utils extends CommonStaticBase {
                         chrome.downloads.resume(dlId, () => {
                             // Resolve in shame if resume() errors.
                             if (Utils.exists(runtime.lastError)) {
-                                Utils.lm(`Download ${dlId} of "${dlFile}" could not be resumed. runtime.lastError:\n\t${JSON.stringify(runtime.lastError)}`);
+                                Utils.lm(
+                                    `Download ${dlId} of "${dlFile}" could not be resumed. Trashing the listener and just resolving. ` +
+                                    ` runtime.lastError:\n\t${JSON.stringify(runtime.lastError)}`
+                                );
                                 Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
                             }
                             else {
-                                Utils.lm(`Download ${dlId} for "${dlFile}" resumed without error. Continuing along...`);
+                                //Utils.lm(`Download ${dlId} for "${dlFile}" resumed without error. Continuing along...`);
                             }
                         });
                     }
