@@ -181,7 +181,7 @@ class Digger extends CommonBase {
         }
         else if (Object.keys(galleryMap).length > 0) {
             return this.digNextBatch(galleryMap).then(() => {
-                if (me.isSTOP()) { return Promise.reject(C.ACTION.STOP); };
+                if (this.isSTOP()) { return Promise.reject(C.ACTION.STOP); };
 
                 return this.digNextBatchLink(galleryMap);
             });
@@ -289,9 +289,19 @@ class Digger extends CommonBase {
         return (
             Promise.all(diggingBatch)
                 .then((pairs) => {
-                    if (!me.isSTOP()) { me.lm(`${C.ST.STOP_BANG} Letting this harvestBatch occur. Stop was signaled, however.`)};
+                    if (me.isSTOP()) { me.lsm(' Letting this harvestBatch occur. Stop was signaled, however.')};
 
-                    return me.harvestBatch(pairs);
+                    return (
+                        me.harvestBatch(pairs)
+                            .then((input) => {
+                                if (me.isSTOP()) {
+                                    return Promise.reject(C.ACTION.STOP);
+                                }
+                                else {
+                                    return Promise.resolve(input);
+                                }
+                            })
+                    );
                 }).catch((err) => {
                     if (me.isSTOP(err)) {
                         me.lm(`${C.ST.STOP_BANG} Rejecting the promise chain instead of continuing. Effectively killing digNextBatch().`);
