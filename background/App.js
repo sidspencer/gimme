@@ -16,8 +16,7 @@ import {
     Storing,
     Log,
 } from '../lib/DataClasses.js'
-import MessageStrings from '../lib/MessageStrings.js';
- 
+import MessageStrings from '../lib/MessageStrings.js'; 
 
 
 /**
@@ -723,9 +722,7 @@ class App extends CommonBase {
         var locDocs = [];
         var combinedMap = {};
         var me = this; 
-        var alreadyStopping = false;
-        var stoppedBeforeDig = false;
-        var p = Promise.resolve(true);
+        var p = C.CAN_FN.PR_RS_DEF();
 
         // Begin by communicating with the ContentPeeper for information 
         // about the target page. Then present the user with choices on what to download,
@@ -737,10 +734,7 @@ class App extends CommonBase {
                     // know this was an early STOP.
                     if (me.isSTOP()) {
                         me.output.toOut(MessageStrings.STOPPING_DDD);
-                        me.lsm(`after processContentPage(), before any digging. Reject with STOP.`);
-                        stoppedBeforeDig = true;
-
-                        // Reject with STOP so we go to the final catch(), skipping everything else.
+                        me.lsm(`after processContentPage(), before any digging. Reject with STOP.`);                        
                         return C.CAN_FN.PR_RJ_STOP();
                     }
 
@@ -750,9 +744,6 @@ class App extends CommonBase {
                     );
                 })
                 .then((mapOfGalleryLinks) => {
-                    // Warm up the promise that will build our multi-gallery digging chain.
-                    var p = Promise.resolve(true);
-
                     // Fix the placement of this.
                     if (me.isSTOP()) {
                         me.output.toOut(MessageStrings.STOPPING_DDD);
@@ -760,12 +751,7 @@ class App extends CommonBase {
                         
                         // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
                         // we don't reset p again the next time through (we're stuck in a forEach), and return p.
-                        if (Utils.isFalse(alreadyStopping)) {
-                            p = C.CAN_FN.PR_RS_STOP();
-                            alreadyStopping = true;
-                        }
-
-                        return p;
+                        return C.CAN_FN.PR_RJ_STOP();
                     }
 
                     // We make a simple chain of XHR promises fetching the linked-to gallery pages
@@ -775,14 +761,8 @@ class App extends CommonBase {
                             if (me.isSTOP()) {
                                 me.output.toOut(MessageStrings.STOPPING_DDD);
                                 me.lsm(`while creating gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
-                                
-                                // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
-                                // we don't reset p again the next time through (we're stuck in a forEach), and return p.
-                                if (Utils.isFalse(alreadyStopping)) {
-                                    p = C.CAN_FN.PR_RS_STOP();
-                                    alreadyStopping = true;
-                                }
-                                return p;
+
+                                return C.CAN_FN.PR_RJ_STOP();
                             }
 
                             // If the URI was good enough, chain up the promise.
@@ -792,15 +772,8 @@ class App extends CommonBase {
                                 // XHRs.
                                 if (me.isSTOP()) {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
-                                    me.lsm(`while executing gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
-                                    
-                                    // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
-                                    // we don't reset p again the next time through (we're stuck in a forEach), and return p.
-                                    if (Utils.isFalse(alreadyStopping)) {
-                                        p = C.CAN_FN.PR_RS_STOP();
-                                        alreadyStopping = true;
-                                    }
-                                    return p;
+                                    me.lsm(`while executing gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);                                  
+                                    return C.CAN_FN.PR_RJ_STOP();
                                 }
 
                                 // Do a document-response XHR to get each gallery document from the meta-gallery's links. We do a simple
@@ -831,9 +804,6 @@ class App extends CommonBase {
                                         if (me.isSTOP(e)) {
                                             me.output.toOut(MessageStrings.STOPPING_DDD);
                                             me.lsm(`all doc-fetching operations halting, setting the entire promise chain to resolve(STOP).`);
-
-                                            // Resolve with STOP, so we will process the links of what LocDocs we already have, but we stop
-                                            // any more chaining off of p with these two statements.
                                             p = C.CAN_FN.PR_RS_STOP();
                                             return p;
                                         }
@@ -862,9 +832,6 @@ class App extends CommonBase {
                     // Set up a new promise chain starter.
                     var p = Promise.resolve(true);
 
-                    // Reset and reuse the STOPping flag.
-                    alreadyStopping = false;
-
                     // Using the locDocs collected for each gallery page that is linked to from the
                     // gallery-gallery-page. Use them to create a promise chain of digGallery(...)
                     // calls on each locDoc. 
@@ -874,18 +841,7 @@ class App extends CommonBase {
                         if (me.isSTOP(trueOrStop)) {
                             me.output.toOut(MessageStrings.STOPPING_DDD);
                             me.lsm(`while going through locDocs. Truncating promise chain.`);
-
-                            // Set the whole promise chain to just a resolve(STOP), and use the alreadyStopping flag
-                            // to make sure we don't resolve over and over again.
-                            if (!alreadyStopping) {
-                                p = C.CAN_FN.PR_RS_STOP();
-                                alreadyStopping = true;
-                            }
-
-                            // we're inside the forEach() so returning the promise would be worthless. so just return,
-                            // going to the next locDoc in the forEach, upon which iteration this same STOP block will
-                            // come into effect.
-                            return; 
+                            return C.CAN_FN.PR_RJ_STOP();
                         };
 
                         // Build the promise chain of digging all the galleries linked to from the
@@ -904,16 +860,7 @@ class App extends CommonBase {
                             if (me.isSTOP()) {
                                 me.output.toOut(MessageStrings.STOPPING_DDD);
                                 me.lsm(`Right before digging gallery ${lDoc.loc.href}. Truncating promise chain.`);
-
-                                // Only set the promise-chain once to our truncated resolve(STOP).
-                                if (!alreadyStopping) {
-                                    p = C.CAN_FN.PR_RS_STOP();
-                                    alreadyStopping = true;
-                                }
-
-                                // This should only happen once, as all the p.then()s get lost when we truncate
-                                // the chain.
-                                return p; 
+                                return C.CAN_FN.PR_RS_STOP();
                             }
 
                             // Call the Digger to do a gallery scrape only, giving us something very similar to peeperMap from
@@ -935,12 +882,8 @@ class App extends CommonBase {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
                                     me.lsm(`Resolving with the Logicker\'s post-processed-data.`);
 
-                                    if (!alreadyStopping) {
-                                        p = Promise.resolve(inst.processedMap);
-                                        alreadyStopping = true;
-                                    }
-
-                                    return p;
+                                   
+                                    return C.CAN_FN.PR_RS_STOP();
                                 }
                                 else {
                                     // Normal operation is to do a full scrape-n-dig (at Logicker's discretion), and resolve
@@ -962,21 +905,12 @@ class App extends CommonBase {
                                 // don't do it a bunch of times. 
                                 if (me.isSTOP()) {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
-                                    me.lsm(`Resolving, so we show the file opts. (resolving with "STOP".)`);
-                                    
-                                    if (!alreadyStopping) {
-                                        p = C.CAN_FN.PR_RS_STOP();
-                                        alreadyStopping = true;
-                                    }
-        
-                                    // resolve immediately with STOP, overwriting the promise-chain, 
-                                    // and skipping the catch().
-                                    return p;                             
+                                    me.lsm(`Rejecting with "STOP".)`);
+                                    return C.CAN_FN.PR_RJ_STOP();                        
                                 }
                                 
-
                                 // Resolve true to skip the catch and go on to the next link.
-                                return C.CAN_FN.PR_RS_DEF();
+                                return C.CAN_FN.PR_RS_STOP();
                             })
                             .catch((err) => {
                                 // A stop here is unlikely, but possible. Take the exact same steps as the above then() to
@@ -984,14 +918,7 @@ class App extends CommonBase {
                                 if (me.isSTOP(err)) {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
                                     me.lsm(`caught thrown STOP. Resolve with "STOP".`);
-
-                                    if (!alreadyStopping) {
-                                        p = C.CAN_FN.PR_RS_STOP();
-                                        alreadyStopping = true;
-                                    }
-        
-                                    // resolve immediately with STOP, overwriting the promise.
-                                    return p;
+                                    return C.CAN_FN.PR_RS_STOP();
                                 }
                                 
                                 // If we got a real error, ask the user to refresh again, log the stringified error, and reject.
@@ -1004,6 +931,16 @@ class App extends CommonBase {
 
                     // This is the promise chain of scraping, digging, and combining all the galleries'
                     // harvested thumbUri -> zoomUri maps into "combinedMap".
+                     // If stop is already called, reject with STOP to shoot to the final catch(). Set a flag so we
+                    // know this was an early STOP.
+                    if (me.isSTOP()) {
+                        me.output.toOut(MessageStrings.STOPPING_DDD);
+                        me.lsm(`after processContentPage(), before any digging. Reject with STOP.`);
+
+                        // Reject with STOP so we go to the final catch(), skipping everything else.
+                        p = C.CAN_FN.PR_RS_STOP();
+                    }
+
                     return p;
                 })
                 .then((trueOrStop) => {
@@ -1012,7 +949,6 @@ class App extends CommonBase {
                     // and let the resolve(combinedMap) happen.
                     if (me.isSTOP(trueOrStop)) {
                         me.output.toOut(`${MessageStrings.STOPPING_DDD} But first presenting our findings up til now.`);
-                        me.lsm(`Continuing execution, and presenting file opts to user.`);
                     }
 
                     // Taking the combined gallery maps, Make FileOpts for them. Then we resolve with the combined
@@ -1075,6 +1011,7 @@ class App extends CommonBase {
                             // Reject with this unexpected err. Done in case we are chained off of in the future.
                             // (Only the finally() is left in this chain.)
                             reject(err);
+
                         }
                     })
                 })
