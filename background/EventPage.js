@@ -6,7 +6,7 @@ import { default as Utils } from './Utils.js';
 import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
 import { default as C } from '../lib/C.js';
-import { InspectionOptions, Log } from '../lib/DataClasses.js';
+import { InspectionOptions, Log, ResumeEvent } from '../lib/DataClasses.js';
 
 
 const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
@@ -28,8 +28,9 @@ class EventPage {
      *  - mucks through javascript (musta been green programmers)
      */
     static goDig(parentDocument) {
+        window.document.dispatchEvent(new ResumeEvent());
+
         var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
-        
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
@@ -38,7 +39,7 @@ class EventPage {
         EventPage.app = new App(digger, scraper);
 
         return(
-            EventPage.app.digGallery()
+            EventPage.app.digGallery() 
                 .finally(EventPage.undefineApp)
         );
     }
@@ -51,8 +52,9 @@ class EventPage {
      *  - mucks through javascript (musta been green programmers)
      */
     static goDigFileOptions(parentDocument) {
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        window.document.dispatchEvent(new ResumeEvent());
 
+        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
@@ -72,8 +74,9 @@ class EventPage {
      * This includes css Background Images for bastards like FB.
      */
     static goDigImageGallery(parentDocument) {
-        var inspectionOptions = new InspectionOptions(true, true, false, true, false, false);
+        window.document.dispatchEvent(new ResumeEvent());
 
+        var inspectionOptions = new InspectionOptions(true, true, false, true, false, false);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -92,8 +95,9 @@ class EventPage {
      * Fire up the EventPage.app, dig only for video galleries.
      */
     static goDigVideoGallery(parentDocument) {
-        var inspectionOptions = new InspectionOptions(false, false, true, true, false, false);
-    
+        window.document.dispatchEvent(new ResumeEvent());
+
+        var inspectionOptions = new InspectionOptions(false, false, true, true, false, false);    
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -112,8 +116,9 @@ class EventPage {
      * Go dig multiple galleries from a page of gallery of galleries.
      */
     static goDigGalleryGallery(parentDocument) {
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false); 
-        
+        window.document.dispatchEvent(new ResumeEvent());
+
+        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -141,8 +146,9 @@ class EventPage {
      * query-string. Then JUST START DOWNLOADING THEM.
      */
     static goScrape(parentDocument) {
-        var inspectionOptions = new InspectionOptions(true); 
-    
+        window.document.dispatchEvent(new ResumeEvent());
+
+        var inspectionOptions = new InspectionOptions(true);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -163,8 +169,9 @@ class EventPage {
      * query-string. Then present options for the user to choose to download or not.
      */
     static goScrapeFileOptions(parentDocument) {
-        var inspectionOptions = new InspectionOptions(true);
+        window.document.dispatchEvent(new ResumeEvent());
 
+        var inspectionOptions = new InspectionOptions(true);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -183,8 +190,9 @@ class EventPage {
      * Scrape the current page for <img>s.
      */
     static goScrapeImages(parentDocument) {
+        window.document.dispatchEvent(new ResumeEvent());
+
         var inspectionOptions = new InspectionOptions(true, true, false, true, false, true);
-        
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -203,8 +211,9 @@ class EventPage {
      * Scrape the current page for <video>s.
      */
     static goScrapeVideos(parentDocument) {
-        var inspectionOptions = new InspectionOptions(false, false, true, true, false, true);
+        window.document.dispatchEvent(new ResumeEvent());
 
+        var inspectionOptions = new InspectionOptions(false, false, true, true, false, true);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
