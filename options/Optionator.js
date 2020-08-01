@@ -1,141 +1,38 @@
-'use strict'
-
-
-/**
- * Const generic object for holding the shared constants. 
- */
-const Constance = {
-     // Enumeration of the spec form sections.
-    SECTIONS: {
-        CONFIG: 'CONFIG',
-        MESSAGES: 'MESSAGES',
-        PROCESSINGS: 'PROCESSINGS',
-        BLESSINGS: 'BLESSINGS',
-    },
-
-    // Enumeration of the labels to use for the spec form elements.
-    LABELS: {
-        CONFIG: {
-            minZoomWidth: 'min full-sized image width',
-            minZoomHeight: 'minimum full-sized image height',
-            dlChannels: 'number of download channels for gallery-gallery-digs',
-            dlBatchSize: 'number of downloads in a batch for gallery-gallery-digs',
-            knownBadImgRegex: 'regex to match image uris that are never what we are looking for',
-            enableHalfBakedFeatures: 'enable all the half-baked features with a "3.14159" in this box', 
-        },
-        MESSAGES: {
-            match: 'regex to match the site uri',
-            link: 'css selector for getting the link element pointing to the full-sized image page',
-            href: 'javascript property path for getting the proper link uri from the link element',
-            thumb: 'css scoped sub-selector of the thumbnail image element relative to the link element',
-            src: 'javascript property path for getting the proper thumbnail source uri from the thumbnail element',
-        },
-        PROCESSINGS: {
-            match: 'regex to match the site uri',
-            actions: 'list of transformations to do on the matched uri',
-            actions_noun: 'do matching on the thumbnail image uri (src), or the link uri (href)',
-            actions_verb: 'the type of uri treansformation to do (ie "replace")',
-            actions_match: 'regex for what text in the selected src/href to replace/transform',
-            actions_new: 'new text for replacing/transforming the matched text of the uri',
-            dig: 'force always use dig-engine discovery of full-sized images',
-            scrape: 'force always use scrape-engine discovery of thumbnail images',
-        },
-        BLESSINGS: {
-            match: 'regex to match the site uri of detail pages containing the full-sized image',
-            zoom: 'css selector for the full-sized image element on the page',
-            src: 'javascript property path for getting the full-sized image source uri from the image element',
-        },
-    },
-    
-    // These are the default spec values.
-    cannedConfig: {
-        minZoomWidth: '300',
-        minZoomHeight: '300',
-        dlChannels: '5',
-        dlBatchSize: '5',
-        knownBadImgRegex: '/\\/(logo\\.|loading|header\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
-        enableHalfBakedFeatures: '0',
-    },
-
-    cannedProcessings: [
-        {
-            match: 'fakeexample.fake',
-            actions: [
-                {
-                    noun: 'src',
-                    verb: 'replace',
-                    match: '/^t-/',
-                    new: 'big-'
-                },
-                {
-                    noun: 'href',
-                    verb: 'replace',
-                    match: '/\\/fakeout\\//',
-                    new: '/realpath/'
-                }
-            ],
-            dig: true,
-            scrape: false,
-        }
-    ],
-    
-    cannedMessages: [
-        {
-            match: 'fakeexample.fake',
-            link: 'a.link[href]',
-            href: 'href',
-            thumb: 'img.thumb[data-src]',
-            src: 'dataset.src',
-        }
-    ],
-
-    cannedBlessings: [
-        {
-            match: 'fakeexample.fake',
-            zoom: 'img.zoomed',
-            src: 'src',
-        }
-    ],
- }
-
-// The default spec, used if there is nothing in storage yet.
-const DEFAULT_SPEC = {
-    config: Constance.cannedConfig,
-    messages: Constance.cannedMessages,
-    processings: Constance.cannedProcessings,
-    blessings: Constance.cannedBlessings,
-};
-
-
-// Constants for Dominatrix. Id prefixes for unique element ids, 
-// classnames for entry holder <div>s, keys for objects.
-const ENTRY_DIV_ID_PREFIX = 'entry_';
-const SUB_ENTRY_DIV_ID_PREFIX = 'subentry_';
-const VALUE_ID_PREFIX = 'value_';
-const ADD_SUB_ENTRY_ID_PREFIX = 'addsubentry_';
-const ENTRY_CLASS = 'entry';
-const SUB_ENTRY_CLASS = 'subentry';
-const DELETE_BUTTON_CLASS = 'delete';
-const ADD_SUB_ENTRY_CLASS = 'addSubentry';
-const DELETE_BUTTON_TEXT = 'X';
+import { default as C } from '../lib/C.js';
+import { OptionEntry } from '../lib/DataClasses.js';
+import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
+import { default as Utils } from '../background/Utils.js';
 
 
 /*
  * Singleton which handles layout and serialization to and from the HTML5 form
  * for the options spec values.
  */
-class Dominatrix {    
+class Dominatrix extends CommonStaticBase { 
+    // Key for the static class reference on the options page window object.  
+    static ST_KEY = C.WIN_PROP.DOMINATRIX_ST;
+
     // Counters used in creating unique element ids.
     static entryCounter = 0;
     static subEntryCounter = 0;
 
     // Enumeration of section holder <div>s that exist on the options form page.
     static SectionElements = {
-        CONFIG: document.getElementById(Constance.SECTIONS.CONFIG),
-        MESSAGES: document.getElementById(Constance.SECTIONS.MESSAGES),
-        PROCESSINGS: document.getElementById(Constance.SECTIONS.PROCESSINGS),
-        BLESSINGS: document.getElementById(Constance.SECTIONS.BLESSINGS),
+        CONFIG: document.getElementById(C.OPT_CONF.SECTIONS.CONFIG),
+        MESSAGES: document.getElementById(C.OPT_CONF.SECTIONS.MESSAGES),
+        PROCESSINGS: document.getElementById(C.OPT_CONF.SECTIONS.PROCESSINGS),
+        BLESSINGS: document.getElementById(C.OPT_CONF.SECTIONS.BLESSINGS),
     };
+
+
+    /**
+     * Set up the Logger and STOP handlers.
+     */
+    static setup() {
+        if (!Utils.exists(Dominatrix.log)) {
+            super.setup(C.LOG_SRC.DOMINATRIX);
+        }
+    }
 
 
     /**
@@ -150,12 +47,12 @@ class Dominatrix {
         var div = document.createElement('div');
 
         if (isSubEntry) {
-            div.id = SUB_ENTRY_DIV_ID_PREFIX + (Dominatrix.subEntryCounter++);
-            div.className = SUB_ENTRY_CLASS;
+            div.id = C.DOMX_CONF.SUB_ENTRY_DIV_PREFIX + (Dominatrix.subEntryCounter++);
+            div.className = C.DOMX_CONF.SUB_ENTRY_CLASS;
         }
         else {
-            div.id = ENTRY_DIV_ID_PREFIX + (Dominatrix.entryCounter++);
-            div.className = ENTRY_CLASS;
+            div.id = C.DOMX_CONF.ENTRY_DIV_PREFIX + (Dominatrix.entryCounter++);
+            div.className = C.DOMX_CONF.ENTRY_CLASS;
         }
 
         if (Array.isArray(values)) {
@@ -167,10 +64,10 @@ class Dominatrix {
                 }
 
                 var label = (!!value.label ? document.createElement('label') : false);
-                var valueId = div.id + '_' + VALUE_ID_PREFIX + i;
+                var valueId = div.id + '_' + C.DOMX_CONF.VALUE_PREFIX + i;
 
                 // Create and append the label if we were told to label this.
-                if (!!label) {
+                if (Utils.exists(label)) {
                     label.textContent = value.label;
                     label.for = valueId;
                     div.appendChild(label);
@@ -183,26 +80,33 @@ class Dominatrix {
                 input.dataset.key = value.key;
                 div.appendChild(input);                
 
-                var inputValue = '';
-                
-                // For array values, use the div id of the subentry.
-                if (('values' in value) && Array.isArray(value.values)) {
+                //Dominatrix.lm(`--\nLabel: ${label}\nValue: ${JSON.stringify(value)}`);
+
+                var inputValue = C.ST.E;
+
+                // For array values, "text" is a misnomer, and actually is an array 
+                // of this OptionEntry's own sublist of OptionEntry prefs. We Build it out
+                // recursively.
+                if (Array.isArray(value.text)) {
                     // Now recurse to add the subentry values.
-                    var subEntryId = Dominatrix.addEntry(value.values, div, true);
+                    var subEntryId = Dominatrix.addEntry(value.text, div, true);
                     input.type = 'hidden';                    
                     inputValue = subEntryId;
                     
                     // Hook up the addSubEntry button to add new subentries. Only place the
                     // button after the last subentry value in the array. 
                     if ((i+1) === values.length || values[i+1].key !== value.key) {
-                        Dominatrix.buildAddSubEntryButton(i, div, value, subEntryId);
+                        Dominatrix.buildAddSubEntryButton(i, div, value.text, subEntryId);
                         i++;
                     }
                 }
-                // For scalar values, use value.text or the value itself.
+                // For scalar "text" values, use value.text directly as the inputValue, or fallback 
+                // to a 
                 else {
                     input.type = 'text';                    
-                    inputValue = (('text' in value) ? value.text.toString() : value.toString());;
+                    inputValue = Utils.asString(
+                        ('text' in value) ? value.text : value
+                    );
                 }
                 input.value = inputValue;
             }
@@ -210,8 +114,8 @@ class Dominatrix {
             // Create a delete button for the entry/subentry. If we're dealing with the first
             // subentry of a list of subentries, do not create a delete button for it.
             var deleteButton = document.createElement('button');
-            deleteButton.textContent = DELETE_BUTTON_TEXT;
-            deleteButton.className = DELETE_BUTTON_CLASS;
+            deleteButton.textContent = C.DOMX_CONF.DELETE_BUTTON_TEXT;
+            deleteButton.className = C.DOMX_CONF.DELETE_BUTTON_CLASS;
             deleteButton.addEventListener('click', () => {
                 // Remove the subentry title (like 'actions'), then the hidden input
                 // for the subentry, then the subentry itself.
@@ -223,9 +127,9 @@ class Dominatrix {
 
                 // If there is only 1 subentry left, find it and hide its delete button.
                 // otherwise, show all the subentries' delete buttons.
-                var remainingSubentries = section.querySelectorAll(':scope div.' + SUB_ENTRY_CLASS);
+                var remainingSubentries = section.querySelectorAll(':scope div.' + C.DOMX_CONF.SUB_ENTRY_CLASS);
                 if (remainingSubentries.length === 1) {
-                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + DELETE_BUTTON_CLASS);
+                    var deleteButton = remainingSubentries[0].querySelector(':scope button.' + C.DOMX_CONF.DELETE_BUTTON_CLASS);
                     deleteButton.style.display = 'none';
                 }
             });
@@ -265,8 +169,8 @@ class Dominatrix {
 
         // Build the 'add subentry' button, and insert it into the <div>.
         var addSubEntry = document.createElement('button');
-        addSubEntry.id = ADD_SUB_ENTRY_ID_PREFIX + idx;
-        addSubEntry.className = ADD_SUB_ENTRY_CLASS;
+        addSubEntry.id = C.DOMX_CONF.ADD_SUB_ENTRY_PREFIX + idx;
+        addSubEntry.className = C.DOMX_CONF.ADD_SUB_ENTRY_CLASS;
         addSubEntry.textContent = 'add subentry';
         rootNode.insertBefore(addSubEntry, refNode);                                                
 
@@ -276,7 +180,7 @@ class Dominatrix {
         addSubEntry.addEventListener('click', () => {
             // Create the label.
             var newLabel = (!!val.label ? document.createElement('label') : false);
-            var newValueId = div.id + '_' + VALUE_ID_PREFIX + (idx + 1);
+            var newValueId = div.id + '_' + C.DOMX_CONF.VALUE_PREFIX + (idx + 1);
             if (!!newLabel) {
                 newLabel.id = 'label_' + newValueId
                 newLabel.textContent = val.label;
@@ -293,14 +197,14 @@ class Dominatrix {
             rootNode.insertBefore(newInput, addSubEntry);
             
             // Add the subentry to the <div>.
-            var addedSubentryId = this.addEntry(val.values, rootNode, true, newValueId);
+            var addedSubentryId = Dominatrix.addEntry(val, rootNode, true, newValueId);
             newInput.value = addedSubentryId;
 
             // Unhide all the subentries' delete buttons in the section.
-            var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + DELETE_BUTTON_CLASS);
+            var deleteButtons = div.parentNode.querySelectorAll(':scope button.' + C.DOMX_CONF.DELETE_BUTTON_CLASS);
             deleteButtons.forEach((dButton) => {
-                if (dButton.parentNode.className === SUB_ENTRY_CLASS) {
-                    dButton.style.display = '';
+                if (dButton.parentNode.className === C.DOMX_CONF.SUB_ENTRY_CLASS) {
+                    dButton.style.display = C.ST.E;
                 }
             });
         });
@@ -356,7 +260,7 @@ class Dominatrix {
 
         // Sort out the text inputs and hidden inputs.
         root.childNodes.forEach((child) => {
-            if (child.nodeName === 'INPUT') {
+            if (child.nodeName.toLowerCase() === 'input') {
                 if (child.type === 'text') {
                     textInputs.push(child);
                 }
@@ -382,7 +286,7 @@ class Dominatrix {
                 }
 
                 var subEntry = input.nextSibling;
-                if (!!subEntry && subEntry.className === SUB_ENTRY_CLASS) {
+                if (!!subEntry && subEntry.className === C.DOMX_CONF.SUB_ENTRY_CLASS) {
                     entry[input.dataset.key].push(Dominatrix.getEntry(subEntry));
                 }
             }
@@ -403,7 +307,7 @@ class Dominatrix {
         
         // Get all of the div.ENTRY_CLASS dom nodes.
         section.childNodes.forEach((child) => {
-            if (child.nodeName === 'DIV' && child.className === ENTRY_CLASS) {
+            if (child.nodeName === 'DIV' && child.className === C.DOMX_CONF.ENTRY_CLASS) {
                 divs.push(child);
             }
         });
@@ -450,13 +354,14 @@ class Dominatrix {
         return Dominatrix.getEntries(Dominatrix.SectionElements.BLESSINGS);
     };
 }
+Dominatrix.setup();
 
 
 /**
  * Static class which handles getting, setting, and processing the options spec values
  * to/from storage.
  */
-class Optionator {
+class Optionator extends CommonStaticBase {
     // id properties of the elements in the configuration sections
     static ids = {
         CONFIG: [],
@@ -475,6 +380,16 @@ class Optionator {
 
 
     /**
+     * Setup the Log, and a STOP listener event handler.
+     */
+    static setup() {
+        if (!Utils.exists(Optionator.log)) {
+            super.setup(C.LOG_SRC.OPTIONATOR);
+        }
+    }
+
+
+    /**
      * Get the options from storage, if they're there. Use the default spec
      * if nothing is in storage yet.
      */
@@ -486,7 +401,7 @@ class Optionator {
         }
 
         chrome.storage.sync.get({
-                spec: DEFAULT_SPEC
+                spec: C.OPT_CONF.DEFAULT_SPEC
             }, 
             (store) => {
                 Optionator.layoutConfig(store.spec.config);
@@ -514,9 +429,10 @@ class Optionator {
         spec.processings = Dominatrix.getProcessingEntries();
         spec.blessings = Dominatrix.getBlessingEntries();
 
-        console.log('Trying to set spec:');
-        console.log(JSON.stringify(spec));
-        console.log('\n');
+        // Note: use of static "this". 
+        this.lm('Trying to set spec:');
+        this.lm(JSON.stringify(spec));
+        this.lm('\n');
 
         chrome.storage.sync.set({
                 spec: spec,
@@ -557,35 +473,27 @@ class Optionator {
                         // Similarly to the main forEach(), process each subobject key/value pair.
                         // (Could probably be recursive here.)
                         Object.keys(subObj).forEach((subKey) => {
-                            var subLabel = (Constance.LABELS[section][key + '_' + subKey] || '');
-                            var subText = (subObj[subKey] || '');
+                            var subLabel = (C.OPT_CONF.LABELS[section][key + '_' + subKey] || C.ST.E);
+                            var subText = (subObj[subKey] || C.ST.E);
 
-                            subValues.push({
-                                label: subLabel,
-                                text: subText,
-                                key: subKey,
-                            });
+                            subValues.push(
+                                new OptionEntry(subLabel, subText, subKey)
+                            );
                         });
 
                         // Add the values array to the object entry.
-                        objEntry.push({
-                            label: Constance.LABELS[section][key],
-                            values: subValues,
-                            key: key,
-                        });
+                        objEntry.push(
+                            new OptionEntry(C.OPT_CONF.LABELS[section][key], subValues, key)
+                        );
                     });
                 }
                 // Scalar values are simpler. Just process out their label, text, and key. 
                 // Then put them in the object entry.
                 else {
-                    var label = (Constance.LABELS[section][key] || '');
-                    var text = (obj[key] || '');
+                    var label = (C.OPT_CONF.LABELS[section][key] || C.ST.E);
+                    var text = (obj[key] || C.ST.E);
 
-                    var valueObj = {
-                        label: label,
-                        text: text,
-                        key: key,
-                    };
+                    var valueObj = new OptionEntry(label, text, key);
 
                     if (key === 'match') {
                         objEntry.splice(0,0,valueObj);
@@ -597,8 +505,8 @@ class Optionator {
             });
 
             // Call the proper Dominatrix layout function, and add the id to our tracking object.
-            var entryId = this.InsertionFunctions[section](objEntry);
-            this.ids[section].push(entryId);
+            var entryId = Optionator.InsertionFunctions[section](objEntry);
+            Optionator.ids[section].push(entryId);
         });
     }
 
@@ -608,7 +516,7 @@ class Optionator {
      * full of one-off configuration properties.
      */
     static layoutConfig(config) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.CONFIG, [config]);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.CONFIG, [config]);
     }
 
 
@@ -619,7 +527,7 @@ class Optionator {
      * regular expression.
      */
     static layoutMessages(messages) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.MESSAGES, messages);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.MESSAGES, messages);
     }
 
 
@@ -630,7 +538,7 @@ class Optionator {
      * "doScrape", and array of "actions" of varying types.
      */
     static layoutProcessings(processings) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.PROCESSINGS, processings);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.PROCESSINGS, processings);
     }
 
 
@@ -641,7 +549,7 @@ class Optionator {
      * the zoom item, and a "src" prop for the direct link to the resource.
      */
     static layoutBlessings(blessings) {
-        Optionator.layoutSpecSection(Constance.SECTIONS.BLESSINGS, blessings);
+        Optionator.layoutSpecSection(C.OPT_CONF.SECTIONS.BLESSINGS, blessings);
     }
 
 
@@ -649,7 +557,7 @@ class Optionator {
      * Set up the event listener which kicks off building the Options page on
      * 'DOMContentLoaded'.
      */
-    static setupOptionsPageOnLoad() {
+    static buildOptionsPageUi() {
         // Do setup on DOMContentLoaded.
         document.addEventListener('DOMContentLoaded', () => {
             // Load the spec from storage, and trigger the layout.
@@ -660,38 +568,39 @@ class Optionator {
                 button.addEventListener('click', () => {
                     var section = button.parentElement.id;
                     Optionator.layoutSpecSection(
-                        Constance.SECTIONS[section], 
-                        DEFAULT_SPEC[section.toLowerCase()]
+                        C.OPT_CONF.SECTIONS[section], 
+                        C.OPT_CONF.DEFAULT_SPEC[section.toLowerCase()]
                     );
                 });
             });
 
             // Hook up the "set" button.
             document.getElementById('set').addEventListener('click', () => { 
-                this.setSpec(); 
+                Optionator.setSpec(); 
             });
         });
     }
-    
 
-    /**
-     * Convenience method o get the default spec off the exported Optionator object. 
-     */
     static getDefaultConfig() {
-        return DEFAULT_SPEC.config;
+        return C.OPT_CONF.DEFAULT_SPEC.config;
+    }
+
+    static getHalfBakedEnablingValue() {
+        return C.OPT_CONF.HALF_BAKED_VAL;
     }
 }
+Optionator.setup();
 
-if (window.location.href.indexOf('options.html') === -1) {
-    console.log('[Optionator] some page other than Options called us. Return -- do nothing.');
+// Set the class on the background window just in case.
+if (Utils.isOptionsPage(window) && !window.hasOwnProperty(C.WIN_PROP.OPTIONATOR_CLASS)) {
+    window[C.WIN_PROP.DOMINATRIX_CLASS] = Dominatrix;
+    window[C.WIN_PROP.OPTIONATOR_CLASS] = Optionator;
+
+    // Add handler to set up the Options document on DOMContentLoaded.
+    Optionator.buildOptionsPageUi();
 }
-else {
-    console.log('[Optionator] starting up, laying out the config form.');
-    Optionator.setupOptionsPageOnLoad();
-}
 
-window['theOptionator'] = Optionator;
-window['theDominatrix'] = Dominatrix;
-window['theConstance'] = Constance;
+// Export.
+export { Optionator as default, Dominatrix };
 
-export { Optionator as default, Dominatrix, Constance };
+

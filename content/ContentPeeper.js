@@ -1,17 +1,23 @@
-// constants
-const GIMME_ID = 'gimme';
-const CONTENTPEEPER_ID = 'contentpeeper';
-const CONTENTPEEPER_WINDOW_KEY = 'GimmeGimmeGimme_ContentPeeper';
+import { default as C } from '../lib/C.js';
+import CommonBase from '../lib/CommonBase.js';
+import { 
+    ContentMessage, 
+    ContentPeeperMessage,
+    Log,
+ } from '../lib/DataClasses.js';
 
 
 /**
  * Client-Script for Gimme. Returns the location object, and will
  * scrape the page via a prop and a selector if asked.
  */
-class ContentPeeper {
+class ContentPeeper extends CommonBase {
+    // static instance.
+    static instance = undefined;
+
+    // instance properties.
     loadComplete = false;
     peepingAround = false;
-
 
     /**
      * Constructor which sets up the event handlers for window load complete,
@@ -19,44 +25,59 @@ class ContentPeeper {
      */
     constructor()
     {
+        // Set up Log, and set up STOP listener.
+        super(C.LOG_SRC.CONTENT_PEEPER);
+
         // Send a message to the background when window load is complete.
         var setWindowLoadComplete = () => {
-            window.removeEventListener('load', setWindowLoadComplete, false);
+            window.removeEventListener(C.EVT.LOAD, setWindowLoadComplete, false);
             this.loadComplete = true;
     
-            console.log('[ContentPeeper] Content Tab\'s Window.load() fired.');        
+            //this.lm(('Content Tab\'s Window.load() fired.');        
     
-            chrome.runtime.sendMessage({ 
-                content: 'ContentPeeper window load',
-                uri: document.location.href,
-                docOuterHtml: document.documentElement.outerHTML,
-             });
+            chrome.runtime.sendMessage(
+                new ContentPeeperMessage( 
+                    'ContentPeeper window load',
+                    document.location.href,
+                    document.documentElement.outerHTML,
+                )
+            );
         };
-        window.addEventListener('load', setWindowLoadComplete, false);
+        window.addEventListener(C.EVT.LOAD, setWindowLoadComplete, false);
     
-
         // Send a message to the background when document load is complete.
         var setDocLoadComplete = () => {
-            if (document.readyState === 'complete') {
-                document.removeEventListener('readystatechange', setDocLoadComplete, false);
+            if (document.readyState === C.EVT.COMPLETE) {
+                document.removeEventListener(C.EVT.RSC, setDocLoadComplete, false);
                 this.loadComplete = true;
     
-                console.log('[ContentPeeper] Content Tab\'s Window.document.readyState is "complete".');                    
-    
-                chrome.runtime.sendMessage({ 
-                    content: 'ContentPeeper doc complete',
-                    uri: document.location.href,
-                    docOuterHtml: document.documentElement.outerHTML,
-                });
+                // Send the message with the doc's URL and HTML to Gimme's backend.
+                chrome.runtime.sendMessage(
+                    new ContentPeeperMessage( 
+                        'ContentPeeper doc complete',
+                        document.location.href,
+                        document.documentElement.outerHTML
+                    )
+                );
             }
         };
-        document.addEventListener('readystatechange', setDocLoadComplete, false);
-
+        document.addEventListener(C.EVT.RSC, setDocLoadComplete, false);
 
         // Do the content-peeping around for the backend when it messages us.
         chrome.runtime.onMessage.addListener((req, sender, res) => {
             this.peepAroundOnceContentLoaded(req, sender, res, false);
         });
+
+        // Set the static instance.
+        ContentPeeper.instance = this;
+    }
+
+
+    /**
+     * Get the singleton instance.
+     */
+    static getInstance() {
+        return ContentPeeper.instance;
     }
 
 
@@ -65,35 +86,35 @@ class ContentPeeper {
      * Note: returns true, as this is aync.
      */
     peepAroundOnceContentLoaded(req, sender, res, secondTry) {
-        console.log('[ContentPeeper] Got message with request: ' + JSON.stringify(req));
+        //this.lm(('Got message with request: ' + JSON.stringify(req));
 
         // Don't respond if we didn't get all of the data we need.
         if (!req || !sender || !res) {
-            console.log('[ContentPeeper] Peep action request missing required fields. Not responding,');
+            //this.lm(('Peep action request missing required fields. Not responding,');
             return false;
         }
 
         // Don't even respond if it's not gimme. return blank if we have a no-good window object.
-        if (req.senderId !== GIMME_ID) {
-            console.log('[ContentPeeper] Sent message by someone other than gimme, "' + req.senderId + '". Not responding.');
+        if (req.senderId !== ContentMessage.GIMME_ID) {
+            this.lm(`Sent message by not Gimme, but someone called "${req.senderId}". Not responding.`);
             return false;
         }
 
         // if any images haven't loaded yet, try again. In fact, keep trying until they all loaded.
         // Even failures to load will mark them as complete.
-        if (this.loadComplete && document && !!document.location && document.images && document.images.length) {
+        if (this.loadComplete && !!document && !!document.location && !!document.images && !!document.images.length) {  
             var allImagesComplete = true;
             
             for (var idx = 0; idx < document.images.length; idx++) {
                 var image = document.images[idx];
-                if ('complete' in image) {
+                if (C.EVT.COMPLETE in image) {
                     allImagesComplete = allImagesComplete && image.complete; 
                 }
             }
 
             if (!allImagesComplete) {
                 if (!secondTry) {
-                    console.log('[ContentPeeper] Not all images complete. Trying again in 2 seconds.');
+                    //this.lm(('Not all images complete. Trying again in 2 seconds.');
                     
                     setTimeout(() => {
                         this.peepAroundOnceContentLoaded(req, sender, res, true);
@@ -102,19 +123,19 @@ class ContentPeeper {
                     return true;
                 }
                 else {
-                    console.log('[ContentPeeper] Proceeding though not all images are loaded.');
+                    //this.lm(('Proceeding though not all images are loaded.');
                 }   
             }            
         } 
 
         // Put in the basics of the payload.
         var resPayload = {
-            'contentScriptId': CONTENTPEEPER_ID,
+            'contentScriptId': ContentMessage.CONTENTPEEPER,
             'status': 'success',
-            'error': '',
+            'error': C.ST.E,
             
             'locator': {},
-            'docOuterHtml': '',
+            'docOuterHtml': C.ST.E,
             'galleryMap': {},
 
             'inputs': Object.assign({}, req),
@@ -134,7 +155,7 @@ class ContentPeeper {
             if (this.peepingAround) {
                 proc = this.alreadyPeepingAround;
             }
-            else if (req.command === 'peepAround' && req.linkSelector && req.linkHrefProp && req.thumbSubselector && req.thumbSrcProp) {
+            else if (req.command === C.ACTION.PEEPAROUND && req.linkSelector && req.linkHrefProp && req.thumbSubselector && req.thumbSrcProp) {
                 proc = this.peepAround;            
             }
             else {
@@ -144,31 +165,31 @@ class ContentPeeper {
 
         // If the page hasn't loaded, set up event listeners to call once we've loaded.
         if (!secondTry && !this.loadComplete) {
-            console.log('[ContentPeeper] DOM not loaded. Setting event handlers.');
+            //this.lm(('DOM not loaded. Setting event handlers.');
             
             // set one for page load.
             var load = (event) => {
-                window.removeEventListener("load", load, false); //remove listener, no longer needed
+                window.removeEventListener(C.EVT.LOAD, load, false); //remove listener, no longer needed
                 
                 if (!this.peepingAround) {
                     resPayload = proc(resPayload, req)
                     res(resPayload);
                 }
             };
-            window.addEventListener("load", load, false);
+            window.addEventListener(C.EVT.LOAD, load, false);
 
-            // set one for document.readyState === 'complete'.
+            // set one for document.readyState === C.EVT.COMPLETE.
             var rsc = (event) => {
-                document.removeEventListener('readystatechange', rsc, false);
+                document.removeEventListener(C.EVT.RSC, rsc, false);
                 
-                if (document.readyState === 'complete' && !this.peepingAround) {
+                if (document.readyState === C.EVT.COMPLETE && !this.peepingAround) {
                      resPayload = proc(resPayload, req)
                      res(resPayload);
                 }
             };
-            document.addEventListener('readystatechange', rsc, false);
+            document.addEventListener(C.EVT.RSC, rsc, false);
 
-            // async - wait for the events.
+            // Returning true means Be Asynchronous - wait for the events.
             return true;
         }
 
@@ -178,11 +199,11 @@ class ContentPeeper {
         this.peepingAround = false;
         
 
-        // console.log('[ContentPeeper] -----------------------------');
+        // this.lm(('-----------------------------');
         // console.log(req);
         // console.log(resPayload);
-        // console.log('[ContentPeeper] -----------------------------')
-        // console.log('[ContentPeeper] Sending response');
+        // this.lm(('-----------------------------')
+        // this.lm(('Sending response');
 
         res(resPayload);
         return true;
@@ -193,7 +214,7 @@ class ContentPeeper {
       * If our loc or doc is bad.
       */ 
     badDocumentProc(payload) {
-        console.log('[ContentPeeper] Bad locator or bad document. Stopping.');
+        this.lm('Bad locator or bad document. Stopping.');
         
         resPayload.status = 'error';
         resPayload.error = 'Bad locator or bad document';
@@ -206,7 +227,7 @@ class ContentPeeper {
      * Default function to call if not a command we know.
      */
     errorProc(payload) {
-        console.log('[ContentPeeper] Bad command sent. Stopping.');
+        this.lm('Bad command sent. Stopping.');
         
         payload.status = 'what?';
         payload.error = 'No such command';
@@ -219,7 +240,7 @@ class ContentPeeper {
      * Function to call if we're already peeping around right now.
      */
     alreadyPeepingAround(payload) {
-        console.log('[ContentPeeper] Already peeping around. Not starting another peeping.');
+        this.lm('Already peeping around. Not starting another peeping.');
 
         payload.status = 'peeping around';
         payload.error = 'Already peeping around';
@@ -237,11 +258,11 @@ class ContentPeeper {
         // If we were asked for it, return an array of propValues for the propname and selector.
         var linkSelector = req.linkSelector;
         var hrefProp = req.linkHrefProp;
-        var hrefPropArr = (hrefProp ? hrefProp.split('.') : [hrefProp]);
+        var hrefPropArr = (hrefProp ? hrefProp.split(C.ST.D) : [hrefProp]);
         
         var thumbSubselector = req.thumbSubselector;
         var srcProp = req.thumbSrcProp;
-        var srcPropArr = (srcProp ? srcProp.split('.') : [srcProp]);
+        var srcPropArr = (srcProp ? srcProp.split(C.ST.D) : [srcProp]);
         
         var useRawValues = req.useRawValues;
 
@@ -299,6 +320,15 @@ class ContentPeeper {
     }
 }
 
-window[CONTENTPEEPER_WINDOW_KEY] = new ContentPeeper();
+// Any page we're on needs one ContentPeeper instance.
+if (!window.hasOwnProperty(C.WIN_PROP.CONTENT_PEEPER_INST)) {
+    if (!!ContentPeeper.getInstance()) {
+        window[C.WIN_PROP.CONTENT_PEEPER_INST] = ContentPeeper.getInstance();
+    }
+    else {
+        window[C.WIN_PROP.CONTENT_PEEPER_INST] = new ContentPeeper();
+    }
+}
 
+// export;
 export default ContentPeeper;

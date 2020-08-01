@@ -8,7 +8,8 @@ module.exports = {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
         options: './options/Optionator.js',
-        popup: './popup/Popup.js'
+        popup: './popup/Popup.js',
+        lib: './lib/DataClasses.js'
     },
     output: {
         // WINDOWS: path: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
@@ -21,6 +22,11 @@ module.exports = {
     },
     module: {
         rules:[
+            {
+                test: /\.js?$/,
+                enforce: 'pre',
+                use: ['source-map-loader']
+            },
             {
                 test: /\.js?$/,
                 exclude: /node_modules/,
@@ -39,7 +45,8 @@ module.exports = {
                             ['@babel/plugin-transform-runtime', {
                                 'regenerator': false,
                                 'useESModules': true,
-                            }]
+                            }],
+                            'es6-promise'
                         ]
                     }
                 }

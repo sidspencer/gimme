@@ -1,21 +1,17 @@
-'use strict'
-
-
-const ACTION_HOLDER_ID = 'actionHolder';
-const BUTTON_HOLDER_ID = 'buttonHolder';
-const MAIN_BUTTONS_HOLDER_ID = 'mainButtonsHolder';
-const SCRAPING_BUTTONS_HOLDER_ID = 'scrapingButtonsHolder';
-const DIGGING_BUTTONS_HOLDER_ID = 'diggingButtonsHolder';
-const FILES_DUG_ID = 'filesDug';
-const OUTPUT_ID = 'output';
-const GET_ALL_FILE_OPTS_ID = 'getAllFileOptsButton';
-const GET_ALL_JPG_OPTS_ID = 'getAllJpgOptsButton';
+import { getColorMatrixTextureShapeWidthHeight } from '@tensorflow/tfjs-core/dist/backends/webgl/tex_util';
+import { default as C } from '../lib/C.js';
+import CommonBase from '../lib/CommonBase.js';
+import { FileEntry, FileOption, Log } from '../lib/DataClasses.js';
+import { default as Utils } from './Utils.js';
 
 
 /**
  * Factory function for bridging the services with the UI.
  */
-class Output {
+class Output extends CommonBase {
+    // static instance of Output.
+    static instance = undefined;
+
     // instance members
     appIsDigging = false;
     appIsScraping = false;
@@ -28,22 +24,25 @@ class Output {
     filesDug = undefined;
     out = undefined;
 
-
     /**
      * Set what document this Output is for, and get the #filesDug and #output elements on that document.
      * 
-     * @param {Document} dokken 
+     * @param {Document} doc 
      */
-    constructor(dokken) {
-        this.doc = dokken;
+    constructor(doc) {
+        // setup the log and the stop event handler.
+        super(C.LOG_SRC.OUTPUT);
 
-        try {
-            this.filesDug = this.doc.getElementById(FILES_DUG_ID);
-            this.out = this.doc.getElementById(OUTPUT_ID);
+        // Set the doc, or show an error.
+        if (Utils.exists(doc)) {
+            this.setDoc(doc)
         }
-        catch(err) {
-            console.log('[Output] Could not get elements from doc, it is a Dead Object.');
+        else {
+            this.lm('Constructor called with a non-existant document. Someone has to call setDoc(), or we are a dead Output.')
         }
+
+        // Set the static instance for this singleton.
+        Output.instance = this;
     }
 
 
@@ -52,12 +51,12 @@ class Output {
      */
     toOut(newContent) {
         try {
-            this.out = this.doc.getElementById(OUTPUT_ID);
+            this.out = this.doc.getElementById(C.ELEMENT_ID.OUTPUT);
             this.out.textContent = newContent;
         }
         catch(error) {
-            console.log('[Output] Could not write to doc, it is a Dead Object.');
-            console.log('[Output] tried to say: ' + newContent);
+            this.lm('Could not write to doc, it may be a Dead Object.');
+            this.lm('tried to say: ' + newContent);
         }
     };
 
@@ -71,14 +70,16 @@ class Output {
         this.doc = dok;
         
         try {
-            this.filesDug = this.doc.getElementById(FILES_DUG_ID);
-            this.out = this.doc.getElementById(OUTPUT_ID);
+            this.filesDug = this.doc.getElementById(C.ELEMENT_ID.FILES_DUG);
+            this.out = this.doc.getElementById(C.ELEMENT_ID.OUTPUT);
         }
         catch(err) {
-            console.log('[Output] Could not get elements from doc, it is a Dead Object.');
+            this.lm('Could not get elements from doc, it may be a Dead Object.');
+            this.toOut('Trouble initializing. Please refresh the page.');
         }
     }
 
+    
     /**
      * Enable the use of the half-baked features.
      * @param {bool} enableThem 
@@ -86,6 +87,7 @@ class Output {
     setEnableHalfBakedFeatures(enableThem) {
         this.enableHalfBakedFeatures = enableThem;
     }
+
 
     /**
      * Clear the filesDug <ul> of any child nodes.
@@ -97,7 +99,7 @@ class Output {
             childNodes = this.filesDug.childNodes;
         }
         catch(err) {
-            console.log('[Output] Cannot clear file entries, doc reference is a Dead Object.');
+            this.lm('Cannot clear file entries, doc reference may be a Dead Object.');
             return;
         }
 
@@ -105,6 +107,30 @@ class Output {
             this.filesDug.removeChild(this.filesDug.firstChild);
         }
     };
+
+
+    /**
+     * Clear everything from the filesDug <ul> that isn't of class "opt".
+     */
+    clearNonFileOpts() {
+        var childNodes = [];
+
+        try {
+            childNodes = this.filesDug.childNodes;
+        }
+        catch (err) {
+            this.lm('Could not clear file entries, doc reference may be a Dead Object.');
+            return false;
+        }
+
+        for (let li of childNodes) {
+            if (li.className !== C.FE_STATE.OPT) {
+                this.filesDug.removeChild(li);
+            }
+        }
+
+        return true;
+    }
 
     
     /*
@@ -125,15 +151,15 @@ class Output {
         var entry = undefined;
 
         try {
-            entry = this.doc.getElementById('fileEntry' + idx);
+            entry = this.doc.getElementById(C.ELEMENT_ID.FE_PREFIX + idx);
         }
         catch(error) {
-            console.log('[Output] Cannot set entry as downloading. doc reference is a Dead Object.');
+            this.lm('Cannot set entry as downloading. doc reference may be a Dead Object.');
             return;
         }
         
         if (entry) { 
-            entry.className = 'downloading';
+            entry.className = C.FE_STATE.DOWNLOADING;
         }
     };
 
@@ -145,10 +171,10 @@ class Output {
         var fEntry = undefined;
         
         try {
-            fEntry = this.doc.getElementById('fileEntry' + id);
+            fEntry = this.doc.getElementById(C.ELEMENT_ID.FE_PREFIX + id);
         }
         catch(error) {
-            console.log('[Output] Cannot change file entry state. doc ref is a Dead Object.');
+            this.lm('Cannot change file entry state. doc ref may be a Dead Object.');
             return;
         }
         
@@ -164,8 +190,8 @@ class Output {
      * Find an entry by its id. Update its text to the found zoomUri
      */
     setEntryAsDug(id, entry) {
-        this.dugUris.push(id+'');
-        this.setEntryToState(id, entry, 'dug');
+        this.dugUris.push(id+C.ST.E);
+        this.setEntryToState(id, entry, C.FE_STATE.DUG);
     };
 
 
@@ -173,8 +199,8 @@ class Output {
      * Find an entry by its id. Update its text, generally to '[failed]'
      */
     setEntryAsFailed(id, entry) {
-        this.failedUris.push(id+'');        
-        this.setEntryToState(id, entry, 'failed');
+        this.failedUris.push(id+C.ST.E);        
+        this.setEntryToState(id, entry, C.FE_STATE.FAILED);
     };
 
 
@@ -182,36 +208,31 @@ class Output {
      * Create a new <li> for the entry, name it with the id, and append it to the filesDug <ul>.
      */
     addNewEntry(id, uri) {
-        this.fileOptMap[id+''] = uri;
+        this.fileOptMap[id + C.ST.E] = uri;
         
         return new Promise((resolve, reject) => { 
             setTimeout(() => {
-                var newLi = undefined; 
-                
+                var newLi = undefined;
                 try {
-                    newLi = this.doc.createElement('li');
+                    newLi = this.doc.createElement(C.SEL_PROP.LI);
                 }
                 catch(error) {
-                    console.log('[Output] Could not create new file entry. doc reference is a Dead Object.');
+                    this.lm('Could not create new file entry. doc reference might be a Dead Object.');
                     resolve({
-                        id: id+'',
+                        id: (id + C.ST.E),
                         uri: uri,
                     });
-                    return;
                 }
 
                 var newContent = this.doc.createTextNode(uri);
-                newLi.id = 'fileEntry' + id;
-                newLi.className = 'found';
+                newLi.id = C.ELEMENT_ID.FE_PREFIX + id;
+                newLi.className = C.FE_STATE.FOUND;
                 newLi.dataset.initialUri = uri;
                 newLi.appendChild(newContent);
                 
                 this.filesDug.appendChild(newLi);
 
-                resolve({ 
-                    id: id+'', 
-                    uri: uri, 
-                });
+                resolve(new FileEntry((id + C.ST.E), uri));
             }, 1);
         });
     };
@@ -224,10 +245,10 @@ class Output {
         var fileLi = undefined;
         
         try {
-            fileLi = this.doc.querySelector('#fileEntry' + id);
+            fileLi = this.doc.querySelector(`#${C.ELEMENT_ID.FE_PREFIX + id}`);
         }
         catch(error) {
-            console.log('[Output] Could not delete entry. doc reference is a Dead Object.');
+            this.lm('Could not delete entry. doc reference may be a Dead Object.');
             return;
         }
 
@@ -245,53 +266,53 @@ class Output {
         var checkbox = undefined;
         
         try {
-            checkbox = this.doc.createElement('input');
+            checkbox = this.doc.createElement(C.SEL_PROP.INPUT);
         }
         catch(error) {
-            console.log('[Output] Could not create file option checkbox. doc reference is a Dead Object.');
+            this.lm('Could not create file option checkbox. doc reference may be a Dead Object.');
             return;
         }
         
         
-        checkbox.type = 'checkbox';
-        checkbox.name = 'cbFile' + fileOpt.id;
+        checkbox.type = C.SEL_PROP.CB;
+        checkbox.name = C.ELEMENT_ID.CB_PREFIX + fileOpt.id;
         checkbox.id = checkbox.name;
         checkbox.value = fileOpt.uri;
         checkbox.dataset.filePath = fileOpt.filePath;
         
-        var thumbHolder = this.doc.createElement('div');
+        var thumbHolder = this.doc.createElement(C.SEL_PROP.DIV);
 
-        var thumbImg = this.doc.createElement('img');
+        var thumbImg = this.doc.createElement(C.SEL_PROP.IMG);
         thumbImg.src = fileOpt.thumbUri;
         thumbHolder.appendChild(thumbImg);
 
-        var nameLabel = this.doc.createElement('label');
-        nameLabel.setAttribute('for', checkbox.name);
-        var fileName = fileOpt.filePath.substring(fileOpt.filePath.lastIndexOf('/') + 1);
+        var nameLabel = this.doc.createElement(C.SEL_PROP.LABEL);
+        nameLabel.setAttribute(C.SEL_PROP.FOR, checkbox.name);
+        var fileName = fileOpt.filePath.substring(fileOpt.filePath.lastIndexOf(C.ST.WHACK) + 1);
 
-        if (fileName.trim() === '') {
-            fileName = 'g_img.jpg';
+        if (fileName.trim() === C.ST.E) {
+            fileName = C.F_NAMING.DEFAULT_FN;
         }
 
         var nameContent = this.doc.createTextNode(fileName);
         nameLabel.appendChild(nameContent);
 
-        var newLi = this.doc.createElement('li');
+        var newLi = this.doc.createElement(C.SEL_PROP.LI);
         newLi.appendChild(checkbox);
         newLi.appendChild(thumbHolder);
         newLi.appendChild(nameLabel);
-        newLi.id = 'fileEntry' + fileOpt.id;
-        newLi.className = 'opt';
+        newLi.id = C.ELEMENT_ID.FE_PREFIX + fileOpt.id;
+        newLi.className = C.CSS_CN.OPT;
         
         this.filesDug.appendChild(newLi);
 
-        this.doc.getElementById(checkbox.id).addEventListener('click', (event) => {
+        this.doc.getElementById(checkbox.id).addEventListener(C.EVT.CLICK, (event) => {
             var cb = event.currentTarget;
             cb.checked = true;
             cb.disabled = true;
 
             if (!!cb.dataset.filePath) {
-                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+'', this);
+                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+C.ST.E, this);
                 
                 if (!!p && !!p.then) {
                     p.then(() => {
@@ -321,10 +342,10 @@ class Output {
      */
     hideDigScrapeButtons() {
         try {
-            this.doc.getElementById(BUTTON_HOLDER_ID).style.display = 'none';
+            this.doc.getElementById(C.ELEMENT_ID.BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;
         }
         catch(error) {
-            console.log('[Output] Could not hide dig/scrape buttons. doc ref is a Dead Object.');
+            this.lm('Could not hide dig/scrape buttons. doc ref may be a Dead Object.');
         }
     };
 
@@ -334,10 +355,10 @@ class Output {
      */
     hideActionButtons() {
         try {
-            this.doc.getElementById(ACTION_HOLDER_ID).style.display = 'none';       
+            this.doc.getElementById(C.ELEMENT_ID.ACTION_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;       
         }
         catch(error) {
-            console.log('[Output] Could not hide action buttons. doc ref is a Dead Object.');
+            this.lm('Could not hide action buttons. doc ref may be a Dead Object.');
         } 
     };
 
@@ -347,18 +368,19 @@ class Output {
      */
     showDigScrapeButtons() {
         this.hideActionButtons();
+        this.hideStopButton();
 
         try {
-            this.doc.getElementById(BUTTON_HOLDER_ID).style.display = 'block';
-            this.doc.getElementById(MAIN_BUTTONS_HOLDER_ID).style.display = 'block';
+            this.doc.getElementById(C.ELEMENT_ID.BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.BLOCK;
+            this.doc.getElementById(C.ELEMENT_ID.MAIN_BUTTONS_HOLDER).style.display = C.CSS_V.DISPLAY.BLOCK;
 
             if (this.enableHalfBakedFeatures) {
-                this.doc.getElementById(DIGGING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
-                this.doc.getElementById(SCRAPING_BUTTONS_HOLDER_ID).style.display = 'inline-block';
+                this.doc.getElementById(C.ELEMENT_ID.DIGGING_BUTTONS_HOLDER).style.display = C.CSS_V.DISPLAY.IL_BLOCK;;
+                this.doc.getElementById(C.ELEMENT_ID.SCRAPING_BUTTONS_HOLDER).style.display = C.CSS_V.DISPLAY.IL_BLOCK;
             }
         }
         catch(error) {
-            console.log('[Output] Could not show dig/scrape buttons. doc ref is a Dead Object.');
+            this.lm('Could not show dig/scrape buttons. doc ref may be a Dead Object.');
         }        
     };
 
@@ -368,13 +390,43 @@ class Output {
      */
     showActionButtons() {
         this.hideDigScrapeButtons();
+        this.hideStopButton();
 
         try {
-            this.doc.getElementById(ACTION_HOLDER_ID).style.display = 'block';
-            this.doc.getElementById(GET_ALL_JPG_OPTS_ID).focus();
+            this.doc.getElementById(C.ELEMENT_ID.ACTION_HOLDER).style.display = C.CSS_V.DISPLAY.BLOCK;
+            this.doc.getElementById(C.ELEMENT_ID.GET_ALL_JPG_OPTS).focus();
         }
         catch(error) {
-            console.log('[Output] Could not show action buttons. doc ref is a Dead Object.');
+            this.lm('Could not show action buttons. doc maybe is a Dead Object.');
+        }
+    };
+
+
+    /**
+     * Show the stop button. It is shown when the scrape/dig is in progress.
+     */
+    showStopButton() {
+        this.hideDigScrapeButtons();
+        this.hideActionButtons();
+
+        try {
+            this.doc.getElementById(C.ELEMENT_ID.STOP_BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.BLOCK;
+        }
+        catch(error) {
+            this.lm('Could not show stop button. doc ref may be a Dead Object.')
+        }
+    };
+
+
+    /**
+     * Hide the stop button.
+     */
+    hideStopButton() {
+        try {
+            this.doc.getElementById(C.ELEMENT_ID.STOP_BUTTON_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;
+        }
+        catch(error) {
+            this.lm('Could not hide stop button. doc ref may be a Dead Object.')
         }
     };
 
@@ -399,10 +451,9 @@ class Output {
      * Restore file list on the popup when we are digging/scraping still.
      */
     restoreFileList() {
-        console.log('[Output] restoreFileList was called.');
-
+        //log.log('restoreFileList was called.');
         if (this.appIsDigging || this.appIsScraping) {
-            console.log('[Output] detected digging/scraping going on.');
+            //log.log('detected digging/scraping going on.');
 
             var pChain = Promise.resolve(true);
 
@@ -415,13 +466,19 @@ class Output {
                 });
             }
 
-            console.log('[Output] set up the restore-file-list promise chaining.');
+            this.lm('restoreFileList() is setting up the promise chaining.');
+
+            return pChain;
         }
+
+        return Promise.resolve(true);
     };
 
 
     /**
      * Set the state of entries in the file list. Used by the popup to restore screen data.
+     * It returns a promise around a setTimeout, the likes of which are just to make it asynchronous
+     * and return a promise. 
      */
     restoreEntryStatus(entryObj) {
         return new Promise((resolve, reject) => {
@@ -437,8 +494,56 @@ class Output {
             }, 1);
         });
     }
+
+
+    /**
+     * There should only be one instance of output, always pointed at the popup.html doc.
+     */
+    static getInstance() {
+        if (!!Output.instance) {
+            return Output.instance;
+        }
+        else {
+            window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
+            return Output.instance;
+        }
+    }
+
+
+    /**
+     * Get the instance, but set the doc it is to use first.
+     * 
+     * @param {Document} dok 
+     */
+    static getInstanceSetToDoc(dok) {
+        if (!!Output.instance) {
+            Output.instance.setDoc(dok);
+        }
+        else {
+            Output.instance = new Output(dok);
+            window[C.WIN_PROP.OUTPUT_INST] = Output.instance;
+        }
+
+        return Output.instance;
+    }
 }
 
-window['theOutput'] = new Output(window.document);
 
+// Set the class on every Window object we're imported into.
+if (!window.hasOwnProperty(C.WIN_PROP.OUTPUT_CLASS)) {
+    window[C.WIN_PROP.OUTPUT_CLASS] = Output;
+}
+
+// Set the instance on the Background page -- though we never want its document really.
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST)) {
+    window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
+}
+
+// Set the instance on the Popup page (Which belongs to a different Window instance).
+if (Utils.isPopupPage(window) && !window.hasOwnProperty(C.WIN_PROP.OUTPUT_INST)) {
+    window[C.WIN_PROP.OUTPUT_INST] = new Output(window.document);
+}
+
+
+// Exports.
 export default Output;

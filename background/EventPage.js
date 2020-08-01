@@ -5,105 +5,110 @@ import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
+import { default as C } from '../lib/C.js';
+import { InspectionOptions, Log, ResumeEvent } from '../lib/DataClasses.js';
+
+
+const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
 
 class EventPage {
+    // The definitively active EventPage's app instance, stored statically.
+    static app = undefined;
+
+    
     //
     // Digging
     //
 
+
     /**
-     * Fire up the app, dig for all known media in the parameters that we can scrape outta that mutha. 
+     * Fire up the EventPage.app, dig for all known media in the parameters that we can scrape outta that mutha. 
      *  - Image galleries (Thumb, Zoom)
      *  - CSS background-images
      *  - mucks through javascript (musta been green programmers)
      */
     static goDig(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: true,
-            js: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
+        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
         
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
 
-        app.digGallery();
+        return(
+            EventPage.app.digGallery() 
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
     /**
-     * Fire up the app, dig for all known media in the parameters that we can scrape outta that mutha. 
+     * Fire up the EventPage.app, dig for all known media in the parameters that we can scrape outta that mutha. 
      *  - Image galleries (Thumb, Zoom)
      *  - CSS background-images
      *  - mucks through javascript (musta been green programmers)
      */
     static goDigFileOptions(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: true,
-            js: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
+        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
         
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
         
-        app.digFileOptions();
+        return(
+            EventPage.app.digFileOptions()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
     /**
-     * Fire up the app, dig only for image galleries.
+     * Fire up the EventPage.app, dig only for image galleries.
      * This includes css Background Images for bastards like FB.
      */
     static goDigImageGallery(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: false,
-            js: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(true, true, false, true, false, false);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
 
-        app.digGallery();
+        return(
+            EventPage.app.digGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
     /**
-     * Fire up the app, dig only for video galleries.
+     * Fire up the EventPage.app, dig only for video galleries.
      */
     static goDigVideoGallery(parentDocument) {
-        var inspectionOptions = {
-            imgs: false,
-            cssBgs: false,
-            videos: true,
-            js: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(false, false, true, true, false, false);    
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
-        app.digGallery();
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
+
+        return(
+            EventPage.app.digGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -111,23 +116,21 @@ class EventPage {
      * Go dig multiple galleries from a page of gallery of galleries.
      */
     static goDigGalleryGallery(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: true,
-            js: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
-        app.digGalleryGallery();
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
+
+        return(
+            EventPage.app.digGalleryGallery()
+                .finally(EventPage.undefineApp)
+        );
     }
-
 
 
 
@@ -136,29 +139,27 @@ class EventPage {
     // Scraping
     //
 
+
     /**
      * Scrape the current page for all included <img>s, style.background-images, 
      * videos, audios, any urls inside of the <script> tags, and any urls in the 
      * query-string. Then JUST START DOWNLOADING THEM.
      */
     static goScrape(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: true,
-            audios: true,
-            js: true,
-            qs: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(true);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
-        app.scrape(inspectionOptions);
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
+
+        return(
+            EventPage.app.scrape(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -168,24 +169,20 @@ class EventPage {
      * query-string. Then present options for the user to choose to download or not.
      */
     static goScrapeFileOptions(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: true,
-            audios: true,
-            js: true,
-            qs: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(true);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
 
-        app.scrapeFileOptions(inspectionOptions);
+        return(
+            EventPage.app.scrapeFileOptions(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -193,24 +190,20 @@ class EventPage {
      * Scrape the current page for <img>s.
      */
     static goScrapeImages(parentDocument) {
-        var inspectionOptions = {
-            imgs: true,
-            cssBgs: true,
-            videos: false,
-            audios: false,
-            js: true,
-            qs: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(true, true, false, true, false, true);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
 
-        app.scrape(inspectionOptions);
+        return(
+            EventPage.app.scrape(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
     }
 
 
@@ -218,26 +211,38 @@ class EventPage {
      * Scrape the current page for <video>s.
      */
     static goScrapeVideos(parentDocument) {
-        var inspectionOptions = {
-            imgs: false,
-            cssBgs: false,
-            videos: true,
-            audios: false,
-            js: true,
-            qs: true,
-        };
+        window.document.dispatchEvent(new ResumeEvent());
 
-        theOutput.setDoc(parentDocument);
-        theOutput.resetFileData();
-        
-        var scraper = new Scraper(theOutput);
-        var digger = new Digger(scraper, theOutput, inspectionOptions);
-        var app = new App(theOutput, digger, scraper);
+        var inspectionOptions = new InspectionOptions(false, false, true, true, false, true);
+        var out = Output.getInstanceSetToDoc(parentDocument);
+        out.resetFileData();
 
-        app.scrape(inspectionOptions);
+        var scraper = new Scraper();
+        var digger = new Digger(scraper, inspectionOptions);
+        EventPage.app = new App(digger, scraper);
+
+        return(
+            EventPage.app.scrape(inspectionOptions)
+                .finally(EventPage.undefineApp)
+        );
+    }
+
+
+    /**
+     * Set the EventPage.app back to undefined on process completion.
+     */
+    static undefineApp() {
+        EventPage.app = undefined;
+        return(true);
     }
 }
 
-window['theEventPage'] = EventPage;
 
+// Set the class on the background window just in case.
+if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(EP)) {
+    window[EP] = EventPage;
+}
+
+
+// export.
 export default EventPage;
