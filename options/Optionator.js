@@ -429,9 +429,10 @@ class Optionator extends CommonStaticBase {
         spec.processings = Dominatrix.getProcessingEntries();
         spec.blessings = Dominatrix.getBlessingEntries();
 
-        CommonStaticBase.lm('Trying to set spec:');
-        CommonStaticBase.lm(JSON.stringify(spec));
-        CommonStaticBase.lm('\n');
+        // Note: use of static "this". 
+        this.lm('Trying to set spec:');
+        this.lm(JSON.stringify(spec));
+        this.lm('\n');
 
         chrome.storage.sync.set({
                 spec: spec,
