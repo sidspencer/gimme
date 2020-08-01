@@ -453,7 +453,7 @@ class Digger extends CommonBase {
                 }
             });
             if (!src) {
-                me.log.log('No src found for tag.'); 
+                me.log.log(`No src found for tag:\n\t${JSON.stringify(tag)}`); 
                 return; 
             }
 
