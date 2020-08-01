@@ -249,6 +249,8 @@ class Utils extends CommonStaticBase {
      */
     static sendXhr(method, uri, props, responseType) {
         return new Promise((resolve, reject) => {
+            if (this.stop) { return C.CAN_FN.PR_RJ_STOP(); };
+
             // Get an unused key for this xhr. The do-while will usually only run one iteration.
             // Then create the object, setting it on the in-flight map and in the xhr local var.
             var xhrId = '0';
@@ -328,6 +330,7 @@ class Utils extends CommonStaticBase {
                 errorHandler(C.ACTION.STOP);
             };
 
+
             // Event listener for stop event.
             var stopHandler = (evt) => {
                 window.document.removeEventListener(C.ACTION.STOP, stopHandler, false);
@@ -338,6 +341,7 @@ class Utils extends CommonStaticBase {
             };
             window.document.addEventListener(C.ACTION.STOP, stopHandler, false);
 
+            
             // Perform the fetch.
             xhr.open(method, uri, true);
             if (responseType) {
@@ -423,15 +427,7 @@ class Utils extends CommonStaticBase {
         }
     
         for (var i1 = 0; i1 < C.UTILS_CONF.DL_CHAIN_COUNT; i1++) {
-            Utils.dlChains.push(
-                Promise.resolve(true).then(() => {
-                    return new Promise((resolve, reject) => {
-                        setTimeout(() => { 
-                            resolve(true); 
-                        }, 300);
-                    });
-                })
-            );
+            Utils.dlChains.push(Promise.resolve(true));
         }
     }
 
@@ -454,12 +450,13 @@ class Utils extends CommonStaticBase {
             destFilename = destFilename + '.jpg';
         }
 
+        // We're round-robin-ing our dlChains. 
         var dlIndex = Utils.dlCounter % C.UTILS_CONF.DL_CHAIN_COUNT;
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
         
         Utils.dlChains[dlIndex] = Utils.dlChains[dlIndex].then(() => {
-            Utils.buildDlChain(uri, destFilename, output, num)
+            return Utils.buildDlChain(uri, destFilename, output, num);
         });
 
         return Utils.dlChains[dlIndex];
@@ -526,48 +523,101 @@ class Utils extends CommonStaticBase {
                     },
                     (downloadId) => {
                         if (downloadId) {
+                            // It queued up, so we wait to resolve until the file is done downloading.
                             Utils.dlCallbacks[downloadId] = Utils.buildDlCallback(downloadId, uri, destFilename, resolve);
                             chrome.downloads.onChanged.addListener(Utils.dlCallbacks[downloadId]);
                         }
                         else {
+                            // Resolve immediately with a "failure" DownloadSig, as it didn't even queue up.
                             Utils.lm('no downloadId for uri ' + uri);
                             Utils.lm('download error was: ' + chrome.runtime.lastError);
                             resolve(new DownloadSig(0, uri, destFilename));
                         }
                     }
                 );
-            }, 777);
+            }, C.UTILS_CONF.DL_SPACING_MS);
         });
     };
 
 
     /**
-     * Helper to build the onChange callbacks, avoiding unwanted closures.
+     * Helper to build the chrome.downloads.onChanged callbacks, avoiding unwanted closures.
      */
     static buildDlCallback(dlId, dlUri, dlFile, res) {
         return ((dlDelta) => {
-            // If this event is for our downloadId, see if the download finished. If so,
-            // remove our event listener and resolve with a DownloadSig.
-            if (Utils.exists(dlDelta) && dlDelta.id === dlId) {
-                if (
-                    (Utils.exists(dlDelta.state) && dlDelta.state.current !== 'in_progress') ||
-                    (Utils.exists(dlDelta.endTime) && Utils.exists(dlDelta.endTime.current)) ||
-                    (Utils.exists(dlDelta.exists) && Utils.exists(dlDelta.exists.current)) 
-                ) {
-                    chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
-                    delete Utils.dlCallbacks[dlId];
-
-                    res(new DownloadSig(dlId, dlUri, dlFile));
-                    return;
-                }
-                
-                // Or our download has not yet finished. Let's not resolve() early.
+            // Guard against weird, SNAFU blank dlDeltas.
+            if (!dlDelta) { 
+                Utils.lm('onChanged called with null/undefined/empty dlDelta. Weird. Returning false.');
+                return false; 
             }
 
-            // Or this is an event meant for a different downloadId. Let's not listen in.
+            // If this event is for our downloadId, see if the download finished. Take resume() action if the dl was interrupted,
+            // resolve in shame if the resume() fails, resolve in shame if the state won't leave "interrupted", and don't even 
+            // log in any other cases.
+            if (dlDelta.id === dlId) {
+                let dlDownloadSig = new DownloadSig(dlId, dlUri, dlFile);
+
+                if (C.DLDK.STATE in dlDelta) {
+                    let currDlState = dlDelta.state.current;
+                    let prevDlState = dlDelta.state.previous;
+
+                    if (currDlState === C.DLS.CPT) {
+                        Utils.lm(`Download ${dlId} to "${dlFile}" completed successfully.`);
+                        Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
+                    }
+                    else if (currDlState === C.DLS.INT && prevDlState !== C.DLS.INT) {
+                        // Try to resume the download ONLY ONCE.
+                        chrome.downloads.resume(dlId, () => {
+                            // Resolve in shame if resume() errors.
+                            if (Utils.exists(runtime.lastError)) {
+                                Utils.lm(`Download ${dlId} of "${dlFile}" could not be resumed. runtime.lastError:\n\t${JSON.stringify(runtime.lastError)}`);
+                                Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
+                            }
+                            else {
+                                Utils.lm(`Download ${dlId} for "${dlFile}" resumed without error. Continuing along...`);
+                            }
+                        });
+                    }
+                    else if (currDlState === C.DLS.INT && prevDlState === C.DLS.INT) {
+                        Utils.lm(`Download ${dlId} has not moved from state "interrupted". Trashing the listener and just resolving.`);
+                        Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
+                    }
+                    else {
+                        // Do nothing. All other cases mean "Wait for this dlId to be the subject, or wait for state to change".
+                    }
+                }
+                else {
+                    // Do nothing. dlDelta is not required to have a "state" property on every call.
+                }
+
+                // All previous actions are "normal operation OK".
+                return true;
+            }
+            else {
+                // Do nothing. This onChanged() call was about a different download.
+            }
+
+            // "normal operation OK".
+            return true;
         });
     }
 
+
+    /**
+     * Helper to remove a dlId's onChanged() listener, delete the listener from the dlCallbacks list, and resolve the dlDownloadSig
+     * using the "res" param.
+     *  
+     * @param {int} dlId 
+     * @param {DownloadSig} dlDownloadSig 
+     * @param {Function} res 
+     */
+    static removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res) {
+        if (Utils.exists(Utils.dlCallbacks[dlId])) {
+            chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
+            delete Utils.dlCallbacks[dlId];
+            res(dlDownloadSig);
+        }
+    }
 
 
     /**
@@ -779,7 +829,7 @@ class Utils extends CommonStaticBase {
                 delete Utils.listeners[listenerId];
 
                 reject(C.UTILS_CONF.LISTENER_TIMED_OUT);
-            }, 7000);
+            }, C.UTILS_CONF.LISTENER_TIMEOUT_MS);
 
 
             // Add a message listener for the ContentPeeper's loading message.
@@ -890,6 +940,7 @@ class Utils extends CommonStaticBase {
         );
     }
     
+
     /**
      * Are we on the background page?
      */
