@@ -68,6 +68,7 @@ class Popup extends CommonBase {
                         var outMessage = `Currently ${descriptionOfWork}`;
                         
                         out.toOut(outMessage);
+                        out.showStopButton();
                         out.restoreFileList();
 
                         return C.CAN_FN.PR_RS(outMessage);
