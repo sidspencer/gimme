@@ -15,6 +15,7 @@
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-es2017": "^6.24.1",
     "core-js": "^3.6.5",
+    "dom-element-path": "^1.2.0",
     "es6-promise": "^4.2.8",
     "jszip": "^3.5.0"
   },
