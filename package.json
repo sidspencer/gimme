@@ -1,6 +1,6 @@
 {
   "name": "gimme",
-  "version": "0.4.10",
+  "version": "0.4.13",
   "description": "A tool for helping you download media from a page, or from the pages that are linked.",
   "main": "popup/Popup.js",
   "module": "popup/Popup.js",
