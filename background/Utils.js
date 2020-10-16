@@ -21,30 +21,39 @@ class Utils extends CommonStaticBase {
     static xhrsInFlight = {};
     static xhrIdSeed = 0;
     static counter = 0;
+    static concurrentDls = 10;
     static domParser = new DOMParser();
     static lastLoc = new LastLoc(C.BLANK.LOCALHOST, C.BLANK.GALLERY);
 
 
     /**
      * Do setup tasks, like calling super.setup() for STOP listening and
-     * log setup.
+     * log setup, and set the initial value for concurrentDls.
      */
     static setup() {
         if (!Utils.exists(Utils.log)) {
             super.setup(C.LOG_SRC.UTILS);
         }
+
+        this.setConcurrentDownloadCount(C.UTILS_CONF.CONCURRENT_DOWNLOADS);
     }
     
 
     /**
-     * Check if a variable really exists.
+     * Check if a variable really exists. It must not be null, undefined, or ''.
      */
     static exists(obj) { 
-        if (!!obj) {
+        if (
+            !!obj && 
+            obj !== null && 
+            typeof(obj) !== 'undefined' &&
+            (obj.trim ? obj.trim() !== C.ST.E : obj !== C.ST.E)
+        ) {
             return true;
         }
-
-        return false;
+        else {
+            return false;
+        }
     };
 
 
@@ -441,7 +450,7 @@ class Utils extends CommonStaticBase {
             delete Utils.dlCallbacks[prp];
         }
     
-        for (var i1 = 0; i1 < C.UTILS_CONF.DL_CHAIN_COUNT; i1++) {
+        for (var i1 = 0; i1 < this.concurrentDls; i1++) {
             Utils.dlChains.push(Promise.resolve(true));
         }
     }
@@ -449,7 +458,7 @@ class Utils extends CommonStaticBase {
 
     /**
      * Download a single uri to the filename (well, path) provided.
-     * Add its downloading to one of the DL_CHAIN_COUNT download promise chains.
+     * Add its downloading to one of the this.concurrentDls download promise chains.
      */
     static downloadFile(uri, destFilename, output) {
         if (uri.lastIndexOf(C.ST.WHACK) === uri.length - 1) { 
@@ -466,10 +475,16 @@ class Utils extends CommonStaticBase {
         }
 
         // We're round-robin-ing our dlChains. 
-        var dlIndex = Utils.dlCounter % C.UTILS_CONF.DL_CHAIN_COUNT;
+        var dlIndex = Utils.dlCounter % Utils.concurrentDls;
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
         
+        // Make sure The chain has been started.
+        if (!Utils.exists(Utils.dlChains[dlIndex]) || !Utils.exists(Utils.dlChains[dlIndex].then)) {
+            Utils.dlChains[dlIndex] = Promise.resolve(true);
+        }
+
+        // Download in the chain
         Utils.dlChains[dlIndex] = Utils.dlChains[dlIndex].then(() => {
             return Utils.buildDlChain(uri, destFilename, output, num);
         });
@@ -998,6 +1013,66 @@ class Utils extends CommonStaticBase {
         );
 
         return isPage;
+    }
+
+
+    /**
+     * build a rambling, unique selector for a given DOM element. These are ugly, but generate quickly.
+     * Taken from https://stackoverflow.com/questions/8588301/how-to-generate-unique-css-selector-for-dom-element
+     * 
+     * @param {DOMElement} el 
+     */
+    static generateSelector(el) {
+        let path = [], parent;
+        while (parent = el.parentNode) {
+            path.unshift(`${el.tagName}:nth-child(${[].indexOf.call(parent.children, el) + 1})`);
+            el = parent;
+        }
+
+        return `${path.join(' > ')}`.toLowerCase();
+    }
+
+
+    /**
+     * build a compact selector for a given DOM element. These are prettier selectors, and are slower to generate.
+     * Taken from https://stackoverflow.com/questions/8588301/how-to-generate-unique-css-selector-for-dom-element
+     * 
+     * @param {DOMElement} el 
+     */
+    static generateCompactSelector(domEl) {
+        let path = [];
+        let parent = null;
+        let el = domEl;
+        
+        while (parent = el.parentNode) {
+            let tag = el.tagName, siblings;
+            
+            path.unshift(
+                (
+                    el.id ? `#${el.id}` : (
+                        siblings = parent.children, ([].filter.call(siblings, sibling => sibling.tagName === tag).length === 1 ? tag : `${tag}:nth-child(${1 + [].indexOf.call(siblings, el)})`)
+                    )
+                )
+            );
+
+            el = parent;
+        };
+
+        return `${path.join(' > ')}`.toLowerCase();
+    }
+
+
+    /**
+     * Configure the count of how many concurrent downloads can be fired off at once.
+     * 
+     * @param {*} val 
+     */
+    static setConcurrentDownloadCount(val) {
+        var num = Number.parseInt(val, 10);
+
+        if (!Number.isNaN(num)) {
+            this.concurrentDls = num;
+        }
     }
 }
 
