@@ -207,7 +207,7 @@ class Digger extends CommonBase {
         var thumbUris = Object.keys(galleryMap);
         var thumbsPerChannel = Math.floor(thumbUris.length / (Digger.CHANNELS - 1)) || 1;
 
-        this.log.log('Digging ' + thumbUris.length + ' scraped thumbnails.');
+        this.lm('Digging ' + thumbUris.length + ' scraped thumbnails.');
         this.output.toOut('Now digging ' + thumbUris.length + ' thumbnails found in gallery.');
         
         // Make the submaps, build the promise chains.
@@ -240,7 +240,7 @@ class Digger extends CommonBase {
             // Stop is implemented as a reject(STOP) from digNextBatchLink(...).
             // Other rejects are probably from real errors.
             if (err === C.ACTION.STOP) {
-                 me.log.log(`STOP was signaled. Rejecting all promises. Setting ${harvestCount} pairs in storage.`);
+                 me.lm(`STOP was signaled. Rejecting all promises. Setting ${harvestCount} pairs in storage.`);
                 return this.resolveDigHarvest(this.harvestedUriMap)
                     .then((hMap) => {
                         return this.redrawOutputFileOpts(hMap);
@@ -249,7 +249,7 @@ class Digger extends CommonBase {
                     });
             }
             else {
-                me.log.log(
+                me.lm(
                     'Caught error in digGalleryBatches\'s Promise.all() while resolving dig harvest promises: ' + 
                     JSON.stringify(err) + '\n\tResolving with the ' + harvestCount + ' uris already harvested.'
                 );
@@ -330,7 +330,7 @@ class Digger extends CommonBase {
 
             // Do some sanity checks. 
             if (!uriPair || uriPair === null) {
-                this.log.log('Called to harvest a null uriPair. Skipping... ')
+                this.lm('Called to harvest a null uriPair. Skipping... ')
                 continue;
             }
             
@@ -369,7 +369,7 @@ class Digger extends CommonBase {
         var me = this;
 
         diggingErrors.forEach((diggingError) => {
-            me.log.log('Batch-stopping error: ' + diggingError);
+            me.lm('Batch-stopping error: ' + diggingError);
         });
 
         // Resolve. The value is unimportant in this rev.
@@ -393,7 +393,7 @@ class Digger extends CommonBase {
         // Create entries in the gallery map, the XHR tracking array, and the UI.
         if (Utils.exists(thumbUri) && Utils.exists(zoomUri)) {
             if (!Logicker.isKnownBadImg(zoomUri)) {
-                this.log.log(
+                this.lm(
                     ' Adding to map:\n' + 
                     '         thumbUri: ' + thumbUri + '\n' + 
                     '         zoomUri:  ' + zoomUri + C.ST.E
@@ -422,7 +422,7 @@ class Digger extends CommonBase {
     getClickUriMap(node, loc, spec) {
         // Throw errors if no node (usually document) or loc.
         if (!node || !loc || !node.querySelectorAll || !loc.origin) {
-            this.log.log('Cannot build gallery click-map without both node and location.');
+            this.lm('Cannot build gallery click-map without both node and location.');
             return {};
         }
 
@@ -622,7 +622,7 @@ class Digger extends CommonBase {
 
         // Begin digging, or stop if instructed to.
         if (this.digOpts.doDig === false) {
-            this.log.log('Instructed to not dig. Responding with discovered URIs.')
+            this.lm('Instructed to not dig. Responding with discovered URIs.')
             return Promise.resolve(galleryMap);
         }
         else {
@@ -728,7 +728,7 @@ class Digger extends CommonBase {
 
         // Validate URIs exist, and the zoomPageUri is of a fetchable protocol.
         if (!Utils.exists(thumbUri) || !Utils.exists(zoomPageUri) || !Utils.isFetchableUri(zoomPageUri)) {
-            this.log.log(
+            this.lm(
                 ' Cannot dig due missing/unfetchable URIs. [' + 
                 (thumbUri || '-blank-') + ', ' + 
                 (zoomPageUri || '-blank-') + ']'
@@ -749,14 +749,14 @@ class Digger extends CommonBase {
         
         // Construct the ID used by loadUriDoc() to identify the <iframe>
         var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf(C.ST.D)));  
-        this.log.log('uriDocId: ' + uriDocId);
+        this.lm('uriDocId: ' + uriDocId);
         this.output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + C.ST.E);
 
         // Load the document and process it. Either resolve with the pair, or reject. digDeeper()
         // can safely reject, as it is the final attempt to look at the zoom page.
         var p = Utils.loadUriDoc(zoomPageUri, uriDocId)
         .then((doc) => {
-            this.log.log('Digger loaded doc: ' + zoomPageUri);
+            this.lm('Digger loaded doc: ' + zoomPageUri);
             this.output.toOut('Loaded document ' + zoomFilename);
             
             return this.processZoomPage(doc, new URL(thumbUri), new URL(zoomPageUri), searchDepth);
@@ -765,7 +765,7 @@ class Digger extends CommonBase {
             return Promise.resolve(pair);
         })
         .catch((e) => {
-            this.log.log('digDeeper iframe-load error: ' + JSON.stringify(e));       
+            this.lm('digDeeper iframe-load error: ' + JSON.stringify(e));       
             return Promise.reject(e);
         });
 
@@ -783,7 +783,7 @@ class Digger extends CommonBase {
     digDeep(thumbUri, zoomPageUri, searchDepth) {
         // Validate URIs exist, and the zoomPageUri is of a fetchable protocol.
         if (!Utils.exists(thumbUri) || !Utils.exists(zoomPageUri) || !Utils.isFetchableUri(zoomPageUri)) {
-            this.log.log(
+            this.lm(
                 ' Cannot dig due missing/unfetchable URIs. [' + 
                 (thumbUri || '-blank-') + ', ' + 
                 (zoomPageUri || '-blank-') + ']'
@@ -842,7 +842,7 @@ class Digger extends CommonBase {
                 return this.reportDigSuccess(pair.thumbUri, pair.zoomUri);
             }
             else {
-                this.log.log('Zoomed "image" was actually not a known media type. Not harvesting.');
+                this.lm('Zoomed "image" was actually not a known media type. Not harvesting.');
                 return this.reportDigFailure(pair.thumbUri, pair.zoomUri);
             }
         })
@@ -875,11 +875,11 @@ class Digger extends CommonBase {
                 Utils.getXhrResponse(C.ACTION.GET, zoomPageUrl.href, C.DOC_TYPE.DOC)
                 .catch((e) => {
                     if (e === C.ACTION.STOP) {
-                        me.log.log(`Got STOP event. Not loading zoomPageUrl "${ zoomPageUrl.href }" for thumbnail "${ thumbUrl.href }".`);
+                        me.lm(`Got STOP event. Not loading zoomPageUrl "${ zoomPageUrl.href }" for thumbnail "${ thumbUrl.href }".`);
                         return Promise.resolve(me.galleryMap);
                     }
 
-                    me.log.log('processZoomPage xhr error: ' + JSON.stringify(e));
+                    me.lm('processZoomPage xhr error: ' + JSON.stringify(e));
                     return Promise.resolve(e);
                 });
         }
@@ -894,7 +894,7 @@ class Digger extends CommonBase {
         // 1 - Skim the document for low-hanging fruit.
         var p = startingPromise.then((d) => {
             if (!d || !d.querySelectorAll) {
-                me.log.log('Processing started with error');
+                me.lm('Processing started with error');
                 return Promise.resolve(null);
             }
             else {
@@ -973,7 +973,7 @@ class Digger extends CommonBase {
         // been figured out by this. See if we can just get the Uri from there.
         var blessedZoomUri = Logicker.findBlessedZoomUri(doc, thumbUrl.href);                    
         if (!!blessedZoomUri) {
-            this.log.log('Found blessed full-size uri: ' + blessedZoomUri);
+            this.lm('Found blessed full-size uri: ' + blessedZoomUri);
             return Promise.resolve(new UriPair(thumbUrl.href, blessedZoomUri));
         }
         else if (this.inspectionOptions.imgs && doc.images.length === 1) {
@@ -1009,7 +1009,7 @@ class Digger extends CommonBase {
         }
         else {
             this.output.toOut('Inspection found nothing good on ' + Utils.extractFilename(zoomPageUrl.href));
-            this.log.log('Inspection found nothing good on ' + Utils.extractFilename(zoomPageUrl.href));
+            this.lm('Inspection found nothing good on ' + Utils.extractFilename(zoomPageUrl.href));
             return Promise.reject('Inspection found no zoom-item on ' + zoomPageUrl.href);
         }
     }
@@ -1028,7 +1028,7 @@ class Digger extends CommonBase {
         var zUri = false;
 
         this.output.toOut('Sifting through ' + optionName + ' content on detail page.');
-        this.log.log('Sifting through ' + optionName + ' content on ' + Utils.extractFilename(zpUrl.href));
+        this.lm('Sifting through ' + optionName + ' content on ' + Utils.extractFilename(zpUrl.href));
 
         // If this is the only option enabled, and there's only one type of the media on the document, 
         // use it.
