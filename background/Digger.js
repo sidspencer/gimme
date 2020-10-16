@@ -6,7 +6,8 @@ import { default as C } from '../lib/C.js';
 import {
     Storing, 
     FileOption, 
-    UriPair, 
+    UriPair,
+    GalleryDef, 
     Log
 } from '../lib/DataClasses.js'
 import CommonBase from '../lib/CommonBase.js';
@@ -21,6 +22,9 @@ class Digger extends CommonBase {
     startingGalleryMap = {};
     harvestedUriMap = {};
     outputIdMap = {};
+
+    // member for storing discovered gallery structures, using the GalleryDef class.
+    discoveredGalleries = [];
     
     // members for background object instances. (Note: Logicker and Utils are static.)
     scraper = undefined;
@@ -422,15 +426,22 @@ class Digger extends CommonBase {
             return {};
         }
 
+        // Metrics collection
+        var foundThumbCount = 0;
+        var foundKnownBadThumbCount = 0;
+
         // Use defaults if not passed in a full spec. Note clickProps are rarely passed in.
-        if (!spec.selector) { 
-            spec.selector = C.DEF_SEL.DEFAULT_SELECTOR; 
+        if (!Utils.exists(spec.selector)) {
+            spec.selector = C.DEF_SEL.DEFAULT_SELECTOR;
+            this.lm(`selector: ${spec.selector}`);
         }
-        if (!Array.isArray(spec.propPaths) || !spec.propPaths.length) { 
-            spec.propPaths = C.DEF_SEL.PROP_PATHS; 
+        if (!Array.isArray(spec.propPaths) || spec.propPaths.length < 1) {
+            spec.propPaths = C.DEF_SEL.PROP_PATHS;
+            this.lm(`propPaths: [${spec.propPaths.join(', ')}]`);
         }
-        if (!spec.clickProps) { 
-            spec.clickProps = C.DEF_SEL.CLICK_PROPS; 
+        if (!Array.isArray(spec.clickProps) || spec.clickProps.length < 1) {
+            spec.clickProps = C.DEF_SEL.CLICK_PROPS;
+            this.lm(`clickProps: [${spec.clickProps.join(', ')}]`);
         }
 
         // Amass the possible thumbnails (the subjects of the search).
@@ -439,35 +450,54 @@ class Digger extends CommonBase {
         var me = this;
 
         // Decide whether or not this subject is a real thumbnail image.
-        this.log.log('Found ' + subjects.length + ' possible thumbnails.');
+        this.lm('Found ' + subjects.length + ' possible thumbnails.');
         subjects.forEach((tag) => {
-            // Use the first propPath in the array which works. They are in 
-            // priority order.  
-            var src = C.ST.E;
+            if (!Utils.exists(tag)) { return; };
+
+            // Use the first propPath in the array which the Logicker can get a URL object
+            // out of. They are in priority order.  
+            var thumbSrc = null;
+            var thumbSrcProp = 'src';
+            var foundThumbnailUrl = false;
             spec.propPaths.forEach((propPath) => {
-                if (!!src) { return; }
+                // Continue iterating if we found a thumbnail src.
+                if (foundThumbnailUrl) { return; };
 
-                var value = Logicker.extractUrl(tag, propPath, loc);
-                if (!!value && !!value.href) {
-                    src = value.href;
-                }
+                // Try to find a thumbnail URL on this tag at this propPath.
+                var thumbnailUrl = Logicker.extractUrl(tag, propPath, loc);
+
+                // If we got a src, check it against the known-bad list, continuing the iteration if it
+                // is a bad one. Otherwise, set thumbSrc and log it.
+                foundThumbnailUrl = (Utils.exists(thumbnailUrl) && Utils.exists(thumbnailUrl.href));
+                if (foundThumbnailUrl) {                    
+                    if (Logicker.isKnownBadImg(thumbnailUrl.href)) {
+                        foundKnownBadThumbCount++;
+                        foundThumbnailUrl = false;
+                        thumbSrc = C.ST.E;
+                        thumbSrcProp = 'src';
+                        return;
+                    }
+                    else {
+                        thumbSrc = thumbnailUrl.href;
+                        thumbSrcProp = propPath;
+                        foundThumbCount++;
+                    }
+                }    
             });
-            if (!src) {
-                me.log.log(`No src found for tag:\n\t${JSON.stringify(tag)}`); 
-                return; 
-            }
 
-            if (Logicker.isKnownBadImg(src)) {
-                me.log.log('Skipping known bad src: ' + src);
-                return;
-            }
+
+            // ***
+            // End this iteration if there was not discernable thumbnail src.
+            // Otherwise, keep going and find the link that matches the thumb.
+            if (!foundThumbnailUrl) { return; };
+
 
             // Iterate through parent elements up the DOM until we find one that
             // has at least one clickable prop on it. It itself might even be clickable.
             // also check to make sure there isn't a link inside this tag. It's a
             // new trick.
             var iterator = tag.firstElementChild ? tag.firstElementChild : tag;
-            var foundClickProps = [];            
+            var foundClickProps = [];
             while (foundClickProps.length === 0 && !(typeof iterator === 'undefined' || iterator === null || !iterator)) {
                 // Are any of the CLICK_PROPS present on the iterator element? If so, we
                 // probably have the link.
@@ -476,41 +506,69 @@ class Digger extends CommonBase {
 
                     if (typeof val !== 'undefined' && !!val && val !== null) {
                         foundClickProps.push(spec.clickProps[i]);
-                    }                    
+                    }
                 }
-                
+
                 // End the loop once we've found a click prop value. 
                 if (foundClickProps.length !== 0) { break; };
-                  
+
                 // Otherwise, iterate up the DOM.
-                iterator = iterator.parentElement;                
-            }            
+                iterator = iterator.parentElement;
+            }
+
+
+            // ***
+            // End this iteration if there was no link element for the thumbnail.
             if (!iterator || iterator === null || foundClickProps.length === 0) { return; };
 
+
             // For each click prop on the iterator, try to get a URI from it.
-            var uris = [];                        
+            // Store results in linkUriData array.
+            var linkUriData = [];
             for (var j = 0; j < foundClickProps.length; j++) {
-                var url = Logicker.extractUrl(iterator, foundClickProps[j], loc);
-                if (!!url && !!url.href) { uris.push(url.href); };
+                var clickProp = foundClickProps[j];
+                var url = Logicker.extractUrl(iterator, clickProp, loc);
+                
+                if (Utils.exists(url) && Utils.exists(url.href)) {
+                    linkUriData.push({
+                        linkHref: url.href,
+                        linkHrefProp: clickProp,
+                    });
+                };
             }
-            if (uris.length === 0) { return; };
+            if (linkUriData.length === 0) { return; };
 
             // Figure out which of the URIs is the best.
-            var bestUri = uris[0]; 
-            for (var k = 1; k < uris.length; k++) {
-                var bestUri = Logicker.chooseBetterMatchingUri(src, bestUri, uris[k]);
+            // Store the best uri and its index in linkUriData.
+            var bestUri = linkUriData[0].linkHref;
+            var bestUriIdx = 0;
+
+            for (var k = 1; k < linkUriData.length; k++) {
+                var testUri = linkUriData[k].href;
+                var bestUri = Logicker.chooseBetterMatchingUri(thumbSrc, bestUri, testUri);
+
+                if (bestUri === testUri) {
+                    bestUriIdx = k;
+                }
             }
 
+            // Generate the selectors for the thumb ("tag") and the link ("iterator"), and store
+            // them along with the galleryUri in this.discoveredGalleries. When the digger finishes
+            // its dig or digdig, we will store them
+            me.addGallerySelPair(loc.href, tag, thumbSrcProp, iterator, linkUriData[bestUriIdx].linkHrefProp);
+
             // Add this pair's full URLs to the map and the Output.
-            var thumbUrl = new URL(src);
+            var thumbUrl = new URL(thumbSrc);
             var linkUrl = new URL(bestUri);
             me.addToMap(thumbUrl, linkUrl, clickMap);
         });
 
+        this.lm(`getClickUriMap:\n--\n\tFound Pairs -> ${foundThumbCount}\n\tRejected Known-Bad ThumbSrc -> ${foundKnownBadThumbCount}.`)
+
         return clickMap;
     }
 
-
+ 
     /**
      * Build a gallery map based upon multiple calls to getClickUriMap(), which 
      * Finds what navigation action will happen if clicking on the image's area.
@@ -519,10 +577,11 @@ class Digger extends CommonBase {
         // Start with <img> tags.
         var imgMap = this.getClickUriMap(
             doc,
-            loc,
-            { 
-                selector: 'img', 
-                propPaths: ['src', 'currentSrc', 'srcset', 'dataset.src'], 
+            loc, 
+            {
+                selector: C.SEL_PROP.IMG,
+                propPaths: C.DEF_SEL.PROP_PATHS,
+                clickProps: C.DEF_SEL.CLICK_PROPS
             }
         );
 
@@ -531,12 +590,13 @@ class Digger extends CommonBase {
             doc,
             loc,
             { 
-                selector: 'div,span', 
-                propPaths: ['style.backgroundImage', 'style.background', 'dataset.lazy']
+                selector: 'div,span,li', 
+                propPaths: ['style.backgroundImage', 'style.background', 'dataset.lazy'],
+                clickProps: ['style.backgroundImage', 'style.background', 'dataset.lazy']
             }
         );
-
-        var galleryMap = Object.assign({}, imgMap, cssBgMap);        
+                   
+        var galleryMap = Object.assign({}, imgMap, cssBgMap);
         return galleryMap;
     }        
 
@@ -992,6 +1052,29 @@ class Digger extends CommonBase {
         }
 
         return zUri;
+    }
+
+
+    /**
+     * Store the selectors for a thumb -> link pair.
+     * 
+     * @param {String} galleryUri
+     * @param {DOMElement} thumbEl 
+     * @param {DOMElement} linkEl 
+     */
+    addGallerySelPair(galleryUri, thumbEl, thumbSrcProp, linkEl, linkHrefProp) {
+        var thumbSel = Utils.generateSelector(thumbEl);
+        var linkSel = Utils.generateSelector(linkEl);
+
+        if (Utils.exists(thumbSel) && Utils.exists(linkSel)) {
+            this.lm(`Adding to gallerySelMap:\n\t"${thumbSel}"\n\t-> "${linkSel}"\n----`);
+            this.discoveredGalleries.push(
+                new GalleryDef(galleryUri, thumbSel, thumbSrcProp, linkSel, linkHrefProp)
+            );
+        }
+        else {
+            this.lm('Not adding to gallerySelMap -- bad selectors');
+        }
     }
 
 
