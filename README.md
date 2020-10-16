@@ -7,14 +7,14 @@ As mentioned before, code is there to download video and audio files as well, bu
 
 This extension works with Chrome, Firefox, and Edge -- it can be found in all three extension stores in addition to in this repo.
 
-# v0.4.13
-The emphasis for the UI is on saving the **selectors** that match certain types of galleries for each type we find, showing it on the options page just as if you had configured it. It's not ML, but it's will improve load time on next rounds of the same site's type of galleries. 
 
-The other emphasis is on npm package upgrades.
+# v0.4.13
+Bugfixes were plentiful. Upgraded npm packages too.
+
+Updated options/preferences page to have a config value for number of concurrent downloads.
+
+The new feature emphasis for the UI is on saving the **selectors** that match certain types of galleries for each type we find, showing it on the options page just as if you had configured it. It's not ML, but it's will improve load time on next rounds of the same site's type of galleries. 
+
 
 # building
 Execute "npm run pack" in the base directory to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files only
-
-
-# v0.4.8
-The Mozilla add-ons process has some great code analysis tools that picked up on eval usage, Function constructors, and my using innerHTML when textContent or even using a DOMParser object was actually the way to go. While the innerHTML was my lazy (and easily fixed) fault, the unsafe generated code and my loose CSP were actually artifacts of poor webpack and babel setup. v0.4.8 will be PR'd to master shortly.
