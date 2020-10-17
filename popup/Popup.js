@@ -50,7 +50,7 @@ class Popup extends CommonBase {
     setFileOptionList() {
         var me = this;
 
-        Utils.getFromStorage(Storing.buildPrevUriMapStoreObj({}))
+        Utils.getFromStorage(Storing.buildPrevUriMapStoreObj({}), 'local')
             .then((store) => {
                 var uriMap = store.prevUriMap
 
@@ -168,7 +168,7 @@ class Popup extends CommonBase {
     static clearPreviousUriMap() {         
         chrome.browserAction.setBadgeText({ text: C.ST.E });
         
-        Utils.setInStorage(Storing.buildPrevUriMapStoreObj({}))
+        Utils.setInStorage(Storing.buildPrevUriMapStoreObj({}), 'local')
             .then(() => {
                 Popup.instance.lm( 'Cleared prev uri map');
                 return C.CAN_FN.PR_RS_DEF();
@@ -192,55 +192,56 @@ class Popup extends CommonBase {
                     processings: [],
                     blessings: [],
                 }
-            })
-            .then((store) => {
-                // Set the options on the Digger and Logicker through static methods, and on
-                // Output's common instance. 
-                chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
-                    var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
-                    var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
-                    var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
-                    var u = bgWindow[C.WIN_PROP.UTILS_CLASS];
+            },
+            'sync'
+        )
+        .then((store) => {
+            // Set the options on the Digger and Logicker through static methods, and on
+            // Output's common instance. 
+            chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
+                var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
+                var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
+                var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+                var u = bgWindow[C.WIN_PROP.UTILS_CLASS];
 
-                    // Store the full options spec on the EventPage so it can easily 
-                    // merge in new galleryDefs to "spec.messages".
-                    var ep = bgWindow[C.WIN_PROP.EVENT_PAGE_CLASS];
-                    ep.optSpec = store.spec;
+                // Store the full options spec on the EventPage so it can easily 
+                // merge in new galleryDefs to "spec.messages".
+                var ep = bgWindow[C.WIN_PROP.EVENT_PAGE_CLASS];
+                ep.optSpec = store.spec;
 
-                    u.setConcurrentDownloadCount(store.spec.config.concurrentDls);
+                u.setConcurrentDownloadCount(store.spec.config.concurrentDls);
 
-                    d.setBatchSize(store.spec.config.dlBatchSize);
-                    d.setChannels(store.spec.config.dlChannels);
+                d.setBatchSize(store.spec.config.dlBatchSize);
+                d.setChannels(store.spec.config.dlChannels);
 
-                    l.setMinZoomHeight(store.spec.config.minZoomHeight);
-                    l.setMinZoomWidth(store.spec.config.minZoomWidth);
-                    l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
+                l.setMinZoomHeight(store.spec.config.minZoomHeight);
+                l.setMinZoomWidth(store.spec.config.minZoomWidth);
+                l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
 
-                    l.setMessages(store.spec.messages);
-                    l.setProcessings(store.spec.processings);
-                    l.setBlessings(store.spec.blessings);
+                l.setMessages(store.spec.messages);
+                l.setProcessings(store.spec.processings);
+                l.setBlessings(store.spec.blessings);
 
-                    o.setEnableHalfBakedFeatures(
-                        (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
-                    );
-                });
+                o.setEnableHalfBakedFeatures(
+                    (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
+                );
+            });
 
-                // Show all the buttons if the user enabled the half-baked features.
-                if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
-                    var bcs = document.getElementsByClassName('buttonColumn');
+            // Show all the buttons if the user enabled the half-baked features.
+            if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
+                var bcs = document.getElementsByClassName('buttonColumn');
 
-                    for (var b = 0; b < bcs.length; b++) {
-                        bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
-                    }
+                for (var b = 0; b < bcs.length; b++) {
+                    bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
                 }
-
-                return C.CAN_FN.PR_RS_DEF();
-            })
-            .catch((err) => {
-                Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n\t${JSON.stringify(err)}`);
-                return C.CAN_FN.PR_RJ(err);
             }
-        );
+
+            return C.CAN_FN.PR_RS_DEF();
+        })
+        .catch((err) => {
+            Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n\t${JSON.stringify(err)}`);
+            return C.CAN_FN.PR_RJ(err);
+        });
     }
 
 
