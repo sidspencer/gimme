@@ -150,7 +150,7 @@ class Digger extends CommonBase {
      * write our discovered gallery definitions to their own storage key.
      */
     saveDiscoveredGalleryDefs() {
-        var p = Utils.setInStorage(Storing.buildGalleryDefsStoreObj(this.discoveredGalleries));
+        var p = Utils.setInStorage(Storing.buildGalleryDefsStoreObj(this.discoveredGalleries), 'local');
         return p;
     }
 
@@ -242,9 +242,14 @@ class Digger extends CommonBase {
 
             me.lm(
                 'Resolving digGalleryBatches with ' + 
-                Object.keys(this.harvestedUriMap).length + ' harvested entries.'
+                Object.keys(this.harvestedUriMap).length + ' harvested entries, ' +
+                'and ' + me.discoveredGalleries.length + ' gallery definitions.'
             );
 
+            // Fire and forget for now. Errors here are blocking the harvest resolution.
+            this.saveDiscoveredGalleryDefs();
+
+            // Resolve with the harvest.
             return Promise.resolve(this.harvestedUriMap);
         }).catch((err) => {
             var harvestCount = Object.keys(this.harvestedUriMap).length;
@@ -257,7 +262,8 @@ class Digger extends CommonBase {
                     .then((hMap) => {
                         return this.redrawOutputFileOpts(hMap);
                     }).then(() => {
-                        return this.saveDiscoveredGalleryDefs();
+                        // Fire and forget for now. Errors here are blocking the harvest resolution.
+                        this.saveDiscoveredGalleryDefs();
                     }).then(() => {
                         return Promise.reject(C.ACTION.STOP);
                     });
@@ -267,6 +273,11 @@ class Digger extends CommonBase {
                     'Caught error in digGalleryBatches\'s Promise.all() while resolving dig harvest promises: ' + 
                     JSON.stringify(err) + '\n\tResolving with the ' + harvestCount + ' uris already harvested.'
                 );
+                
+                // Fire and forget for now. Errors here are blocking the harvest resolution.
+                this.saveDiscoveredGalleryDefs();
+
+                // Resolve with the harvest.
                 return Promise.resolve(this.harvestedUriMap);
             }
         });  
