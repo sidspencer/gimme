@@ -239,18 +239,11 @@ class App extends CommonBase {
         this.output.setIsDigging(false);
         this.setIsDiggingGalleryGallery(false);
 
-        return Utils.setInStorage(Storing.buildPrevUriMapStoreObj(uriMap))
-            .then(() => {
-                var err = chrome.runtime.lastError;
-                
-                if (Utils.exists(err)) {
-                    this.lm(`Got an error storing previousUriMap: ${JSON.stringify(err)}`);
-                    this.output.toOut(
-                        'Error storing the found links. Please download what you want before ' +
-                        'letting this popup window close -- once closed, these results will be gone.'
-                    );
-                }   
-
+        return Utils.setInStorage(
+                Storing.buildPrevUriMapStoreObj(uriMap), 
+                'local'
+            )
+            .then(() => {                
                 this.lm(MessageStrings.STORING_URIMAP);
                 this.lm(MessageStrings.HARVEST_START + Object.keys(uriMap).length + MessageStrings.HARVEST_END);
 
@@ -649,7 +642,7 @@ class App extends CommonBase {
                         // Store the prevUriMap, but throw away its promise. We want to resolve with me.galleryMap
                         // to continue giving the user all the file options we can before hard stop. It will at the very
                         // least be the Logicker-processed peeperMap.
-                        Utils.setInStorage(Storing.buildPrevUriMapStoreObj(me.galleryMap))
+                        Utils.setInStorage(Storing.buildPrevUriMapStoreObj(me.galleryMap), 'local')
                             .then(() => {
                                 me.lm('Setting prevUriMap');
                             })
