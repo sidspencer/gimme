@@ -461,6 +461,7 @@ class Digger extends CommonBase {
         // Amass the possible thumbnails (the subjects of the search).
         var subjects = node.querySelectorAll(spec.selector);
         var clickMap = {};
+        var discoveredGalleryDef = null;
         var me = this;
 
         // Decide whether or not this subject is a real thumbnail image.
@@ -568,8 +569,16 @@ class Digger extends CommonBase {
 
             // Generate the selectors for the thumb ("tag") and the link ("iterator"), and store
             // them along with the galleryUri in this.discoveredGalleries. When the digger finishes
-            // its dig or digdig, we will store them
-            me.addGallerySelPair(loc.href, tag, thumbSrcProp, iterator, linkUriData[bestUriIdx].linkHrefProp);
+            // its dig or digdig, we will store them.
+            if (discoveredGalleryDef === null) {
+                discoveredGalleryDef = me.addGallerySelPair(
+                    loc.href, 
+                    tag, 
+                    thumbSrcProp, 
+                    iterator, 
+                    linkUriData[bestUriIdx].linkHrefProp
+                );
+            }
 
             // Add this pair's full URLs to the map and the Output.
             var thumbUrl = new URL(thumbSrc);
@@ -1079,16 +1088,19 @@ class Digger extends CommonBase {
     addGallerySelPair(galleryUri, thumbEl, thumbSrcProp, linkEl, linkHrefProp) {
         var thumbSel = Utils.generateSelector(thumbEl);
         var linkSel = Utils.generateSelector(linkEl);
+        var galleryDef = undefined;
 
         if (Utils.exists(thumbSel) && Utils.exists(linkSel)) {
             this.lm(`Adding to gallerySelMap:\n\t"${thumbSel}"\n\t-> "${linkSel}"\n----`);
-            this.discoveredGalleries.push(
-                new GalleryDef(galleryUri, thumbSel, thumbSrcProp, linkSel, linkHrefProp)
-            );
+            
+            galleryDef = new GalleryDef(galleryUri, thumbSel, thumbSrcProp, linkSel, linkHrefProp);
+            this.discoveredGalleries.push(galleryDef);
         }
         else {
             this.lm('Not adding to gallerySelMap -- bad selectors');
         }
+
+        return galleryDef;
     }
 
 
