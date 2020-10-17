@@ -239,7 +239,7 @@ class App extends CommonBase {
         this.output.setIsDigging(false);
         this.setIsDiggingGalleryGallery(false);
 
-        return Utils.setInStorage(Storing.storePrevUriMap(uriMap))
+        return Utils.setInStorage(Storing.buildPrevUriMapStoreObj(uriMap))
             .then(() => {
                 var err = chrome.runtime.lastError;
                 
@@ -649,7 +649,7 @@ class App extends CommonBase {
                         // Store the prevUriMap, but throw away its promise. We want to resolve with me.galleryMap
                         // to continue giving the user all the file options we can before hard stop. It will at the very
                         // least be the Logicker-processed peeperMap.
-                        Utils.setInStorage(Storing.storePrevUriMap(me.galleryMap))
+                        Utils.setInStorage(Storing.buildPrevUriMapStoreObj(me.galleryMap))
                             .then(() => {
                                 me.lm('Setting prevUriMap');
                             })

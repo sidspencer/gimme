@@ -124,7 +124,9 @@ class Digger extends CommonBase {
 
 
     /**
-     * Promise to resolve everything that has been dug.
+     * This is called at the end of the dig or gallery-gallery dig to
+     * both write our results into storage and return a Promise that
+     * resolves with the uriMap.
      */
     resolveDigHarvest(uriMap) {
         var h = uriMap;
@@ -132,7 +134,7 @@ class Digger extends CommonBase {
 
         return (new Promise((resolve, reject) => {
             chrome.storage.local.set(
-                Storing.storePrevUriMap(h),
+                Storing.buildPrevUriMapStoreObj(h),
                 () => {                    
                     me.lm('Set prevUriMap in storage');
                     me.lm('---Returning dig harvest -> ' + Object.keys(h).length + '------');
@@ -140,6 +142,16 @@ class Digger extends CommonBase {
                 }
             );
         }));
+    }
+
+
+    /**
+     * This is called at the end of the dig or gallery-gallery dig to
+     * write our discovered gallery definitions to their own storage key.
+     */
+    saveDiscoveredGalleryDefs() {
+        var p = Utils.setInStorage(Storing.buildGalleryDefsStoreObj(this.discoveredGalleries));
+        return p;
     }
 
 
@@ -244,6 +256,8 @@ class Digger extends CommonBase {
                 return this.resolveDigHarvest(this.harvestedUriMap)
                     .then((hMap) => {
                         return this.redrawOutputFileOpts(hMap);
+                    }).then(() => {
+                        return this.saveDiscoveredGalleryDefs();
                     }).then(() => {
                         return Promise.reject(C.ACTION.STOP);
                     });

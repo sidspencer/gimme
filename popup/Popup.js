@@ -24,7 +24,7 @@ class Popup extends CommonBase {
      */
     constructor() {
         if (Utils.exists(Popup.instance)) {
-            Popup.instance.lm('Popup constructor called when there\'s already a valid Popup.instance.');
+            Popup.instance.lm('Popup constructor called, but there\'s already a valid Popup.instance.');
         }
         else {
             // set up Log, and STOP event handlers.
@@ -50,13 +50,14 @@ class Popup extends CommonBase {
     setFileOptionList() {
         var me = this;
 
-        Utils.getFromStorage(Storing.storePrevUriMap({}))
+        Utils.getFromStorage(Storing.buildPrevUriMapStoreObj({}))
             .then((store) => {
                 var uriMap = store.prevUriMap
 
                 // If we're still in the digging/scraping stages, restore the textual file-list.
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
                 var length = Object.values(uriMap).length;
+
                 chrome.runtime.getBackgroundPage((bgWindow) => {
                     // Alias the static class Utils, and get the Output common instance..
                     var ut = bgWindow[C.WIN_PROP.UTILS_CLASS];
@@ -148,7 +149,12 @@ class Popup extends CommonBase {
                 return C.CAN_FN.PR_RS_DEF();
             })
             .catch((err) => {
-                out.toOut('Problem loading previous results. My apologies.');
+                if (!err) {
+                    return C.CAN_FN.PR_RS_DEF();
+                }
+
+                var outputArea = window.document.getElementById(C.ELEMENT_ID.OUTPUT);     
+                outputArea.textContent = 'Problem loading previous results. My apologies.';
                 me.lm('Could not get the prevUriMap. err: ' + JSON.stringify(err));
                 
                 return C.CAN_FN.PR_RJ(err);
@@ -162,7 +168,7 @@ class Popup extends CommonBase {
     static clearPreviousUriMap() {         
         chrome.browserAction.setBadgeText({ text: C.ST.E });
         
-        Utils.setInStorage(Storing.storePrevUriMap({}))
+        Utils.setInStorage(Storing.buildPrevUriMapStoreObj({}))
             .then(() => {
                 Popup.instance.lm( 'Cleared prev uri map');
                 return C.CAN_FN.PR_RS_DEF();
@@ -196,6 +202,11 @@ class Popup extends CommonBase {
                     var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
                     var u = bgWindow[C.WIN_PROP.UTILS_CLASS];
 
+                    // Store the full options spec on the EventPage so it can easily 
+                    // merge in new galleryDefs to "spec.messages".
+                    var ep = bgWindow[C.WIN_PROP.EVENT_PAGE_CLASS];
+                    ep.optSpec = store.spec;
+
                     u.setConcurrentDownloadCount(store.spec.config.concurrentDls);
 
                     d.setBatchSize(store.spec.config.dlBatchSize);
@@ -226,7 +237,7 @@ class Popup extends CommonBase {
                 return C.CAN_FN.PR_RS_DEF();
             })
             .catch((err) => {
-                Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
+                Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n\t${JSON.stringify(err)}`);
                 return C.CAN_FN.PR_RJ(err);
             }
         );

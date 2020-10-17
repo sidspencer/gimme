@@ -790,6 +790,27 @@ class Utils extends CommonStaticBase {
 
 
     /**
+     * A promise-based wrapper for removing storage items.
+     * 
+     * @param {Array<string>} keys 
+     */
+    static removeFromStorage(keys) {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.remove(
+                keys,
+                () => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    }
+                    else {
+                        resolve(true);
+                    }
+                }
+            );
+        });
+    }
+
+    /**
      * See if the param is actually the boolean value "true". Not something coerced.
      * 
      * @param {any} test 
