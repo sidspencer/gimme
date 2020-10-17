@@ -752,9 +752,11 @@ class Utils extends CommonStaticBase {
      * A promise-based wrapper for setting storage items.
      * The cb's return value is ignored completely.
      */
-    static setInStorage(itemsToStore) {
+    static setInStorage(itemsToStore, area) {
+        var storageSetter = (area === 'local' ? chrome.storage.local : chrome.storage.sync);
+
         return new Promise((resolve, reject) => {
-            chrome.storage.local.set(
+            storageSetter.set(
                 itemsToStore, 
                 () => {
                     if (chrome.runtime.lastError) {
@@ -772,9 +774,11 @@ class Utils extends CommonStaticBase {
     /**
      * A promise-based wrapper for getting storage items. 
      */
-    static getFromStorage(keys) {
+    static getFromStorage(keys, area) {
+        var storageGetter = (area === 'local' ? chrome.storage.local : chrome.storage.sync);
+
         return new Promise((resolve, reject) => {
-            chrome.storage.local.get(
+            storageGetter.get(
                 keys, 
                 (items) => {
                     if (chrome.runtime.lastError) {
@@ -794,9 +798,11 @@ class Utils extends CommonStaticBase {
      * 
      * @param {Array<string>} keys 
      */
-    static removeFromStorage(keys) {
+    static removeFromStorage(keys, area) {
+        var storageRemover = (area === 'local' ? chrome.storage.local : chrome.storage.sync);
+
         return new Promise((resolve, reject) => {
-            chrome.storage.local.remove(
+            storageRemover.remove(
                 keys,
                 () => {
                     if (chrome.runtime.lastError) {
