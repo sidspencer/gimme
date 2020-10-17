@@ -34,8 +34,6 @@ class Utils extends CommonStaticBase {
         if (!Utils.exists(Utils.log)) {
             super.setup(C.LOG_SRC.UTILS);
         }
-
-        this.setConcurrentDownloadCount(C.UTILS_CONF.CONCURRENT_DOWNLOADS);
     }
     
 
@@ -1092,13 +1090,13 @@ class Utils extends CommonStaticBase {
     /**
      * Configure the count of how many concurrent downloads can be fired off at once.
      * 
-     * @param {*} val 
+     * @param {String} val 
      */
     static setConcurrentDownloadCount(val) {
         var num = Number.parseInt(val, 10);
 
         if (!Number.isNaN(num)) {
-            this.concurrentDls = num;
+            Utils.concurrentDls = num;
         }
     }
 }
