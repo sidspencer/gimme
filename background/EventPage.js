@@ -22,7 +22,7 @@ class EventPage {
     // The definitively active EventPage's app instance, stored statically.
     static app = undefined;
 
-    // The full value of chrome.storage.local.get(['spec'], ...). Set by the Popup,
+    // The full value of chrome.storage.sync.get(['spec'], ...). Set by the Popup,
     // because it handles storage the most.
     static optSpec = {};
 
@@ -255,9 +255,9 @@ class EventPage {
     static debounceLocked = false;
     static startListeningForNewGalleryDefs() {
         chrome.storage.onChanged.addListener((changes, areaName) => {
-            // Were we called about a galleryDefs change? Otherwise, do nothing. 
+            // Were we called about a galleryDefs change? Are we debounce-unlocked? Otherwise, do nothing. 
             var gDefChange = false;
-            if (!EventPage.debounceLocked && !!changes && (gDefChange = changes[C.OPT_CONF.GALLERY_DEFS])) {
+            if (!EventPage.debounceLocked && Utils.exists(changes) && (gDefChange = changes[C.OPT_CONF.GALLERY_DEFS])) {
                 // If we have new gallery definitions, create SpecMessage objects from them
                 // and append them to the "spec" key's "messages" array and store.
                 if (Array.isArray(gDefChange.newValue)) {
@@ -276,6 +276,7 @@ class EventPage {
                         .then(() => {
                             EventPage.lm(`Set spec in storage with ${defMessages.length} discovered gallery definitions.`);
                             Logicker.setMessages(EventPage.optSpec.messages);
+
                             return Utils.removeFromStorage([C.OPT_CONF.GALLERY_DEFS]);
                         })
                         .catch((err) => {
