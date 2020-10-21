@@ -597,10 +597,10 @@ class Utils extends CommonStaticBase {
                         // Try to resume the download ONLY ONCE.
                         chrome.downloads.resume(dlId, () => {
                             // Resolve in shame if resume() errors.
-                            if (Utils.exists(runtime.lastError)) {
+                            if (Utils.exists(chrome.runtime.lastError)) {
                                 Utils.lm(
                                     `Download ${dlId} of "${dlFile}" could not be resumed. Trashing the listener and just resolving. ` +
-                                    ` runtime.lastError:\n\t${JSON.stringify(runtime.lastError)}`
+                                    ` chrome.runtime.lastError:\n\t${JSON.stringify(runtime.lastError)}`
                                 );
                                 Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
                             }

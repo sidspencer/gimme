@@ -301,6 +301,7 @@ class Output extends CommonBase {
         
         this.filesDug.appendChild(newLi);
 
+        var me = this;
         this.doc.getElementById(checkbox.id).addEventListener(C.EVT.CLICK, (event) => {
             var cb = event.currentTarget;
             cb.checked = true;
@@ -311,12 +312,12 @@ class Output extends CommonBase {
                 
                 if (!!p && !!p.then) {
                     p.then(() => {
-                        return this.setFileOptUriChecked(cb.value);
+                        return me.setFileOptUriChecked(cb.value);
                     });
                 }
             }
             else {
-                this.setFileOptUriChecked(cb.value);
+                me.setFileOptUriChecked(cb.value);
             }
         });
     };
