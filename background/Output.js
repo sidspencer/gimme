@@ -212,25 +212,20 @@ class Output extends CommonBase {
         
         return new Promise((resolve, reject) => { 
             setTimeout(() => {
-                var newLi = undefined;
                 try {
-                    newLi = this.doc.createElement(C.SEL_PROP.LI);
+                    var newLi = this.doc.createElement(C.SEL_PROP.LI);
+                    var newContent = this.doc.createTextNode(uri);
+                    
+                    newLi.id = C.ELEMENT_ID.FE_PREFIX + id;
+                    newLi.className = C.FE_STATE.FOUND;
+                    newLi.dataset.initialUri = uri;
+                    newLi.appendChild(newContent);
+                    
+                    this.filesDug.appendChild(newLi);
                 }
                 catch(error) {
-                    this.lm('Could not create new file entry. doc reference might be a Dead Object.');
-                    resolve({
-                        id: (id + C.ST.E),
-                        uri: uri,
-                    });
+                    this.lm('Could not draw file option. doc reference might be a Dead Object. Still resolving(new FileEntry()).');
                 }
-
-                var newContent = this.doc.createTextNode(uri);
-                newLi.id = C.ELEMENT_ID.FE_PREFIX + id;
-                newLi.className = C.FE_STATE.FOUND;
-                newLi.dataset.initialUri = uri;
-                newLi.appendChild(newContent);
-                
-                this.filesDug.appendChild(newLi);
 
                 resolve(new FileEntry((id + C.ST.E), uri));
             }, 1);
