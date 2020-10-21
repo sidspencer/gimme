@@ -301,18 +301,22 @@ class Output extends CommonBase {
         
         this.filesDug.appendChild(newLi);
 
-        var me = this;
         this.doc.getElementById(checkbox.id).addEventListener(C.EVT.CLICK, (event) => {
+            var me = Output.getInstance();
+
             var cb = event.currentTarget;
             cb.checked = true;
             cb.disabled = true;
 
             if (!!cb.dataset.filePath) {
-                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+C.ST.E, this);
+                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+C.ST.E, me);
                 
                 if (!!p && !!p.then) {
                     p.then(() => {
                         return me.setFileOptUriChecked(cb.value);
+                    })
+                    .catch((err) => {
+                        me.lm(`Caught an error trying to set file option checkbox as checked.\n\t${JSON.stringify(err)}`);
                     });
                 }
             }
