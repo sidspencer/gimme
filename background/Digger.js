@@ -1097,8 +1097,8 @@ class Digger extends CommonBase {
      * @param {DOMElement} linkEl 
      */
     addGallerySelPair(galleryUri, thumbEl, thumbSrcProp, linkEl, linkHrefProp) {
-        var thumbSel = Utils.generateSelector(thumbEl);
-        var linkSel = Utils.generateSelector(linkEl);
+        var thumbSel = Utils.generateCompactSelector(thumbEl);
+        var linkSel = Utils.generateCompactSelector(linkEl);
         var galleryDef = undefined;
 
         if (Utils.exists(thumbSel) && Utils.exists(linkSel)) {
