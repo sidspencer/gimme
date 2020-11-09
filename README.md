@@ -9,12 +9,12 @@ This extension works with Chrome, Firefox, and Edge -- it can be found in all th
 
 
 # v0.4.13
-Bugfixes were plentiful. Upgraded npm packages too.
+Bugfixes were plentiful. Lots of valid images were being discarded for nitpicky ivory-tower-only reasons. Upgraded npm packages too.
 
-Updated options/preferences page to have a config value for number of concurrent downloads.
+Updated options/preferences page to work again.
 
-The new feature emphasis for the UI is on saving the **selectors** that match certain types of galleries for each type we find, showing it on the options page just as if you had configured it. It's not ML, but it's will improve load time on next rounds of the same site's type of galleries. 
-
+# v0.4.14... The Future
+I was trying to get this done for v0.4.13, but there are bug fixes that need to go out **now**, so it must wait. So the next feature emphasis will be on saving the "Gallery Definition" **selectors** that match the links and thumbnails and full-sized images for a website's types of galleries. For each element selector per element type that we find, that data goes into the Options/Preferences waiting for you to review it and save it just as if you had configured it completely manually. This way you can edit up each gallery definition to make discovering galleries and their assets lightning-fast the next time you run gimme against galleries on that site. Saving the discovered selectors automatically for your review might not be as sexy as real ML or AI, but it accelerates downloading from sites dramatically. Suddenly, instead of needing to run a significant set of heuristics and some ML to try to get the right data, now Gimme only needs to run a few calls to `querySelectorAll()` based on the site's Gallery Definition, seeming almost instantaneous. Sorry I didn't get this done for v0.4.13. Stay tuned!
 
 # building
-Execute "npm run pack" in the base directory to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files only
+Execute "npm install" in the base "gimme" directory, then run "npm run pack" to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files, arnd nothing will work if you try to run without having executed "npm run pack".
