@@ -6,15 +6,13 @@
   "main": "popup/Popup.js",
   "module": "popup/Popup.js",
   "dependencies": {
-    "@babel/plugin-transform-runtime": "^7.10.1",
+    "@babel/plugin-transform-runtime": "^7.12.1",
     "@babel/polyfill": "^7.10.1",
-    "@babel/preset-es2015": "^7.0.0-beta.53",
+    "@babel/runtime-corejs3": "^7.12.5",
     "@tensorflow-models/mobilenet": "^2.0.4",
     "@tensorflow/tfjs": "^1.7.3",
     "@tensorflow/tfjs-converter": "^1.7.4",
     "@tensorflow/tfjs-core": "^1.7.4",
-    "babel-preset-es2015": "^6.24.1",
-    "babel-preset-es2017": "^6.24.1",
     "core-js": "^3.6.5",
     "es6-promise": "^4.2.8",
     "jszip": "^3.5.0"
