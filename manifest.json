@@ -1,10 +1,13 @@
 {
   "manifest_version": 2,
+  "author": "thirdlogan",
+  "homepage_url": "http://github.com/thirdlogan/gimme/",
 
   "name": "GimmeGimmeGimme",
+  "short_name": "gimme",
+  "version": "0.4.10",
   "description": "Shortcut to downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme.",
-  "version": "0.4.7",
-  "offline_enabled": true,
+  "incognito": "spanning",
 
   "applications": {
     "gecko": {
@@ -13,10 +16,12 @@
   },
 
   "icons": {
-    "16": "media/icon16.png",
+    "16": "media/icon16.png",   
     "24": "media/icon24.png",
     "32": "media/icon32.png",
-    "64": "media/icon64.png"
+    "48": "media/icon48.png",
+    "64": "media/icon64.png",
+    "128": "media/icon128.png"
   },
 
   "background": {
@@ -40,13 +45,17 @@
       "16": "media/icon16.png",
       "24": "media/icon24.png",
       "32": "media/icon32.png",
-      "64": "media/icon64.png"
+      "48": "media/icon48.png",
+      "64": "media/icon64.png",
+      "128": "media/icon128.png"
     },
+    "default_title": "GimmeGimmeGimme",
     "default_popup": "popup/popup.html"
   },
 
   "options_ui": {
-      "page": "options/options.html"
+      "page": "options/options.html",
+      "open_in_tab": true
   },
   
   "permissions": [
@@ -55,13 +64,20 @@
     "alarms",
     "downloads",
     "storage",
-    "http://*/*",
-    "https://*/*",
-    "file:///*/*"
+    "*://*/*"
   ],
 
   "web_accessible_resources": [
-    "content/bundle.js",
+    "content/*.js",
+    "lib/*.js",
+    "options/*.js",
+    "background/*.js",
+    "popup/*.js",
+    "popup/*.js.map",
+    "background/*.js.map",
+    "options/*.js.map",
+    "content/*.js.map",
+    "lib/*.js.map",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js.map",
     "node_modules/@tensorflow/tfjs/dist/tf.esm.js.map",
@@ -78,5 +94,5 @@
     "node_modules/jszip/dist/jszip.js"
   ],
 
-  "content_security_policy": "script-src 'self' 'unsafe-eval' https://ajax.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com/; object-src 'self'"
+  "content_security_policy": "script-src 'self' https://ajax.googleapis.com https://cdn.jsdelivr.net https://storage.googleapis.com/; object-src 'self'"
 }

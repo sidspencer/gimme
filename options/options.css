@@ -17,17 +17,17 @@ h3 {
     font-size: 1.6em;
 }
 
-div#status {
+div#status, div#loading {
     display: none;
     margin: 0 auto 0 auto;
     width: 30%;
-    color: hotpink;
 }
 
-div#status > h3 {
+div#status > h3, div#loading > h3 {
     margin-top: 0.5em;
     margin-bottom: -2em;
     font-variant: all-small-caps;
+    color: hotpink;
 }
 
 div.entry {

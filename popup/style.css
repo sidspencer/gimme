@@ -77,6 +77,7 @@ li.failed {
     font-variant: unset;
 }
 
+/* the half-baked features are in the buttonColumn-classed divs */
 div.buttonColumn {
     /* display: inline-block; */
     display: none;
@@ -97,10 +98,15 @@ div.doublewide > button {
     width: 100px;
 }
 
-#toggleVoyeur {
+#toggleVoyeurButton {
     display: none;
 }
 
 #outputHolder {
     margin-bottom: 7px;
+}
+
+div#stopButtonHolder {
+    display: none;
+    margin: 5px 5px 5px 300px;
 }

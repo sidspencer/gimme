@@ -1,12 +1,12 @@
 {
   "name": "gimme",
-  "version": "0.4.7",
+  "version": "0.4.10",
   "description": "A tool for helping you download media from a page, or from the pages that are linked.",
-  "main": "popup/popup.js",
-  "module": "popup/popup.js",
+  "main": "popup/Popup.js",
+  "module": "popup/Popup.js",
   "dependencies": {
     "@babel/plugin-transform-runtime": "^7.10.1",
-    "@babel/polyfill": "^7.8.7",
+    "@babel/polyfill": "^7.10.1",
     "@babel/preset-es2015": "^7.0.0-beta.53",
     "@tensorflow-models/mobilenet": "^2.0.4",
     "@tensorflow/tfjs": "^1.7.3",
@@ -14,18 +14,25 @@
     "@tensorflow/tfjs-core": "^1.7.4",
     "babel-preset-es2015": "^6.24.1",
     "babel-preset-es2017": "^6.24.1",
-    "jszip": "^3.5.0",
-    "webpack": "^4.42.1"
+    "core-js": "^3.6.5",
+    "es6-promise": "^4.2.8",
+    "jszip": "^3.5.0"
   },
   "devDependencies": {
     "@babel/core": "^7.10.2",
+    "@babel/plugin-proposal-class-properties": "^7.10.1",
+    "@babel/plugin-transform-classes": "^7.10.3",
     "@babel/preset-env": "^7.10.2",
     "babel-loader": "^8.1.0",
+    "babel-plugin-es6-promise": "^1.1.1",
+    "source-map-loader": "^1.0.1",
     "undefined": "^0.1.0",
+    "webpack": "^4.43.0",
     "webpack-cli": "^3.3.11"
   },
   "scripts": {
     "pack": "webpack --config webpack.config.js",
+    "clean": "rm */bundle.js*",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
