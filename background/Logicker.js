@@ -1,4 +1,3 @@
-import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm';
 import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
 import { default as Utils } from './Utils.js';
 import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
@@ -11,6 +10,7 @@ import {
     Dimensions,
     Log,
 } from '../lib/DataClasses.js';
+import Output from './Output.js';
 
 
 /**
@@ -110,6 +110,7 @@ class Logicker extends CommonStaticBase {
 
                 Logicker.modelLoadPromiseChain = 
                     Logicker.modelLoadPromiseChain.then(() => { 
+                        //return  Promise.reject('No current mobilenet support'); 
                         return mobilenet.load().then((mnModel) => {
                             Logicker.mnModel = mnModel;
                             Logicker.loadingModel = false;
@@ -118,8 +119,7 @@ class Logicker extends CommonStaticBase {
                                 resolve(Logicker.mnModel);
                             }
                             else {
-                                reject('Mobilenet model came back null.');
-                                
+                                reject('Mobilenet model came back null.')
                             } 
                         });
                     });
@@ -161,7 +161,7 @@ class Logicker extends CommonStaticBase {
                     reject('[Logicker] Classifications came back null');
                 }
             });
-        });
+        }); 
 
         // Either resolves with the mobilenet classifications array, or rejects due the
         // array not being right.
@@ -225,6 +225,21 @@ class Logicker extends CommonStaticBase {
                     }
                 }
             });
+        }
+
+        // Do a special little thing here just for videos.
+        if (zoomImgUri.length === 0) {
+            var vidSource = doc.querySelector('video > source[src]');
+            var vSrc = vidSource.src;
+
+
+            if (!!vidSource && !!vidSource.src) {
+                Output.toOut(`Using video with src:\n\t${vSrc}`);
+                zoomImgUri = vidSource.src;
+            }
+            else {
+                Output.toOut(`Not using that video.`);
+            }
         }
 
         // Look for the trivial case, where it's a div.photo parent of a div child, where the div

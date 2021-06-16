@@ -9,12 +9,12 @@
     "@babel/plugin-transform-runtime": "^7.12.1",
     "@babel/polyfill": "^7.10.1",
     "@babel/runtime-corejs3": "^7.12.5",
-    "@tensorflow-models/mobilenet": "^2.0.4",
-    "@tensorflow/tfjs": "^1.7.3",
-    "@tensorflow/tfjs-converter": "^1.7.4",
-    "@tensorflow/tfjs-core": "^1.7.4",
     "core-js": "^3.6.5",
     "es6-promise": "^4.2.8",
+    "@tensorflow-models/mobilenet": "2.0.4",
+    "@tensorflow/tfjs": "~1.2.11",
+    "@tensorflow/tfjs-converter": "~1.2.1",
+    "@tensorflow/tfjs-core": "1.2.11",
     "jszip": "^3.5.0"
   },
   "devDependencies": {
@@ -27,7 +27,7 @@
     "install": "^0.13.0",
     "source-map-loader": "^1.1.1",
     "undefined": "^0.1.0",
-    "webpack": "^4.44.2",
+    "webpack": "^5.38.1",
     "webpack-cli": "^3.3.12"
   },
   "scripts": {

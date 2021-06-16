@@ -1,4 +1,3 @@
-import { getColorMatrixTextureShapeWidthHeight } from '@tensorflow/tfjs-core/dist/backends/webgl/tex_util';
 import { default as C } from '../lib/C.js';
 import CommonBase from '../lib/CommonBase.js';
 import { FileEntry, FileOption, Log } from '../lib/DataClasses.js';

@@ -191,7 +191,7 @@ class Utils extends CommonStaticBase {
      */
     static isKnownMediaFileOrEndpoint(name) {
         return (
-            Utils.hasNoFileExtension(name) || Utils.isKnownMediaFile(name)  
+            !!name && (Utils.hasNoFileExtension(name) || Utils.isKnownMediaFile(name)) 
         );
     };
 

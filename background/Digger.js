@@ -636,6 +636,29 @@ class Digger extends CommonBase {
 
 
     /**
+     * 
+     * @param {Document} doc 
+     * @param {Location} loc 
+     * @returns 
+     */
+    downloadClickerGalleries(doc, loc) {
+        let archs = doc.querySelectorAll('li.gal > a[data-id]');
+        let lazies = doc.querySelectorAll('li.gal > a[data=id] > img.lazy');
+
+        const f = () => {
+            if (archs.length === 0)_
+            let linkTag = archs.pop();
+            let img = linkTag.firstElementChild;
+            
+            if (Utils.exists(img) && img.className === 'lazy')
+            {
+                $(img).trigger('layoutComplete');
+            }
+        };
+        setTimeout(f, 700);
+    }
+
+    /**
      * Find all the "full-sized"/"zoomed" media on zoom pages, as indicated by a 
      * galleryMap (thumbUri -> zoomPageUri).
      */
@@ -648,7 +671,7 @@ class Digger extends CommonBase {
         if (this.digOpts.doScrape !== false) {
             galleryMap = this.buildGalleryMap(doc, loc);
         }
-
+        
         // This merges, and also manages the Output entries.
         if (!!this.startingGalleryMap && !!Object.keys(this.startingGalleryMap).length) {
             galleryMap = Object.assign({}, this.startingGalleryMap, galleryMap);
@@ -845,39 +868,29 @@ class Digger extends CommonBase {
                 return Promise.reject(C.ACTION.STOP);
             }
             
-            var mimeType = new String(xhr.getResponseHeader('content-type'));
+            // Wrap the possible null in a string.
+            var mimeType = (new String(xhr.getResponseHeader('content-type'))).toLowerCase();
 
             // Report anything other than HTML documents as found media.
-            if (mimeType.indexOf(C.DOC_TYPE.HTML) !== -1) {
-                this.output.toOut('Found image detail page ' + zoomFilename);
-                return (
-                    me.isSTOP() ? 
-                    () => { 
-                        return me.processZoomPage(false, 
-                            new URL(thumbUri), 
-                            new URL(zoomPageUri), 
-                            searchDepth
-                        ); 
-                    } :
-                    () => { 
-                        return Promise.reject(C.ACTION.STOP);
-                    }
+            // In most cases this if will be getting the HTML zoom-image's page. We then call "pocessZoomPage" on it.
+            if (mimeType.indexOf(C.DOC_TYPE.HTML) !== -1 || /\.html/i.test(zoomFilename)) {
+                this.output.toOut('Found possible html for the zoom image. filename: ' + zoomFilename);
+                
+                return me.processZoomPage(false, 
+                    new URL(thumbUri), 
+                    new URL(zoomPageUri), 
+                    searchDepth
                 );
-            } 
-            else if (Utils.isKnownMediaMimeType(mimeType)) {
-                this.output.toOut('Found media ' + zoomFilename);
             }
-
-            return Promise.resolve(new UriPair(thumbUri, zoomPageUri));
-        })
-        .then((pair) => {
-             // Double-check that we got a good result before reporting success.
-            if (Utils.isKnownMediaFileOrEndpoint(pair.zoomUri)) {
-                return this.reportDigSuccess(pair.thumbUri, pair.zoomUri);
+            // Otherwise, we assume we were pointed at the source. See if it's a good mime type or url.
+            else if (Utils.isKnownMediaMimeType(mimeType) || Utils.isKnownMediaFileOrEndpoint(zoomPageUri)) {
+                this.output.toOut(`Using this direct-link:\t${zoomPageUri}`);
+                return this.reportDigSuccess(thumbUri, zoomPageUri);
             }
+            // Else, we *could* show it, but it's nothing good.
             else {
-                this.lm('Zoomed "image" was actually not a known media type. Not harvesting.');
-                return this.reportDigFailure(pair.thumbUri, pair.zoomUri);
+                this.output.toOut(`Not using this "zoompage":\t${zoomPageUri}`);
+                return this.reportDigFailure(thumbUri, zoomPageUri);
             }
         })
         .catch((errorMessage) => {
