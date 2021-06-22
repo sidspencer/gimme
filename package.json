@@ -1,7 +1,7 @@
 {
   "name": "gimmegimmegimme",
   "displayName": "GimmeGimmeGimme",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "description": "A tool for helping you download media from a page, or from the pages that are linked.",
   "main": "popup/Popup.js",
   "module": "popup/Popup.js",
