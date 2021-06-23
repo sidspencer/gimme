@@ -199,6 +199,7 @@ class Logicker extends CommonStaticBase {
     static findBlessedZoomUri(doc, thumbUri) {
         var zoomImgUri = C.ST.E;
         var me = this;
+        //var out = Output.getInstance();
 
         // Look through the blessings for one that matches this thumbUri.
         if (Logicker.blessings.length !== -1) {
@@ -227,21 +228,8 @@ class Logicker extends CommonStaticBase {
             });
         }
 
-        // Do a special little thing here just for videos.
-        if (zoomImgUri.length === 0) {
-            var vidSource = doc.querySelector('video > source[src]');
-            var vSrc = vidSource.src;
-
-
-            if (!!vidSource && !!vidSource.src) {
-                Output.toOut(`Using video with src:\n\t${vSrc}`);
-                zoomImgUri = vidSource.src;
-            }
-            else {
-                Output.toOut(`Not using that video.`);
-            }
-        }
-
+        // -HACK-
+        // Why is this is findBlessedZoomUri?????
         // Look for the trivial case, where it's a div.photo parent of a div child, where the div
         // child has a backgroundImage instead of an img tag -- totally sneaky pete.
         if (zoomImgUri.length === 0) {
@@ -258,7 +246,54 @@ class Logicker extends CommonStaticBase {
             }
         }
 
-        // Returns empty string when there's no special rules.
+        /*
+        // -HACK-
+        // Deal with <picture> tags. This code shouldn't be here!
+        if (zoomImgUri.length === 0) {
+            let pic = doc.querySelector('picture');
+            
+            if (!!pic) {
+                let vSource = pic.querySelector(':scope source:last-of-type');
+
+                if (!!pic.currentSrc) {
+                    zoomImgUri = pic.currentSrc;
+                    out.toOut(`Using pic with src:\n\t${zoomImgUri}`);
+                }
+                else if (!!vSource) {    
+                    zoomImgUri = vSource.getAttribute('src');
+                    out.toOut(`Using pic with src:\n\t${zoomImgUri}`);
+                }
+                else {
+                    out.toOut('No src for <picture>');
+                }
+            }
+        }
+
+        // -HACK-
+        // Do a special little thing here just for videos. It's bad. We get all the videos, 
+        // then just use the first uri we can get a src from...
+        if (zoomImgUri.length === 0) {
+            let v = doc.querySelector('video');
+            
+            if (!!v) {
+                let vSource = v.querySelector(':scope source:last-of-type');
+
+                if (!!v.currentSrc) {
+                    zoomImgUri = v.currentSrc;
+                    out.toOut(`Using video with src:\n\t${zoomImgUri}`);
+                }
+                else if (!!vSource) {    
+                    zoomImgUri = vSource.getAttribute('src');
+                    out.toOut(`Using video with src:\n\t${zoomImgUri}`);
+                }
+                else {
+                    out.toOut('No src for <video>');
+                }
+            }
+        }
+        */
+
+        // Returns empty string when there's no special rules. (And the hacks failed)
         return zoomImgUri;
     };
 
@@ -489,6 +524,9 @@ class Logicker extends CommonStaticBase {
                                     me.lm(`candidate ${imgSrc} has a match score to ${thumbUri} of: ${score}`);
 
                                     resolve(new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, score));
+                                },
+                                (err) => {
+                                    resolve(zeroResponse);
                                 });
                             };
 
@@ -525,6 +563,9 @@ class Logicker extends CommonStaticBase {
 
                     me.lm(`TF Mobilenet's most likely match ->\n -Score: ${topImgScoreObj.score}, Uri: ${topImgScoreObj.zoomUri}`);
                     topLevelResolve(topImgScoreObj);
+                },
+                (err) => {
+                    topLevelReject(`something went wrong.`);
                 });
             });
         });
@@ -555,7 +596,8 @@ class Logicker extends CommonStaticBase {
                 var imgsToCheck = imgNodes.length;
 
                 if (imgsToCheck < 1) {
-                    return reject('[Logicker] No images to check.');
+                    reject('[Logicker] No images to check.');
+                    return;
                 }
 
                 for (var i = 0; i < imgNodes.length; i++) {
@@ -612,6 +654,11 @@ class Logicker extends CommonStaticBase {
                     };
 
                     imageObj.src = !!imgNode.src ? imgNode.src : imgNode.currentSrc;
+                }
+
+                if (!!largestImgSrc) {
+                    reject('Could not find largest image');
+                    return;
                 }
             }
             else {
