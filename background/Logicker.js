@@ -158,8 +158,12 @@ class Logicker extends CommonStaticBase {
                     resolve(imgClassifications);  
                 }
                 else {
-                    reject('[Logicker] Classifications came back null');
+                    me.lm('[Logicker] Classifications came back null');
+                    reject(null);
                 }
+            }).catch((err) => {
+                me.lm(`[Logicker] mnModel.classify() gave error: ${err}`);
+                reject(null);
             });
         }); 
 
@@ -445,7 +449,7 @@ class Logicker extends CommonStaticBase {
 
                                 // Do the scoring using tfjs mobilenet.
                                 Logicker.classifyImage(this).then((classifications) => {
-                                    if (!Array.isArray(classifications)) {
+                                    if (!classifications.length) {
                                         me.lm(`got no classifications for img ${imgSrc}`);
                                         resolve(zeroResponse);
                                         return;
