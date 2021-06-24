@@ -228,7 +228,7 @@ class Logicker extends CommonStaticBase {
             });
         }
 
-        // -HACK-
+        // -HACK- ???????
         // Why is this is findBlessedZoomUri?????
         // Look for the trivial case, where it's a div.photo parent of a div child, where the div
         // child has a backgroundImage instead of an img tag -- totally sneaky pete.
@@ -245,53 +245,6 @@ class Logicker extends CommonStaticBase {
                     .replace(C.ST.END_P, C.ST.E);
             }
         }
-
-        /*
-        // -HACK-
-        // Deal with <picture> tags. This code shouldn't be here!
-        if (zoomImgUri.length === 0) {
-            let pic = doc.querySelector('picture');
-            
-            if (!!pic) {
-                let vSource = pic.querySelector(':scope source:last-of-type');
-
-                if (!!pic.currentSrc) {
-                    zoomImgUri = pic.currentSrc;
-                    out.toOut(`Using pic with src:\n\t${zoomImgUri}`);
-                }
-                else if (!!vSource) {    
-                    zoomImgUri = vSource.getAttribute('src');
-                    out.toOut(`Using pic with src:\n\t${zoomImgUri}`);
-                }
-                else {
-                    out.toOut('No src for <picture>');
-                }
-            }
-        }
-
-        // -HACK-
-        // Do a special little thing here just for videos. It's bad. We get all the videos, 
-        // then just use the first uri we can get a src from...
-        if (zoomImgUri.length === 0) {
-            let v = doc.querySelector('video');
-            
-            if (!!v) {
-                let vSource = v.querySelector(':scope source:last-of-type');
-
-                if (!!v.currentSrc) {
-                    zoomImgUri = v.currentSrc;
-                    out.toOut(`Using video with src:\n\t${zoomImgUri}`);
-                }
-                else if (!!vSource) {    
-                    zoomImgUri = vSource.getAttribute('src');
-                    out.toOut(`Using video with src:\n\t${zoomImgUri}`);
-                }
-                else {
-                    out.toOut('No src for <video>');
-                }
-            }
-        }
-        */
 
         // Returns empty string when there's no special rules. (And the hacks failed)
         return zoomImgUri;
