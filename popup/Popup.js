@@ -400,6 +400,10 @@ class Popup extends CommonBase {
         });
 
 
+        document.getElementById(C.ELEMENT_ID.BACK_TO_TOP).addEventListener(C.EVT.CLICK, () => {
+            window.scroll({ top: 0 });
+        });
+
         /*
         document.getElementById(C.ELEMENT_ID.RESUME).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage((bgWindow) => {
