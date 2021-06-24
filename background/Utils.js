@@ -505,6 +505,24 @@ class Utils extends CommonStaticBase {
 
 
     /**
+     * Add a salting param to a uri and return it, to disambiguate in
+     */
+    static saltUri(uri) {
+        // straight-up change the input param on this.
+        if (uri.indexOf('?') === -1) {
+            uri = uri + '?'
+        }
+        else {
+            uri = uri + '&'
+        }
+
+        uri = uri + 'gimmeyou=' + (new Date()).getTime();
+
+        return uri;
+    }
+
+
+    /**
      * Build a salted directory name based on Utils.loc. 
      */
     static getSaltedDirectoryName(loc) {
