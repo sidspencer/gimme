@@ -355,7 +355,7 @@ class Digger extends CommonBase {
 
             // Do some sanity checks. 
             if (!uriPair || uriPair === null) {
-                this.lm('Called to harvest a null uriPair. Skipping... ')
+                this.lm('Called to harvest a null uriPair. Skipping... ');
                 continue;
             }
             
@@ -368,7 +368,7 @@ class Digger extends CommonBase {
         }
         
         // Resolve. The value is unimportant in this code rev, however.
-        return Promise.resolve();
+        return Promise.resolve(this.harvestedUriMap);
     }
 
 
@@ -924,7 +924,7 @@ class Digger extends CommonBase {
                     }
 
                     me.lm('processZoomPage xhr error: ' + JSON.stringify(e));
-                    return Promise.resolve(e);
+                    return Promise.reject(e);
                 });
         }
 
