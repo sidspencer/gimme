@@ -53,7 +53,9 @@ class EventPage extends CommonStaticBase {
     static goDig(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
@@ -77,7 +79,9 @@ class EventPage extends CommonStaticBase {
     static goDigFileOptions(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
@@ -141,7 +145,9 @@ class EventPage extends CommonStaticBase {
     static goDigGalleryGallery(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -171,7 +177,9 @@ class EventPage extends CommonStaticBase {
     static goScrape(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -194,7 +202,9 @@ class EventPage extends CommonStaticBase {
     static goScrapeFileOptions(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+        
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
