@@ -418,22 +418,19 @@ class Digger extends CommonBase {
         // Create entries in the gallery map, the XHR tracking array, and the UI.
         if (Utils.exists(thumbUri) && Utils.exists(zoomUri)) {
             if (!Logicker.isKnownBadImg(zoomUri)) {
+                // Allow dupes of base thumbUris. Just salt to disambiguate.
+                if (thumbUri in map) { thumbUri = Utils.saltUri(thumbUri); }
+
                 this.lm(
                     ' Adding to map:\n' + 
                     '         thumbUri: ' + thumbUri + '\n' + 
                     '         zoomUri:  ' + zoomUri + C.ST.E
                 );
 
-                // Create the associations, but do not add duplicates.
-                if (thumbUri in map) {
-                    return;
-                }
-                else {
-                    var newId = Object.keys(map).length;
-                    map[thumbUri] = zoomUri;                        
-                    this.outputIdMap[thumbUri] = newId;
-                    this.output.addNewEntry(newId, thumbUri);
-                }
+                var newId = Object.keys(map).length;
+                map[thumbUri] = zoomUri;                        
+                this.outputIdMap[thumbUri] = newId;
+                this.output.addNewEntry(newId, thumbUri);
             }
         }
     }
@@ -959,22 +956,23 @@ class Digger extends CommonBase {
             this.output.toOut('Looking for the largest Image on ' + zoomFilename);
             return Logicker.getPairWithLargestImage(thumbUrl.href, doc);
         })
-        // 3 - Use document inspection, using each options-defined type of scrape.
+        // 3 - Use document inspection, using each options-defined media-type of scrape.
         .catch((previousError) => {
             errors.push(previousError);                        
             if (searchDepth < C.SEARCH_DEPTH.INSPECT) { return Promise.resolve(null); };
 
             this.output.toOut('Inspecting all media on ' + zoomFilename);
+            this.output.lm('Inspecting all media on ' + zoomFilename);
             return this.inspectZoomPage(doc, thumbUrl, zoomPageUrl);                    
         })
-         // 4 - Use TensorFlow's Mobilenet pre-trained ML model.
+         // 4 - Use TensorFlow's Mobilenet pre-trained ML model. ONLY WORKS FOR IMAGES!!!!
         .catch((previousError) => {
             errors.push(previousError);
             if (searchDepth < C.SEARCH_DEPTH.TF_MATCH) { return Promise.resolve(null); }
 
             return Logicker.tfClassificationMatch(thumbUrl.href, doc);
         })
-        // 5- Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs.
+        // 5- Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs. It then calls processZoomPage.
         .catch((previousError) => {
             errors.push(previousError);                        
             if (searchDepth < C.SEARCH_DEPTH.DIG_DEEPER) { return Promise.resolve(null); };
@@ -1023,12 +1021,37 @@ class Digger extends CommonBase {
             this.lm('Found blessed full-size uri: ' + blessedZoomUri);
             return Promise.resolve(new UriPair(thumbUrl.href, blessedZoomUri));
         }
-        else if (this.inspectionOptions.imgs && doc.images.length === 1) {
-            return Promise.resolve(new UriPair(thumbUrl.href, doc.images[0].src));
+
+        // 1 - If there's one image? Assume it.
+        if (this.inspectionOptions.imgs) {
+            if (doc.images.length === 1) { return Promise.resolve(new UriPair(thumbUrl.href, doc.images[0].src)); }
         }
 
-        // TODO: Create more skim-worthy search strategies.        
-        return Promise.reject('Skimming found nothing');
+        // TODO: Not sure how to find a sneaky has-one-big-bg-image element....
+
+        // 2 - A pip video? Use that.
+        if (this.inspectionOptions.videos) {
+            let picInPicVid = doc.picureInPictureElement;
+            if (!!picInPicVid) { return Promise.resolve(new UriPair(thumbUrl.href, (picInPicVid.currentSrc || picInPicVid.src))); }
+        }
+        
+        // 3 - One video ele? Use it.
+        if (this.inspectionOptions.videos) {            
+            let vids = doc.querySelectorAll('video');
+            if (!!vids && vids.length === 1) { return Promise.resolve(new UriPair(thumbUrl.href, (vids[0].currentSrc || vids[0].src))); }
+        }
+
+        // 4 - One audio? Assume it!
+        if (this.inspectionOptions.audios) {
+            let auds = doc.querySelectorAll('audio');
+            if (!!auds && auds.length === 1) { return Promise.resolve(new UriPair(thumbUrl.href, (auds[0].currentSrc || auds[0].src))); }
+        } 
+
+ 
+
+        // TODO: Check source elements and picture elements and canvases... Improve skim-worthy strategies.
+        //       Maybe use onloadedmetadata or fancier MediaElement stuff?     
+        return Promise.reject('Skimming found nothing super-obvious');
     }
 
     
@@ -1046,7 +1069,11 @@ class Digger extends CommonBase {
             if (!!zoomUri) { return; };
 
             if (this.inspectionOptions[optName] === true) {
-                zoomUri = me.findZoomUri(doc, thumbUrl, zoomPageUrl, optName);
+                zoomUri = me.findZoomUriByNameMatch(doc, thumbUrl, zoomPageUrl, optName);
+                
+                if (!zoomUri) {
+                    me.find
+                }
             }
         });
 
@@ -1065,9 +1092,9 @@ class Digger extends CommonBase {
     /**
      * Try to find the pointed-to media item in the document corresponding to the thumb. 
      */
-    findZoomUri(d, tUrl, zpUrl, optionName) {
+    findZoomUriByNameMatch(d, tUrl, zpUrl, optionName) {
         if (!d && !tUrl && !zpUrl && !optionName) {
-            return Promise.reject(' findZoomUri called with bad arguments. Skipping.');
+            return Promise.reject(' findZoomUriByNameMatch called with bad arguments. Skipping.');
         }
 
         var findMediaUris = this.SCRAPING_TOOLS[optionName] || (function() { return []; });
@@ -1087,13 +1114,9 @@ class Digger extends CommonBase {
             urls.forEach((url) => {
                 if (!!zUri) { return; };
 
-                if (Utils.exists(url) && url.pathname) {
-                    if (optionName === C.DS_KEY.VIDEOS && urls.length === 1) {
-                        zUri = url.href;
-                    }                                    
-                    else if (Logicker.isPossiblyZoomedFile(tUrl, url)) {
-                        zUri = url.href;
-                    }
+                // Regardless of mediaType, try to use the filename heuristic.
+                if (Utils.exists(url) && url.pathname && Logicker.isPossiblyZoomedFile(tUrl, url)) {
+                    zUri = url.href;
                 }
             });
         }
