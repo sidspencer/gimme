@@ -8,15 +8,16 @@
   "version": "0.4.14",
   "description": "Shortcut for downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme...",
   "incognito": "spanning",
+  "offline_enabled": true,
 
-  "applications": {
+  "browser_specific_settings": {
     "gecko": {
       "id": "{f00d69fc-7fb7-4959-adcd-6fe3cd0cba09}"
     }
   },
 
   "icons": {
-    "16": "media/icon16.png",   
+    "16": "media/icon16.png",
     "24": "media/icon24.png",
     "32": "media/icon32.png",
     "48": "media/icon48.png",
@@ -57,7 +58,7 @@
       "page": "options/options.html",
       "open_in_tab": true
   },
-  
+
   "permissions": [
     "activeTab",
     "webRequest",
@@ -69,7 +70,7 @@
 
   "web_accessible_resources": [
     "content/*.js",
-    "lib/*.js",
+    "base/*.js",
     "options/*.js",
     "background/*.js",
     "popup/*.js",
@@ -77,7 +78,7 @@
     "background/*.js.map",
     "options/*.js.map",
     "content/*.js.map",
-    "lib/*.js.map",
+    "base/*.js.map",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js",
     "node_modules/@tensorflow/tfjs-core/dist/tf-core.esm.js.map",
     "node_modules/@tensorflow/tfjs/dist/tf.esm.js.map",
