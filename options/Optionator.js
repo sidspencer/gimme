@@ -1,6 +1,6 @@
-import { default as C } from '../lib/C.js';
-import { OptionEntry } from '../lib/DataClasses.js';
-import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
+import { default as C } from '../base/C.js';
+import { OptionEntry } from '../base/DataClasses.js';
+import { default as CommonStaticBase } from '../base/CommonStaticBase.js';
 import { default as Utils } from '../background/Utils.js';
 
 

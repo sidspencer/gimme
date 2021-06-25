@@ -1,9 +1,9 @@
-import { default as CommonBase } from '../lib/CommonBase.js';
+import { default as CommonBase } from '../base/CommonBase.js';
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
-import { default as C } from '../lib/C.js';
-import { ScrapeDefinition, Log } from '../lib/DataClasses.js';
+import { default as C } from '../base/C.js';
+import { ScrapeDefinition, Log } from '../base/DataClasses.js';
 
 
 /**

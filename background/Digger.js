@@ -2,15 +2,15 @@ import { default as Scraper } from './Scraper.js';
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
-import { default as C } from '../lib/C.js';
+import { default as C } from '../base/C.js';
 import {
     Storing, 
     FileOption, 
     UriPair,
     GalleryDef, 
     Log
-} from '../lib/DataClasses.js'
-import CommonBase from '../lib/CommonBase.js';
+} from '../base/DataClasses.js'
+import CommonBase from '../base/CommonBase.js';
 
 
 /** 

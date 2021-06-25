@@ -1,10 +1,10 @@
-import { default as CommonBase } from '../lib/CommonBase.js';
+import { default as CommonBase } from '../base/CommonBase.js';
 import { default as Utils } from './Utils.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Output } from './Output.js';
 import { default as Digger } from './Digger.js';
 import { default as Scraper } from './Scraper.js';
-import { default as C } from '../lib/C.js';
+import { default as C } from '../base/C.js';
 import {
     DigOpts, 
     ContentMessage,
@@ -15,8 +15,8 @@ import {
     ScrapeOptions,
     Storing,
     Log,
-} from '../lib/DataClasses.js'
-import MessageStrings from '../lib/MessageStrings.js'; 
+} from '../base/DataClasses.js'
+import MessageStrings from '../base/MessageStrings.js'; 
 
 
 /**

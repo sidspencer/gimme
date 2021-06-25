@@ -5,7 +5,7 @@ import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
-import { default as C } from '../lib/C.js';
+import { default as C } from '../base/C.js';
 import { 
     InspectionOptions, 
     Log, 
@@ -13,8 +13,8 @@ import {
     GalleryDef,
     ConfigSpec, 
     Storing,
-} from '../lib/DataClasses.js';
-import CommonStaticBase from '../lib/CommonStaticBase.js';
+} from '../base/DataClasses.js';
+import CommonStaticBase from '../base/CommonStaticBase.js';
 
 
 const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 

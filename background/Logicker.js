@@ -1,7 +1,7 @@
 import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
 import { default as Utils } from './Utils.js';
-import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
-import { default as C } from '../lib/C.js';
+import { default as CommonStaticBase } from '../base/CommonStaticBase.js';
+import { default as C } from '../base/C.js';
 import {
     ContentMessage,
     ProcessingInstructions,
@@ -9,7 +9,7 @@ import {
     ScoredUriPair,
     Dimensions,
     Log,
-} from '../lib/DataClasses.js';
+} from '../base/DataClasses.js';
 import Output from './Output.js';
 
 

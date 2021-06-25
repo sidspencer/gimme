@@ -1,10 +1,10 @@
-import { default as C } from '../lib/C.js';
-import CommonBase from '../lib/CommonBase.js';
+import { default as C } from '../base/C.js';
+import CommonBase from '../base/CommonBase.js';
 import { 
     ContentMessage, 
     ContentPeeperMessage,
     Log,
- } from '../lib/DataClasses.js';
+ } from '../base/DataClasses.js';
 
 
 /**

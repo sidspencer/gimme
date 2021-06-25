@@ -1,6 +1,6 @@
-import { default as C } from '../lib/C.js';
-import CommonBase from '../lib/CommonBase.js';
-import { FileEntry, FileOption, Log } from '../lib/DataClasses.js';
+import { default as C } from '../base/C.js';
+import CommonBase from '../base/CommonBase.js';
+import { FileEntry, FileOption, Log } from '../base/DataClasses.js';
 import { default as Utils } from './Utils.js';
 
 
