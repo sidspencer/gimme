@@ -31,10 +31,9 @@
     "webpack-cli": "^3.3.12"
   },
   "scripts": {
-    "build": "webpack --config webpack.config.js",
-    "wpk": "npm run build",
-    "pack": "npm run build",
+    "wpack": "webpack --config webpack.config.js",
     "clean": "rm */bundle.js*",
+    "build": "npm run clean && npm run wpack",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
