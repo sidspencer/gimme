@@ -11,7 +11,7 @@ options/bundle.js
 options/bundle.js.map
 popup/bundle.js
 popup/bundle.js.map
-lib/bundle.js
-lib/bundle.js.map
+base/bundle.js
+base/bundle.js.map
 .vscode/
 *~
