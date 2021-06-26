@@ -540,6 +540,8 @@ class RecognizingRegex {
     static IMAGE = /(jpg|jpeg|gif|png|tiff|tif|pdf)/i;
     static PROTOCOL =  /^(http|https|data|blob|chrome|chrome-extension)\:/;
     static SUPPORTED = /\.(jpg|jpeg|png|gif|tiff|mpg|mp4|flv|avi|zip|tar|gz|mp3|ogg|aac|m4a)$/i;
+    static TEXT_ONLY = /\.(tex|text|txt|htm|html|js|css|log|md|nfo|readme|plist)/i;
+    static HTML = /\.(htm|html)/i;
 }
 
 
