@@ -71,11 +71,11 @@ class CommonBase {
 
 
     /**
-     * Helper shortcut to log a stop event message. "this.log.log(`${C.ST.STOP_BANG} ...`)" is too much.
+     * Helper shortcut to log a stop event message. "this.lm(`${C.ST.STOP_BANG} ...`)" is too much.
      * @param {any} stopMessage 
      */
     lsm(stopMessage) {
-        this.log.log(`${MessageStrings.STOP_SIGNAL} ${stopMessage}`);
+        this.lm(`${MessageStrings.STOP_SIGNAL} ${stopMessage}`);
     }
 
     /**

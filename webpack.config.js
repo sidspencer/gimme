@@ -9,7 +9,7 @@ module.exports = {
         content: './content/ContentPeeper.js',
         options: './options/Optionator.js',
         popup: './popup/Popup.js',
-        lib: './lib/DataClasses.js'
+        base: './base/DataClasses.js'
     },
     output: {
         // WINDOWS: path: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',

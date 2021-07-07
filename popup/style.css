@@ -110,3 +110,12 @@ div#stopButtonHolder {
     display: none;
     margin: 5px 5px 5px 300px;
 }
+
+div#backToTop {
+    position:fixed;
+    bottom: 5px;
+    right: 10px;
+    font-size: 30px;
+    font-weight: bold;
+    cursor: pointer;
+}
