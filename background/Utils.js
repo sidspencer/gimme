@@ -963,7 +963,7 @@ class Utils extends CommonStaticBase {
                 delete Utils.listeners[listenerId];
 
                 if (Utils.exists(iframe)) {
-                    if (Utils.exists(iframe.contentWindow) && isFunction(iframe.contentWindow.stop)) {
+                    if (Utils.exists(iframe.contentWindow) && (typeof(iframe.contentWindow.stop) === 'function')) {
                         iframe.contentWindow.stop();
                         iframe.src = C.ST.HASH;
                     };
