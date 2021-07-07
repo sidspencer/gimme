@@ -5,17 +5,40 @@ import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
-import { default as C } from '../lib/C.js';
-import { InspectionOptions, Log, ResumeEvent } from '../lib/DataClasses.js';
+import { default as C } from '../base/C.js';
+import { 
+    InspectionOptions, 
+    Log, 
+    ResumeEvent,
+    GalleryDef,
+    ConfigSpec, 
+    Storing,
+} from '../base/DataClasses.js';
+import CommonStaticBase from '../base/CommonStaticBase.js';
 
 
 const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
 
-class EventPage {
+class EventPage extends CommonStaticBase {
     // The definitively active EventPage's app instance, stored statically.
     static app = undefined;
 
+    // The full value of chrome.storage.sync.get(['spec'], ...). Set by the Popup,
+    // because it handles storage the most.
+    static optSpec = {};
+
+
+    /**
+     * Do setup tasks, like calling super.setup() for STOP listening and
+     * log setup.
+     */
+    static setup() {
+        if (!Utils.exists(EventPage.log)) {
+            super.setup(C.LOG_SRC.EVENTPAGE);
+        }
+    }
     
+
     //
     // Digging
     //
@@ -30,7 +53,9 @@ class EventPage {
     static goDig(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
@@ -54,7 +79,9 @@ class EventPage {
     static goDigFileOptions(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
         
@@ -118,7 +145,9 @@ class EventPage {
     static goDigGalleryGallery(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true, true, true, true, false, false);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -148,7 +177,9 @@ class EventPage {
     static goScrape(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -171,7 +202,9 @@ class EventPage {
     static goScrapeFileOptions(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(true);
+        var inspectionOptions = new InspectionOptions();
+        inspectionOptions.overrideSearchDefault(true);
+        
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -235,14 +268,66 @@ class EventPage {
         EventPage.app = undefined;
         return(true);
     }
+    
+
+    // /**
+    //  * Start a chrome.storage change listener, which takes the values from the 
+    //  * 'galleryDefs' storage key and creates 'spec.messages' entries from them.
+    //  */
+    // static didStartChangeListener = false;
+    // static debounceLocked = false;
+    // static startListeningForNewGalleryDefs() {
+    //     chrome.storage.onChanged.addListener((changes, areaName) => {
+    //         // Were we called about a galleryDefs change? Are we debounce-unlocked? Otherwise, do nothing. 
+    //         var gDefChange = false;
+    //         if (!EventPage.debounceLocked && Utils.exists(changes) && (gDefChange = changes[C.OPT_CONF.GALLERY_DEFS])) {
+    //             // If we have new gallery definitions, create SpecMessage objects from them
+    //             // and append them to the "spec" key's "messages" array and store.
+    //             if (Array.isArray(gDefChange.newValue)) {
+    //                 // Lock so this handler does not stomp itself.
+    //                 EventPage.debounceLocked = true;
+
+    //                 // Convert the defs to Messages, append them to our copy of the spec.
+    //                 var defMessages = gDefChange.newValue.map(gDefObj => GalleryDef.fromStorage(gDefObj).toSpecMessage());                    
+    //                 Array.prototype.push.apply(EventPage.optSpec.messages, defMessages);
+
+    //                 // Set the spec into storage, now containing its expanded messages list. 
+    //                 // On success, also update Logicker with the new messages and remove the 
+    //                 // now unneeded gallery defs from storage.
+    //                 // Finally unlock our debounce var.
+    //                 Utils.setInStorage(Storing.buildConfigSpecStoreObj(EventPage.optSpec))
+    //                     .then(() => {
+    //                         EventPage.lm(`Set spec in storage with ${defMessages.length} discovered gallery definitions.`);
+    //                         Logicker.setMessages(EventPage.optSpec.messages);
+
+    //                         return Utils.removeFromStorage([C.OPT_CONF.GALLERY_DEFS]);
+    //                     })
+    //                     .catch((err) => {
+    //                         EventPage.lm(`Could not store the updated options spec! Error was:\n\t${JSON.stringify(err)}`);
+    //                     })
+    //                     .finally(() => {
+    //                         EventPage.debounceLocked = false;
+    //                     });
+    //             }
+    //         }
+    //     });
+
+    //     EventPage.didStartChangeListener = true;
+    // }
 }
 
+// Do the static setup. The method guards itself.
+EventPage.setup();
+
+// // Start the storage-change listener.
+// if (!EventPage.didStartChangeListener) {
+//     EventPage.startListeningForNewGalleryDefs();
+// }
 
 // Set the class on the background window just in case.
 if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(EP)) {
     window[EP] = EventPage;
 }
-
 
 // export.
 export default EventPage;

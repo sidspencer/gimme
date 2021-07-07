@@ -1,4 +1,4 @@
-import { default as C } from '../lib/C.js';
+import { default as C } from '../base/C.js';
 import { default as Output } from '../background/Output.js';
 import { default as Utils } from '../background/Utils.js'
 import {
@@ -6,8 +6,8 @@ import {
     FileOption,
     StopEvent,
     ResumeEvent,
-} from '../lib/DataClasses.js';
-import CommonBase from '../lib/CommonBase.js';
+} from '../base/DataClasses.js';
+import CommonBase from '../base/CommonBase.js';
 
 
 /**
@@ -24,7 +24,7 @@ class Popup extends CommonBase {
      */
     constructor() {
         if (Utils.exists(Popup.instance)) {
-            Popup.instance.lm('Popup constructor called when there\'s already a valid Popup.instance.');
+            Popup.instance.lm('Popup constructor called, but there\'s already a valid Popup.instance.');
         }
         else {
             // set up Log, and STOP event handlers.
@@ -50,13 +50,14 @@ class Popup extends CommonBase {
     setFileOptionList() {
         var me = this;
 
-        Utils.getFromStorage(Storing.storePrevUriMap({}))
+        Utils.getFromStorage(Storing.buildPrevUriMapStoreObj({}), 'local')
             .then((store) => {
                 var uriMap = store.prevUriMap
 
                 // If we're still in the digging/scraping stages, restore the textual file-list.
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
                 var length = Object.values(uriMap).length;
+
                 chrome.runtime.getBackgroundPage((bgWindow) => {
                     // Alias the static class Utils, and get the Output common instance..
                     var ut = bgWindow[C.WIN_PROP.UTILS_CLASS];
@@ -148,7 +149,12 @@ class Popup extends CommonBase {
                 return C.CAN_FN.PR_RS_DEF();
             })
             .catch((err) => {
-                out.toOut('Problem loading previous results. My apologies.');
+                if (!err) {
+                    return C.CAN_FN.PR_RS_DEF();
+                }
+
+                var outputArea = window.document.getElementById(C.ELEMENT_ID.OUTPUT);     
+                outputArea.textContent = 'Problem loading previous results. My apologies.';
                 me.lm('Could not get the prevUriMap. err: ' + JSON.stringify(err));
                 
                 return C.CAN_FN.PR_RJ(err);
@@ -162,7 +168,7 @@ class Popup extends CommonBase {
     static clearPreviousUriMap() {         
         chrome.browserAction.setBadgeText({ text: C.ST.E });
         
-        Utils.setInStorage(Storing.storePrevUriMap({}))
+        Utils.setInStorage(Storing.buildPrevUriMapStoreObj({}), 'local')
             .then(() => {
                 Popup.instance.lm( 'Cleared prev uri map');
                 return C.CAN_FN.PR_RS_DEF();
@@ -186,47 +192,56 @@ class Popup extends CommonBase {
                     processings: [],
                     blessings: [],
                 }
-            })
-            .then((store) => {
-                // Set the options on the Digger and Logicker through static methods, and on
-                // Output's common instance. 
-                chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
-                    var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
-                    var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
-                    var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+            },
+            'sync'
+        )
+        .then((store) => {
+            // Set the options on the Digger and Logicker through static methods, and on
+            // Output's common instance. 
+            chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
+                var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
+                var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
+                var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+                var u = bgWindow[C.WIN_PROP.UTILS_CLASS];
 
-                    d.setBatchSize(store.spec.config.dlBatchSize);
-                    d.setChannels(store.spec.config.dlChannels);
+                // Store the full options spec on the EventPage so it can easily 
+                // merge in new galleryDefs to "spec.messages".
+                var ep = bgWindow[C.WIN_PROP.EVENT_PAGE_CLASS];
+                ep.optSpec = store.spec;
 
-                    l.setMinZoomHeight(store.spec.config.minZoomHeight);
-                    l.setMinZoomWidth(store.spec.config.minZoomWidth);
-                    l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
+                u.setConcurrentDownloadCount(store.spec.config.concurrentDls);
 
-                    l.setMessages(store.spec.messages);
-                    l.setProcessings(store.spec.processings);
-                    l.setBlessings(store.spec.blessings);
+                d.setBatchSize(store.spec.config.dlBatchSize);
+                d.setChannels(store.spec.config.dlChannels);
 
-                    o.setEnableHalfBakedFeatures(
-                        (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
-                    );
-                });
+                l.setMinZoomHeight(store.spec.config.minZoomHeight);
+                l.setMinZoomWidth(store.spec.config.minZoomWidth);
+                l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
 
-                // Show all the buttons if the user enabled the half-baked features.
-                if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
-                    var bcs = document.getElementsByClassName('buttonColumn');
+                l.setMessages(store.spec.messages);
+                l.setProcessings(store.spec.processings);
+                l.setBlessings(store.spec.blessings);
 
-                    for (var b = 0; b < bcs.length; b++) {
-                        bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
-                    }
+                o.setEnableHalfBakedFeatures(
+                    (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
+                );
+            });
+
+            // Show all the buttons if the user enabled the half-baked features.
+            if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
+                var bcs = document.getElementsByClassName('buttonColumn');
+
+                for (var b = 0; b < bcs.length; b++) {
+                    bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
                 }
-
-                return C.CAN_FN.PR_RS_DEF();
-            })
-            .catch((err) => {
-                Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
-                return C.CAN_FN.PR_RJ(err);
             }
-        );
+
+            return C.CAN_FN.PR_RS_DEF();
+        })
+        .catch((err) => {
+            Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n\t${JSON.stringify(err)}`);
+            return C.CAN_FN.PR_RJ(err);
+        });
     }
 
 
@@ -384,6 +399,10 @@ class Popup extends CommonBase {
             });
         });
 
+
+        document.getElementById(C.ELEMENT_ID.BACK_TO_TOP).addEventListener(C.EVT.CLICK, () => {
+            window.scroll({ top: 0 });
+        });
 
         /*
         document.getElementById(C.ELEMENT_ID.RESUME).addEventListener(C.EVT.CLICK, () => {

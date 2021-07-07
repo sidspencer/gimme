@@ -7,15 +7,24 @@ As mentioned before, code is there to download video and audio files as well, bu
 
 This extension works with Chrome, Firefox, and Edge -- it can be found in all three extension stores in addition to in this repo.
 
-# v0.4.10
-This release has been focused around refactoring, extracting constants, and the long-planned feature of being able to _Stop_ long-running dig and scrape operations (such as in a 100-page gallery-gallery dig). The refactoring and extracting, updating to using ES6 features (right now with [babel](https://github.com/babel/) and [webpack](https://webpack.js.org/)), is letting the code evolve organically along with the greater features as they come available. Yet also, this process has been directly pointing out fundamental weaknesses of the codebase. 
 
-One of these weaknesses was that I never implemented a _Stop_ button to end a long-running `dig` or `scrape` operation. I had planned to create one way before now, and had baked the notion of there being a _Stop_ button into the very first promise-chains. It doesn't work perfectly, or always quickly. However, it is there. Now if you really want that 500-gallery-gallery-dig to end its resource-plundering and give you control of your browser and network bandwidth back, you can have it with the _Stop_ button.
+# v0.4.13
+Bugfixes were plentiful. Lots of valid images were being discarded for nitpicky ivory-tower-only reasons. Upgraded npm packages too.
 
-The download system also got light shined on its shortcomings, so I rearranged and fixed up the download queue. It had missed a link in the promise-chaining, which was causing all the download requests to be sent from gimme almost all-at-once to the browser, causing the whole browser to freeze and become unresponsive for even minutes until it had caught up (and usually aborted most of the requested downloads). This has been fixed, and now a steady stream of downloads gets sent to the browser, spaced by 10 concurrent promise-chains of download channels.
+Updated options/preferences page to work again.
 
-Options/Preferences got broken at some point, with Dominatrix no longer building subforms for object-type configuration values. Fixing that is also in the list of improvements.
+# v0.4.14 
+Glaring problems that plagued v0.4.13 have been tracked-down and fixed!! The v0.4.14 branch was finally created and dedicated to making GimmeGimmeGimme a better product. That's the priority, getting you the media desired repeatably and faster. Those TypeScript and gallery-def "ML" bits will wait. (See "The Future" below.)
+-Lazy-loaded thumbnails for a gallery always resulted in only one media match, as all the thumbUris point to the same thumbnail image file at the same at the time of the gallery
+scraping. Now, when dupe thumb uri values are found, they are salted in their querystring with an extra param. This fixes about 80% of the times Gimme would fail miserably and only
+return one zoom-item! Now, with the salting, the map structures are resiliant in the face of these lazy, tricky galleries, and the full-sized linked zoom-media gets correctly identified, harvested, and presented as options. The text for the options is already correct, but for clarity we need to add a built-in thumb image to semantically represent what's going on.
+-TensorFlow classifications were getting their Promise resolves and rejections seriously messed-up. Some code paths failed to yield any type of resolution whatsoever, and that was why there were so many near-permanent hangs only recoverable via reloading the extension or quitting and restarting the browser. The bugs were deep and convoluted in our promise structures built for the TF classifications, and took a lot of teasing out. Now the damn thing works way more reliably, and doesn't waste your time by processing 90% of a huge gallery-gallery-dig only to stop dead and piss you off.
+-Meanwhile: the webpack and babel usage has been further refined, libs have been pegged to specific versions, downloading has had its perf improved a bit, comments have been iterated on, some code naming issues are better, and it's on a more alright trajectory again.
+-Other stuff and fixes etc la la la who fucking cares. The new mantra is RELIABILITY AND USABILITY. This is still just code-noodling at the end of the day, but it shouldn't make you want to pull your hair out from frustration.
+-The best update so far is the "go back to the top" arrow in the popup. Oh, Totally.
+
+# ...The Future (AKA needless pipe dreams)
+I was trying to get this done for v0.4.14, but there are bug fixes that need to go out **now**, so it must wait. So the next feature emphasis will be on saving the "Gallery Definition" **selectors** that match the links and thumbnails and full-sized images for a website's types of galleries. For each element selector per element type that we find, that data goes into the Options/Preferences waiting for you to review it and save it just as if you had configured it completely manually. This way you can edit up each gallery definition to make discovering galleries and their assets lightning-fast the next time you run gimme against galleries on that site. Saving the discovered selectors automatically for your review might not be as sexy as real ML or AI, but it accelerates downloading from sites dramatically. Suddenly, instead of needing to run a significant set of heuristics and some ML to try to get the right data, now Gimme only needs to run a few calls to `querySelectorAll()` based on the site's Gallery Definition, seeming almost instantaneous. Sorry I didn't get this done for v0.4.13. Stay tuned!
 
 # building
-Execute "npm run pack" in the base directory to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files only
-
+Execute "npm install" in the base "gimme" directory, then run "npm run pack" to build the bundle.js and bundle.js.map files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. Please note that the html components all reference the bundle.js files, arnd nothing will work if you try to run without having executed "npm run pack".

@@ -1,7 +1,6 @@
-import { getColorMatrixTextureShapeWidthHeight } from '@tensorflow/tfjs-core/dist/backends/webgl/tex_util';
-import { default as C } from '../lib/C.js';
-import CommonBase from '../lib/CommonBase.js';
-import { FileEntry, FileOption, Log } from '../lib/DataClasses.js';
+import { default as C } from '../base/C.js';
+import CommonBase from '../base/CommonBase.js';
+import { FileEntry, FileOption, Log } from '../base/DataClasses.js';
 import { default as Utils } from './Utils.js';
 
 
@@ -212,25 +211,20 @@ class Output extends CommonBase {
         
         return new Promise((resolve, reject) => { 
             setTimeout(() => {
-                var newLi = undefined;
                 try {
-                    newLi = this.doc.createElement(C.SEL_PROP.LI);
+                    var newLi = this.doc.createElement(C.SEL_PROP.LI);
+                    var newContent = this.doc.createTextNode(uri);
+                    
+                    newLi.id = C.ELEMENT_ID.FE_PREFIX + id;
+                    newLi.className = C.FE_STATE.FOUND;
+                    newLi.dataset.initialUri = uri;
+                    newLi.appendChild(newContent);
+                    
+                    this.filesDug.appendChild(newLi);
                 }
                 catch(error) {
-                    this.lm('Could not create new file entry. doc reference might be a Dead Object.');
-                    resolve({
-                        id: (id + C.ST.E),
-                        uri: uri,
-                    });
+                    this.lm('Could not draw file option. doc reference might be a Dead Object. Still resolving(new FileEntry()).');
                 }
-
-                var newContent = this.doc.createTextNode(uri);
-                newLi.id = C.ELEMENT_ID.FE_PREFIX + id;
-                newLi.className = C.FE_STATE.FOUND;
-                newLi.dataset.initialUri = uri;
-                newLi.appendChild(newContent);
-                
-                this.filesDug.appendChild(newLi);
 
                 resolve(new FileEntry((id + C.ST.E), uri));
             }, 1);
@@ -307,21 +301,26 @@ class Output extends CommonBase {
         this.filesDug.appendChild(newLi);
 
         this.doc.getElementById(checkbox.id).addEventListener(C.EVT.CLICK, (event) => {
+            var me = Output.getInstance();
+
             var cb = event.currentTarget;
             cb.checked = true;
             cb.disabled = true;
 
             if (!!cb.dataset.filePath) {
-                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+C.ST.E, this);
+                var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+C.ST.E, me);
                 
                 if (!!p && !!p.then) {
                     p.then(() => {
-                        return this.setFileOptUriChecked(cb.value);
+                        return me.setFileOptUriChecked(cb.value);
+                    })
+                    .catch((err) => {
+                        me.lm(`Caught an error trying to set file option checkbox as checked.\n\t${JSON.stringify(err)}`);
                     });
                 }
             }
             else {
-                this.setFileOptUriChecked(cb.value);
+                me.setFileOptUriChecked(cb.value);
             }
         });
     };
