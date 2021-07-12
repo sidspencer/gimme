@@ -62,7 +62,6 @@
   "permissions": [
     "activeTab",
     "webRequest",
-    "alarms",
     "downloads",
     "storage",
     "*://*/*"
