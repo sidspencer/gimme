@@ -1,4 +1,4 @@
-import { default as C } from '../base/C.js';
+import { default as C } from '../baselibs/C.js';
 import { default as Output } from '../background/Output.js';
 import { default as Utils } from '../background/Utils.js'
 import {
@@ -6,8 +6,8 @@ import {
     FileOption,
     StopEvent,
     ResumeEvent,
-} from '../base/DataClasses.js';
-import CommonBase from '../base/CommonBase.js';
+} from '../baselibs/DataClasses.js';
+import CommonBase from '../baselibs/CommonBase.js';
 
 
 /**

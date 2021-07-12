@@ -3,6 +3,7 @@
   "displayName": "GimmeGimmeGimme",
   "version": "0.4.14",
   "description": "A tool for helping you download media from a page, or from the pages that are linked.",
+  "type": "module",
   "main": "popup/Popup.js",
   "module": "popup/Popup.js",
   "dependencies": {
@@ -31,7 +32,7 @@
     "webpack-cli": "^3.3.12"
   },
   "scripts": {
-    "wpack": "webpack --config webpack.config.js",
+    "wpack": "webpack --config webpack.config.cjs",
     "clean": "rm */bundle.js*",
     "build": "npm run clean && npm run wpack",
     "test": "echo \"Error: no test specified\" && exit 1"

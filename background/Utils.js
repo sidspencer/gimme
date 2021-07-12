@@ -1,11 +1,11 @@
-import { default as C } from '../base/C.js';
-import { default as CommonStaticBase } from '../base/CommonStaticBase.js';
+import { default as C } from '../baselibs/C.js';
+import { default as CommonStaticBase } from '../baselibs/CommonStaticBase.js';
 import {
     DownloadSig,
     ContentMessage,
     Log,
     LastLoc,
-} from '../base/DataClasses.js';
+} from '../baselibs/DataClasses.js';
 
 
 /**

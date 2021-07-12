@@ -1,10 +1,10 @@
 import { default as Utils } from './Utils.js';
-import { default as C } from '../base/C.js';
-import { default as CommonStaticBase } from '../base/CommonStaticBase.js';
+import { default as C } from '../baselibs/C.js';
+import { default as CommonStaticBase } from '../baselibs/CommonStaticBase.js';
 
-/** 
+/**
  * Singleton.
- * Web Navigation listener for GimmeGimmeGimme. Listens to web requests in order to 
+ * Web Navigation listener for GimmeGimmeGimme. Listens to web requests in order to
  * see what media is being requested.
  */
 class Voyeur extends CommonStaticBase {
@@ -23,7 +23,7 @@ class Voyeur extends CommonStaticBase {
     }
 
     /**
-     * Start watching the network traffic. 
+     * Start watching the network traffic.
      */
     static startVoying() {
         if (Voyeur.isWatching) { return C.CAN_FN.PR_RS_DEF(); };
@@ -33,15 +33,15 @@ class Voyeur extends CommonStaticBase {
         return Utils.queryActiveTab().then(
             (tab) => {
                 Utils.addMediaHeadersListener(Voyeur.watchMedia, tab.windowId, tab.id);
-                Voyeur.isWatching = true;    
+                Voyeur.isWatching = true;
             }
         );
-    }   
-    
+    }
+
 
     /**
      * Log network traffic.
-     * @param {} details 
+     * @param {} details
      */
     static watchMedia(details) {
         this.lm('[Voyeur] pushing uri: [' + details.url + '] type: [' + details.type +']');
@@ -55,7 +55,7 @@ class Voyeur extends CommonStaticBase {
         if (!Voyeur.isWatching) { return C.CAN_FN.PR_RS_DEF(); };
 
         this.lm('Stopping watch on all loading media.')
-        
+
         Utils.removeMediaHeadersListener(Voyeur.watchMedia);
         Voyeur.stop = Voyeur.isWatching = false;
 

@@ -1,6 +1,6 @@
-import { default as C } from '../base/C.js';
-import CommonBase from '../base/CommonBase.js';
-import { FileEntry, FileOption, Log } from '../base/DataClasses.js';
+import { default as C } from '../baselibs/C.js';
+import CommonBase from '../baselibs/CommonBase.js';
+import { FileEntry, FileOption, Log } from '../baselibs/DataClasses.js';
 import { default as Utils } from './Utils.js';
 
 
@@ -25,8 +25,8 @@ class Output extends CommonBase {
 
     /**
      * Set what document this Output is for, and get the #filesDug and #output elements on that document.
-     * 
-     * @param {Document} doc 
+     *
+     * @param {Document} doc
      */
     constructor(doc) {
         // setup the log and the stop event handler.
@@ -67,7 +67,7 @@ class Output extends CommonBase {
      */
     setDoc(dok) {
         this.doc = dok;
-        
+
         try {
             this.filesDug = this.doc.getElementById(C.ELEMENT_ID.FILES_DUG);
             this.out = this.doc.getElementById(C.ELEMENT_ID.OUTPUT);
@@ -78,10 +78,10 @@ class Output extends CommonBase {
         }
     }
 
-    
+
     /**
      * Enable the use of the half-baked features.
-     * @param {bool} enableThem 
+     * @param {bool} enableThem
      */
     setEnableHalfBakedFeatures(enableThem) {
         this.enableHalfBakedFeatures = enableThem;
@@ -91,7 +91,7 @@ class Output extends CommonBase {
     /**
      * Clear the filesDug <ul> of any child nodes.
      */
-    clearFilesDug() { 
+    clearFilesDug() {
         var childNodes = [];
 
         try {
@@ -131,7 +131,7 @@ class Output extends CommonBase {
         return true;
     }
 
-    
+
     /*
      * Reset the output to blank file data.
      */
@@ -146,7 +146,7 @@ class Output extends CommonBase {
     /**
      * Set the corresponding <li> in the filesDug <ul> to the downloading class.
      */
-    setEntryAsDownloading(idx) {   
+    setEntryAsDownloading(idx) {
         var entry = undefined;
 
         try {
@@ -156,19 +156,19 @@ class Output extends CommonBase {
             this.lm('Cannot set entry as downloading. doc reference may be a Dead Object.');
             return;
         }
-        
-        if (entry) { 
+
+        if (entry) {
             entry.className = C.FE_STATE.DOWNLOADING;
         }
     };
 
 
     /**
-     * Find an entry, update its text and classnathis. 
+     * Find an entry, update its text and classnathis.
      */
     setEntryToState(id, entry, state) {
         var fEntry = undefined;
-        
+
         try {
             fEntry = this.doc.getElementById(C.ELEMENT_ID.FE_PREFIX + id);
         }
@@ -176,9 +176,9 @@ class Output extends CommonBase {
             this.lm('Cannot change file entry state. doc ref may be a Dead Object.');
             return;
         }
-        
+
         if (fEntry) {
-            if (entry) { 
+            if (entry) {
                 fEntry.textContent = entry;
             }
             fEntry.className = state;
@@ -198,7 +198,7 @@ class Output extends CommonBase {
      * Find an entry by its id. Update its text, generally to '[failed]'
      */
     setEntryAsFailed(id, entry) {
-        this.failedUris.push(id+C.ST.E);        
+        this.failedUris.push(id+C.ST.E);
         this.setEntryToState(id, entry, C.FE_STATE.FAILED);
     };
 
@@ -208,18 +208,18 @@ class Output extends CommonBase {
      */
     addNewEntry(id, uri) {
         this.fileOptMap[id + C.ST.E] = uri;
-        
-        return new Promise((resolve, reject) => { 
+
+        return new Promise((resolve, reject) => {
             setTimeout(() => {
                 try {
                     var newLi = this.doc.createElement(C.SEL_PROP.LI);
                     var newContent = this.doc.createTextNode(uri);
-                    
+
                     newLi.id = C.ELEMENT_ID.FE_PREFIX + id;
                     newLi.className = C.FE_STATE.FOUND;
                     newLi.dataset.initialUri = uri;
                     newLi.appendChild(newContent);
-                    
+
                     this.filesDug.appendChild(newLi);
                 }
                 catch(error) {
@@ -235,9 +235,9 @@ class Output extends CommonBase {
     /**
      * Delete a previously created file entry in the UI.
      */
-    deleteEntry(id) {    
+    deleteEntry(id) {
         var fileLi = undefined;
-        
+
         try {
             fileLi = this.doc.querySelector(`#${C.ELEMENT_ID.FE_PREFIX + id}`);
         }
@@ -254,11 +254,11 @@ class Output extends CommonBase {
 
     /**
      * Add a checkbox-label pair to the list. The checkbox is clickable to download the uri listed
-     * in the label. 
+     * in the label.
      */
     addFileOption(fileOpt) {
         var checkbox = undefined;
-        
+
         try {
             checkbox = this.doc.createElement(C.SEL_PROP.INPUT);
         }
@@ -266,14 +266,14 @@ class Output extends CommonBase {
             this.lm('Could not create file option checkbox. doc reference may be a Dead Object.');
             return;
         }
-        
-        
+
+
         checkbox.type = C.SEL_PROP.CB;
         checkbox.name = C.ELEMENT_ID.CB_PREFIX + fileOpt.id;
         checkbox.id = checkbox.name;
         checkbox.value = fileOpt.uri;
         checkbox.dataset.filePath = fileOpt.filePath;
-        
+
         var thumbHolder = this.doc.createElement(C.SEL_PROP.DIV);
 
         var thumbImg = this.doc.createElement(C.SEL_PROP.IMG);
@@ -297,7 +297,7 @@ class Output extends CommonBase {
         newLi.appendChild(nameLabel);
         newLi.id = C.ELEMENT_ID.FE_PREFIX + fileOpt.id;
         newLi.className = C.CSS_CN.OPT;
-        
+
         this.filesDug.appendChild(newLi);
 
         this.doc.getElementById(checkbox.id).addEventListener(C.EVT.CLICK, (event) => {
@@ -309,7 +309,7 @@ class Output extends CommonBase {
 
             if (!!cb.dataset.filePath) {
                 var p = fileOpt.onSelect(cb.value, cb.dataset.filePath+C.ST.E, me);
-                
+
                 if (!!p && !!p.then) {
                     p.then(() => {
                         return me.setFileOptUriChecked(cb.value);
@@ -354,11 +354,11 @@ class Output extends CommonBase {
      */
     hideActionButtons() {
         try {
-            this.doc.getElementById(C.ELEMENT_ID.ACTION_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;       
+            this.doc.getElementById(C.ELEMENT_ID.ACTION_HOLDER).style.display = C.CSS_V.DISPLAY.NONE;
         }
         catch(error) {
             this.lm('Could not hide action buttons. doc ref may be a Dead Object.');
-        } 
+        }
     };
 
 
@@ -380,7 +380,7 @@ class Output extends CommonBase {
         }
         catch(error) {
             this.lm('Could not show dig/scrape buttons. doc ref may be a Dead Object.');
-        }        
+        }
     };
 
 
@@ -477,7 +477,7 @@ class Output extends CommonBase {
     /**
      * Set the state of entries in the file list. Used by the popup to restore screen data.
      * It returns a promise around a setTimeout, the likes of which are just to make it asynchronous
-     * and return a promise. 
+     * and return a promise.
      */
     restoreEntryStatus(entryObj) {
         return new Promise((resolve, reject) => {
@@ -488,7 +488,7 @@ class Output extends CommonBase {
                 else if (this.failedUris.indexOf(entryObj.id) !== -1) {
                     this.setEntryAsFailed(entryObj.id, entryObj.uri);
                 }
-                
+
                 resolve(true);
             }, 1);
         });
@@ -511,8 +511,8 @@ class Output extends CommonBase {
 
     /**
      * Get the instance, but set the doc it is to use first.
-     * 
-     * @param {Document} dok 
+     *
+     * @param {Document} dok
      */
     static getInstanceSetToDoc(dok) {
         if (!!Output.instance) {
