@@ -303,6 +303,7 @@ class Color {
     static NEWLY_DUG = { color: '#111111' };
     static SCRAPED = { color: '#9999FF' };
     static DOWNLOADING = { color: '#aa9900' };
+    static TF_ACTIVE = { color: '#008888' };
 }
 
 

@@ -475,6 +475,10 @@ class Logicker extends CommonStaticBase {
                                         });
                                     });
 
+                                    // Just do a simple color change and random indexing count so people know we're not frozen.
+                                    chrome.browserAction.setBadgeText({ text: `ML-${imgSrc.length}` });
+                                    chrome.browserAction.setBadgeBackgroundColor(C.COLOR.TF_ACTIVE);
+
                                     // Create a simple percentage score of the class matches. Resolve with the same object structure
                                     // that getPairWithLargestImage() does.
                                     var score = classAgreements.length / totalClassesCount;
