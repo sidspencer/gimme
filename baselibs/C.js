@@ -302,7 +302,7 @@ class Color {
     static NEW_FOPTS = { color: '#4444ff' };
     static NEWLY_DUG = { color: '#111111' };
     static SCRAPED = { color: '#9999FF' };
-    static DOWNLOADING = { color: '#009900' };
+    static DOWNLOADING = { color: '#aa9900' };
 }
 
 
