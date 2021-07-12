@@ -5,19 +5,19 @@ import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
-import { default as C } from '../base/C.js';
-import { 
-    InspectionOptions, 
-    Log, 
+import { default as C } from '../baselibs/C.js';
+import {
+    InspectionOptions,
+    Log,
     ResumeEvent,
     GalleryDef,
-    ConfigSpec, 
+    ConfigSpec,
     Storing,
-} from '../base/DataClasses.js';
-import CommonStaticBase from '../base/CommonStaticBase.js';
+} from '../baselibs/DataClasses.js';
+import CommonStaticBase from '../baselibs/CommonStaticBase.js';
 
 
-const EP = C.WIN_PROP.EVENT_PAGE_CLASS; 
+const EP = C.WIN_PROP.EVENT_PAGE_CLASS;
 
 class EventPage extends CommonStaticBase {
     // The definitively active EventPage's app instance, stored statically.
@@ -37,7 +37,7 @@ class EventPage extends CommonStaticBase {
             super.setup(C.LOG_SRC.EVENTPAGE);
         }
     }
-    
+
 
     //
     // Digging
@@ -45,7 +45,7 @@ class EventPage extends CommonStaticBase {
 
 
     /**
-     * Fire up the EventPage.app, dig for all known media in the parameters that we can scrape outta that mutha. 
+     * Fire up the EventPage.app, dig for all known media in the parameters that we can scrape outta that mutha.
      *  - Image galleries (Thumb, Zoom)
      *  - CSS background-images
      *  - mucks through javascript (musta been green programmers)
@@ -58,20 +58,20 @@ class EventPage extends CommonStaticBase {
 
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
-        
+
         var scraper = new Scraper();
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
 
         return(
-            EventPage.app.digGallery() 
+            EventPage.app.digGallery()
                 .finally(EventPage.undefineApp)
         );
     }
 
 
     /**
-     * Fire up the EventPage.app, dig for all known media in the parameters that we can scrape outta that mutha. 
+     * Fire up the EventPage.app, dig for all known media in the parameters that we can scrape outta that mutha.
      *  - Image galleries (Thumb, Zoom)
      *  - CSS background-images
      *  - mucks through javascript (musta been green programmers)
@@ -84,11 +84,11 @@ class EventPage extends CommonStaticBase {
 
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
-        
+
         var scraper = new Scraper();
         var digger = new Digger(scraper, inspectionOptions);
         EventPage.app = new App(digger, scraper);
-        
+
         return(
             EventPage.app.digFileOptions()
                 .finally(EventPage.undefineApp)
@@ -124,7 +124,7 @@ class EventPage extends CommonStaticBase {
     static goDigVideoGallery(parentDocument) {
         window.document.dispatchEvent(new ResumeEvent());
 
-        var inspectionOptions = new InspectionOptions(false, false, true, true, false, false);    
+        var inspectionOptions = new InspectionOptions(false, false, true, true, false, false);
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -170,8 +170,8 @@ class EventPage extends CommonStaticBase {
 
 
     /**
-     * Scrape the current page for all included <img>s, style.background-images, 
-     * videos, audios, any urls inside of the <script> tags, and any urls in the 
+     * Scrape the current page for all included <img>s, style.background-images,
+     * videos, audios, any urls inside of the <script> tags, and any urls in the
      * query-string. Then JUST START DOWNLOADING THEM.
      */
     static goScrape(parentDocument) {
@@ -195,8 +195,8 @@ class EventPage extends CommonStaticBase {
 
 
     /**
-     * Scrape the current page for all included <img>s, style.background-images, 
-     * videos, any urls inside of the <script> tags, and any urls in the 
+     * Scrape the current page for all included <img>s, style.background-images,
+     * videos, any urls inside of the <script> tags, and any urls in the
      * query-string. Then present options for the user to choose to download or not.
      */
     static goScrapeFileOptions(parentDocument) {
@@ -204,7 +204,7 @@ class EventPage extends CommonStaticBase {
 
         var inspectionOptions = new InspectionOptions();
         inspectionOptions.overrideSearchDefault(true);
-        
+
         var out = Output.getInstanceSetToDoc(parentDocument);
         out.resetFileData();
 
@@ -268,17 +268,17 @@ class EventPage extends CommonStaticBase {
         EventPage.app = undefined;
         return(true);
     }
-    
+
 
     // /**
-    //  * Start a chrome.storage change listener, which takes the values from the 
+    //  * Start a chrome.storage change listener, which takes the values from the
     //  * 'galleryDefs' storage key and creates 'spec.messages' entries from them.
     //  */
     // static didStartChangeListener = false;
     // static debounceLocked = false;
     // static startListeningForNewGalleryDefs() {
     //     chrome.storage.onChanged.addListener((changes, areaName) => {
-    //         // Were we called about a galleryDefs change? Are we debounce-unlocked? Otherwise, do nothing. 
+    //         // Were we called about a galleryDefs change? Are we debounce-unlocked? Otherwise, do nothing.
     //         var gDefChange = false;
     //         if (!EventPage.debounceLocked && Utils.exists(changes) && (gDefChange = changes[C.OPT_CONF.GALLERY_DEFS])) {
     //             // If we have new gallery definitions, create SpecMessage objects from them
@@ -288,11 +288,11 @@ class EventPage extends CommonStaticBase {
     //                 EventPage.debounceLocked = true;
 
     //                 // Convert the defs to Messages, append them to our copy of the spec.
-    //                 var defMessages = gDefChange.newValue.map(gDefObj => GalleryDef.fromStorage(gDefObj).toSpecMessage());                    
+    //                 var defMessages = gDefChange.newValue.map(gDefObj => GalleryDef.fromStorage(gDefObj).toSpecMessage());
     //                 Array.prototype.push.apply(EventPage.optSpec.messages, defMessages);
 
-    //                 // Set the spec into storage, now containing its expanded messages list. 
-    //                 // On success, also update Logicker with the new messages and remove the 
+    //                 // Set the spec into storage, now containing its expanded messages list.
+    //                 // On success, also update Logicker with the new messages and remove the
     //                 // now unneeded gallery defs from storage.
     //                 // Finally unlock our debounce var.
     //                 Utils.setInStorage(Storing.buildConfigSpecStoreObj(EventPage.optSpec))

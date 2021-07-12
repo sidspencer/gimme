@@ -1,10 +1,10 @@
-import { default as C } from '../base/C.js';
-import CommonBase from '../base/CommonBase.js';
-import { 
-    ContentMessage, 
+import { default as C } from '../baselibs/C.js';
+import CommonBase from '../baselibs/CommonBase.js';
+import {
+    ContentMessage,
     ContentPeeperMessage,
     Log,
- } from '../base/DataClasses.js';
+ } from '../baselibs/DataClasses.js';
 
 
 /**
@@ -32,11 +32,11 @@ class ContentPeeper extends CommonBase {
         var setWindowLoadComplete = () => {
             window.removeEventListener(C.EVT.LOAD, setWindowLoadComplete, false);
             this.loadComplete = true;
-    
-            //this.lm(('Content Tab\'s Window.load() fired.');        
-    
+
+            //this.lm(('Content Tab\'s Window.load() fired.');
+
             chrome.runtime.sendMessage(
-                new ContentPeeperMessage( 
+                new ContentPeeperMessage(
                     'ContentPeeper window load',
                     document.location.href,
                     document.documentElement.outerHTML,
@@ -44,16 +44,16 @@ class ContentPeeper extends CommonBase {
             );
         };
         window.addEventListener(C.EVT.LOAD, setWindowLoadComplete, false);
-    
+
         // Send a message to the background when document load is complete.
         var setDocLoadComplete = () => {
             if (document.readyState === C.EVT.COMPLETE) {
                 document.removeEventListener(C.EVT.RSC, setDocLoadComplete, false);
                 this.loadComplete = true;
-    
+
                 // Send the message with the doc's URL and HTML to Gimme's backend.
                 chrome.runtime.sendMessage(
-                    new ContentPeeperMessage( 
+                    new ContentPeeperMessage(
                         'ContentPeeper doc complete',
                         document.location.href,
                         document.documentElement.outerHTML
@@ -82,7 +82,7 @@ class ContentPeeper extends CommonBase {
 
 
     /**
-     * The message handler for gimme sending the peep request. 
+     * The message handler for gimme sending the peep request.
      * Note: returns true, as this is aync.
      */
     peepAroundOnceContentLoaded(req, sender, res, secondTry) {
@@ -102,51 +102,51 @@ class ContentPeeper extends CommonBase {
 
         // if any images haven't loaded yet, try again. In fact, keep trying until they all loaded.
         // Even failures to load will mark them as complete.
-        if (this.loadComplete && !!document && !!document.location && !!document.images && !!document.images.length) {  
+        if (this.loadComplete && !!document && !!document.location && !!document.images && !!document.images.length) {
             var allImagesComplete = true;
-            
+
             for (var idx = 0; idx < document.images.length; idx++) {
                 var image = document.images[idx];
                 if (C.EVT.COMPLETE in image) {
-                    allImagesComplete = allImagesComplete && image.complete; 
+                    allImagesComplete = allImagesComplete && image.complete;
                 }
             }
 
             if (!allImagesComplete) {
                 if (!secondTry) {
                     //this.lm(('Not all images complete. Trying again in 2 seconds.');
-                    
+
                     setTimeout(() => {
                         this.peepAroundOnceContentLoaded(req, sender, res, true);
                     }, 2000);
-                    
+
                     return true;
                 }
                 else {
                     //this.lm(('Proceeding though not all images are loaded.');
-                }   
-            }            
-        } 
+                }
+            }
+        }
 
         // Put in the basics of the payload.
         var resPayload = {
             'contentScriptId': ContentMessage.CONTENTPEEPER,
             'status': 'success',
             'error': C.ST.E,
-            
+
             'locator': {},
             'docOuterHtml': C.ST.E,
             'galleryMap': {},
 
             'inputs': Object.assign({}, req),
         };
-        
+
         // Choose which function we are to do off of the command and validation of inputs.
         var proc;
         if (!document || !document.location || !document.location.href || !document.documentElement || !document.documentElement.outerHTML) {
             proc = this.badDocumentProc;
-        }        
-        else 
+        }
+        else
         {
             // Now we can safely set the locator and docOuterHtml
             resPayload.locator = Object.assign({}, document.location);
@@ -156,7 +156,7 @@ class ContentPeeper extends CommonBase {
                 proc = this.alreadyPeepingAround;
             }
             else if (req.command === C.ACTION.PEEPAROUND && req.linkSelector && req.linkHrefProp && req.thumbSubselector && req.thumbSrcProp) {
-                proc = this.peepAround;            
+                proc = this.peepAround;
             }
             else {
                 proc = this.errorProc;
@@ -166,11 +166,11 @@ class ContentPeeper extends CommonBase {
         // If the page hasn't loaded, set up event listeners to call once we've loaded.
         if (!secondTry && !this.loadComplete) {
             //this.lm(('DOM not loaded. Setting event handlers.');
-            
+
             // set one for page load.
             var load = (event) => {
                 window.removeEventListener(C.EVT.LOAD, load, false); //remove listener, no longer needed
-                
+
                 if (!this.peepingAround) {
                     resPayload = proc(resPayload, req)
                     res(resPayload);
@@ -181,7 +181,7 @@ class ContentPeeper extends CommonBase {
             // set one for document.readyState === C.EVT.COMPLETE.
             var rsc = (event) => {
                 document.removeEventListener(C.EVT.RSC, rsc, false);
-                
+
                 if (document.readyState === C.EVT.COMPLETE && !this.peepingAround) {
                      resPayload = proc(resPayload, req)
                      res(resPayload);
@@ -197,7 +197,7 @@ class ContentPeeper extends CommonBase {
         this.peepingAround = true;
         resPayload = proc(resPayload, req);
         this.peepingAround = false;
-        
+
 
         // this.lm(('-----------------------------');
         // console.log(req);
@@ -212,10 +212,10 @@ class ContentPeeper extends CommonBase {
 
      /**
       * If our loc or doc is bad.
-      */ 
+      */
     badDocumentProc(payload) {
         this.lm('Bad locator or bad document. Stopping.');
-        
+
         resPayload.status = 'error';
         resPayload.error = 'Bad locator or bad document';
 
@@ -228,7 +228,7 @@ class ContentPeeper extends CommonBase {
      */
     errorProc(payload) {
         this.lm('Bad command sent. Stopping.');
-        
+
         payload.status = 'what?';
         payload.error = 'No such command';
 
@@ -244,26 +244,26 @@ class ContentPeeper extends CommonBase {
 
         payload.status = 'peeping around';
         payload.error = 'Already peeping around';
-        
+
         return payload;
     }
 
 
- 
+
     /**
      * Handle Gimme calling to get document.location.
      * Also do a simple page scrape for whatever is asked.
      */
-    peepAround(payload, req) {     
+    peepAround(payload, req) {
         // If we were asked for it, return an array of propValues for the propname and selector.
         var linkSelector = req.linkSelector;
         var hrefProp = req.linkHrefProp;
         var hrefPropArr = (hrefProp ? hrefProp.split(C.ST.D) : [hrefProp]);
-        
+
         var thumbSubselector = req.thumbSubselector;
         var srcProp = req.thumbSrcProp;
         var srcPropArr = (srcProp ? srcProp.split(C.ST.D) : [srcProp]);
-        
+
         var useRawValues = req.useRawValues;
 
         // Get the selected tags, build an array of values from their propName property.
@@ -276,7 +276,7 @@ class ContentPeeper extends CommonBase {
             linkTags.forEach((tag) => {
                 var wasError = false;
 
-                // Get the href by going through each key til we hit the 
+                // Get the href by going through each key til we hit the
                 // href value at the end.
                 var value = tag;
                 for (var i=0; i < hrefPropArr.length; i++) {
@@ -290,7 +290,7 @@ class ContentPeeper extends CommonBase {
 
                 // Get the thumbSrc by going through each key til we hit
                 // the src value at the end.
-                var value2 = tag.querySelector(thumbSubselector);                        
+                var value2 = tag.querySelector(thumbSubselector);
                 for (var j=0; j < srcPropArr.length; j++) {
                     if (value2) {
                         value2 = value2[srcPropArr[j]];
