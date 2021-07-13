@@ -417,6 +417,7 @@ class Logicker extends CommonStaticBase {
                     var zeroResponse = new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, 0);
 
                     // Load all the images in the document, wrapping their onload/onerror in promises. Score them.
+                    var useAlt = false;
                     imgPromises.push(
                         new Promise((resolve, reject) => {
                             let testImg = new Image(
@@ -454,11 +455,14 @@ class Logicker extends CommonStaticBase {
                                         resolve(zeroResponse);
                                         return;
                                     }
-                                    else {
-                                        //me.lm('got classifications for img ${imgSrc}: ${JSON.stringify(classifications)}`);
-                                        me.lm(`got classifications for img ${imgSrc}`);
-                                    }
 
+                                    // Set the badge to say we're in ML land. Alternate its colors to signify we're crunching.
+                                    chrome.browserAction.setBadgeText({ text: `ML%` });
+                                    chrome.browserAction.setBadgeBackgroundColor(
+                                        (useAlt = !useAlt) ? C.COLOR.TF_ALT : C.COLOR.TF_ACT
+                                    );
+
+                                    // The mobilenet similarity vector.
                                     var classAgreements = [];
                                     var totalClassesCount = classifications.length;
 
@@ -474,10 +478,6 @@ class Logicker extends CommonStaticBase {
                                             }
                                         });
                                     });
-
-                                    // Just do a simple color change and random indexing count so people know we're not frozen.
-                                    chrome.browserAction.setBadgeText({ text: `ML-${imgSrc.length}` });
-                                    chrome.browserAction.setBadgeBackgroundColor(C.COLOR.TF_ACTIVE);
 
                                     // Create a simple percentage score of the class matches. Resolve with the same object structure
                                     // that getPairWithLargestImage() does.
@@ -660,12 +660,20 @@ class Logicker extends CommonStaticBase {
                 d.linkSelector = m.link;
                 d.linkHrefProp = m.href;
 
-                // Note, :scope the subselector.
-                d.thumbSubselector = (
-                    m.thumb.indexOf(C.SEL_PROP.SCOPE) === -1 ?
-                    `${C.SEL_PROP.SCOPE} ${m.thumb}` :
-                    m.thumb
-                );
+                // Note, :scope the subselector is always used for the doc querying. Weird gallery formats sometimes put the link and img in one el,
+                // So I introduced my own custom subselector, "::link-el". If the thumbSubselector is "::link-el", it will use the already-queried and
+                // retrieved link element, but still use thumbSrcProp to get the thumbnail "url" value.
+                if (m.thumb.indexOf(C.SEL_PROP.LINK_EL) === 0) {
+                    d.thumbSubselector = C.SEL_PROP.LINK_EL;
+                }
+                else if (m.thumb.indexOf(C.SEL_PROP.SCOPE) === -1) {
+                    d.thumbSubselector = `${C.SEL_PROP.SCOPE} ${m.thumb}`;
+                }
+                else {
+                    d.thumbSubselector = m.thumb;
+                }
+
+                // In any case, we use the m.src prop.
                 d.thumbSrcProp = m.src;
             }
         }

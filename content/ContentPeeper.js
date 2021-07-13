@@ -260,7 +260,8 @@ class ContentPeeper extends CommonBase {
         var hrefProp = req.linkHrefProp;
         var hrefPropArr = (hrefProp ? hrefProp.split(C.ST.D) : [hrefProp]);
 
-        var thumbSubselector = req.thumbSubselector;
+        // "::link-el" is my special pseudoelement saying to use the linkSelector el for both link and thumb.
+        var thumbSubselector = ((req.thumbSubselector === C.SEL_PROP.LINK_EL) ? linkSelector : req.thumbSubselector);
         var srcProp = req.thumbSrcProp;
         var srcPropArr = (srcProp ? srcProp.split(C.ST.D) : [srcProp]);
 

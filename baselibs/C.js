@@ -225,6 +225,9 @@ class SelectorProperties {
     static FOR = 'for';
     static STYLE = 'style';
 
+    // My own implemented selectors
+    static LINK_EL = '::link-el'
+
     // Tag Names
     static IMG = 'img';
     static A = 'a';
@@ -303,7 +306,9 @@ class Color {
     static NEWLY_DUG = { color: '#111111' };
     static SCRAPED = { color: '#9999FF' };
     static DOWNLOADING = { color: '#aa9900' };
-    static TF_ACTIVE = { color: '#008888' };
+    static TF_ACT = { color: '#ede309' };
+    static TF_ALT = { color: '#fe7a00' };
+    static TF_TXT = { color: '#5c5c5c' };
 }
 
 
