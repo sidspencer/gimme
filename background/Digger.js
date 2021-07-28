@@ -879,8 +879,13 @@ class Digger extends CommonBase {
                     searchDepth
                 );
             }
-            // Otherwise, we assume we were pointed at the source. See if it's a good mime type or url.
+            // Otherwise, we assume we were pointed at the source. See if it's a good mime type or url. Check for redirect too.
             else if (Utils.isKnownMediaMimeType(mimeType) || Utils.isKnownMediaFileOrEndpoint(zoomPageUri)) {
+                if (!!xhr.responseURL) {
+                    this.lm(`Got redirect location for zoom:\n\t${zoomPageUri} -> ${xhr.responseURL}`);
+                    zoomPageUri = xhr.responseURL.toString();
+                }
+
                 this.output.toOut(`Using this direct-link:\t${zoomPageUri}`);
                 return this.reportDigSuccess(thumbUri, zoomPageUri);
             }
