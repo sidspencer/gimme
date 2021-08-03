@@ -31,9 +31,22 @@ class Utils extends CommonStaticBase {
      * log setup, and set the initial value for concurrentDls.
      */
     static setup() {
-        if (!Utils.exists(Utils.log)) {
+        if (!this.exists(Utils.log)) {
             super.setup(C.LOG_SRC.UTILS);
         }
+
+        // Event listener for stop event.
+        var stopHandler = (evt) => {
+            window.document.removeEventListener(C.ACTION.STOP, stopHandler, false);
+            var keys = Object.keys(Utils.xhrsInFlight);
+
+            keys.forEach((aKey) => {
+                if (Utils.exists(Utils.xhrsInFlight[aKey])) {
+                    Utils.xhrsInFlight[aKey].abort();
+                }
+            });
+        };
+        window.document.addEventListener(C.ACTION.STOP, stopHandler, false);
     }
 
 
@@ -297,7 +310,7 @@ class Utils extends CommonStaticBase {
      */
     static sendXhr(method, uri, props, responseType) {
         return new Promise((resolve, reject) => {
-            if (this.stop) { return C.CAN_FN.PR_RJ_STOP(); };
+            if (Utils.stop) { return C.CAN_FN.PR_RJ_STOP(); };
 
             // Get an unused key for this xhr. The do-while will usually only run one iteration.
             // Then create the object, setting it on the in-flight map and in the xhr local var.
@@ -377,17 +390,6 @@ class Utils extends CommonStaticBase {
                 Utils.lm(`aborted XHR for uri: ${uri}.`);
                 errorHandler(C.ACTION.STOP);
             };
-
-
-            // Event listener for stop event.
-            var stopHandler = (evt) => {
-                window.document.removeEventListener(C.ACTION.STOP, stopHandler, false);
-
-                if (Utils.exists(Utils.xhrsInFlight[xhrId])) {
-                    Utils.xhrsInFlight[xhrId].abort();
-                }
-            };
-            window.document.addEventListener(C.ACTION.STOP, stopHandler, false);
 
 
             // Perform the fetch.
@@ -521,7 +523,8 @@ class Utils extends CommonStaticBase {
      * Helper to avoid unwanted closures.
      */
     static buildDlChain(uri, destFilename, output, num) {
-        output.toOut('Downloading file ' + num);
+        this.lm(`Downloading file ${num}`)
+        output.toOut(`Downloading file ${num}`);
 
         chrome.browserAction.setBadgeText({ text: C.ST.E + num + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.DOWNLOADING);
@@ -554,10 +557,10 @@ class Utils extends CommonStaticBase {
     static getSaltedDirectoryName(loc) {
         // Stash loc for later
         if (!loc || !loc.hostname) {
-            loc = Utils.lastLoc;
+            loc = this.lastLoc;
         }
         else {
-            Utils.lastLoc = new LastLoc(loc.hostname, loc.pathname);
+            this.lastLoc = new LastLoc(loc.hostname, loc.pathname);
         }
 
         // Create a salted directory for the images to live in.
@@ -687,9 +690,9 @@ class Utils extends CommonStaticBase {
      * @param {Function} res
      */
     static removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res) {
-        if (Utils.exists(Utils.dlCallbacks[dlId])) {
+        if (Utils.exists(this.dlCallbacks[dlId])) {
             chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
-            delete Utils.dlCallbacks[dlId];
+            delete this.dlCallbacks[dlId];
             res(dlDownloadSig);
         }
     }
@@ -922,6 +925,9 @@ class Utils extends CommonStaticBase {
             iframe = bgDoc.createElement(C.SEL_PROP.IFRAME);
             iframe.id = id;
 
+            let message = `Trying to load page in background iframe:\n\t${uri}`;
+            this.lm(message);
+            output.toOut(message);
 
             // Set a timeout for waiting for the iframe to load. We can't afford to
             // just never complete the promise. Wait 7 seconds.
@@ -939,6 +945,9 @@ class Utils extends CommonStaticBase {
             // But restrict this particular listener to only the uri at hand.
             Utils.listeners[listenerId] = (request, sender, sendResponse) => {
                 if (request.docOuterHtml && request.uri == uri) {
+                    let message = `page loaded in bg iframe:\n\t${uri}`;
+                    this.lm(message);
+                    output.toOut(message)
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
 
@@ -969,6 +978,8 @@ class Utils extends CommonStaticBase {
                     };
                     iframe.remove();
                 }
+
+                reject(evt);
             });
 
 
