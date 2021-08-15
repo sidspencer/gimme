@@ -15,23 +15,30 @@ Glaring problems that plagued v0.4.13 and earlier were tracked-down and fixed. M
 ## current effort: v0.4.15
 
 ### Planned Features:
-- There will be more stability, increased heuristic accuracy, better use of TF, and (hopefully) a working [STOP] button.
-- Handle gallery URIs that return a redirect. A lot of sites are doing this, and we need to handle it.
-- The plumbing has been done for recording each gallery structure, so that will be exposed to the options page.
-- The options page will get another section matching "messages", but for the structure of gallery-galleries specifically. (Currently we're using the same site "messages" entry for both gallery-gallery and img gallery. Confused Badness. Not everything is recursive.)
+- There will be more stability, increased heuristic accuracy, and better use of TF. (vague, puttering goals) 
+-  Make the `[STOP]` button work. Properly cancel the promises, stop the XHRs in flight, stop all the digging... Plumbing is there, but it doesn't work.
+- Properly handle gallery URI redirects off links around gallery-gallery thumbs. We currently fail to pick up the redirect, and just fail at finding the gallery. We need to do a `HEAD` request to each of the gallery-gallery links to catch any `request.redirectURL` values and use those.
+
 
 ### Bug Fixes:
 - Added-in code to handle redirects at the zoom-img level. (`response.redirectURL`)
-- Fixed a bug in the background-page iframe code in Utils that was not properly reject()-ing when removing iframe from the page.
+- Fixed a bug in the background-page iframe code in Utils that was not properly reject()-ing when removing iframe from the page. That increased the speed of digs.
 - Enhanced the "stop" handler in Utils to be only **one event handler** that goes through all the XHRs, instead of adding a new "stop" handler for each XHR.
 
 
-## ...The Future (AKA needless pipe dreams)
-oh so many things!
+## ...The Future
+oh so many things! 
 
+### Punted Features.
+- Storing each gallery structure we discover. The plumbing has been done for recording, but it will need to be exposed to the options page.
+- The options page needs to get another section matching "messages", but for the structure of **gallery-galleries** specifically. (Currently we're using the same site "messages" entry for both gallery-gallery and img gallery. Confused Badness currently reigns.)
 
-## building
-Execute `npm install` in the base `gimme` directory, then run `npm run wpack` to build the `bundle.js` and `bundle.js.map` files. That's all! Then either zip it up and add it, or just load it as an unpacked extension from the repo root directory. (Please note that the html components all reference the bundle.js files, arnd nothing will work if you try to run without having run webpack.)
+### Pipe-Dreams
+- Machine Learning of gallery structures, applying previously known structures that have similar traits to the current gallery being inspected.
+- `[STOP]` working 100% right.
+
+## Building
+Follow the instructions below. That's all! To run in your browser, either zip it up and add it, or load it as an unpacked extension (dev mode) from the repo root directory. (Please note that the html components all reference the bundle.js files, arnd nothing will work if you try to run without having run webpack.)
 
 ### Build instructions:
 
