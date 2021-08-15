@@ -6,6 +6,7 @@ import {
     Log,
     LastLoc,
 } from '../baselibs/DataClasses.js';
+import { default as Output } from './Output.js'
 
 
 /**
@@ -349,7 +350,25 @@ class Utils extends CommonStaticBase {
 
                 if (this.readyState == XMLHttpRequest.DONE)
                 {
-                    if (this.status == 200) {
+                    // Change to using the responseURL if it's there.
+                    var rUri = C.ST.E + uri;
+                    try { if (!!xhr.responseURL) { rUri = (C.ST.E + xhr.responseURL.toString()); }; }
+                    catch (err) { Utils.lm(`Caught error to get xhr.responseURL.`); }
+
+                    // Auto-respond to redirects.
+                    if (rUri !== uri && (this.status == 301 || this.status == 302 || this.status == 503 )) {
+                        Utils.lm(`Following redirect location for:\n\t${uri} -> ${rUri}`);
+                        Output.getInstance().toOut(`Following redirect location for:\n\t${uri} -> ${rUri}`);
+
+                        Utils.sendXhr(method, rUri, props, responseType).then((res) => {
+                            // delete the xhr as best we can. Resolve with the res.
+                            delete Utils.xhrsInFlight[xhrId];
+                            xhr = null;
+                            return resolve(res);
+                        });
+                    }
+                    else if (this.status == 200) {
+                        // Get multiple XHR properties, 1 property, or even whole Document.
                         if (props && props.length > 1) {
                             var propMap = {};
                             var thisXhr = this;
@@ -366,14 +385,18 @@ class Utils extends CommonStaticBase {
                         else {
                              resolve(this);
                         }
+
+                        // delete the xhr as best we can.
+                        delete Utils.xhrsInFlight[xhrId];
+                        xhr = null;
                     }
                     else {
                         errorHandler(this.status);
-                    }
 
-                    // delete the xhr as best we can.
-                    delete Utils.xhrsInFlight[xhrId];
-                    xhr = null;
+                        // delete the xhr as best we can.
+                        delete Utils.xhrsInFlight[xhrId];
+                        xhr = null;
+                    }
                 }
             };
 
