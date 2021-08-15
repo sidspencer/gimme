@@ -967,7 +967,7 @@ class Digger extends CommonBase {
             if (searchDepth < C.SEARCH_DEPTH.INSPECT) { return Promise.resolve(null); };
 
             this.output.toOut('Inspecting all media on ' + zoomFilename);
-            this.output.lm('Inspecting all media on ' + zoomFilename);
+            this.lm('Inspecting all media on ' + zoomFilename);
             return this.inspectZoomPage(doc, thumbUrl, zoomPageUrl);
         })
          // 4 - Use TensorFlow's Mobilenet pre-trained ML model. ONLY WORKS FOR IMAGES!!!!
