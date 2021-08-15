@@ -4,7 +4,7 @@ import { default as C } from './C.js';
  * Data classes. They hold data.
  *********************************************/
 
- 
+
  /**
   * Digging/Scraping opts, set by Logicker from the message options.
   */
@@ -160,8 +160,8 @@ class GalleryOptions {
  * The options passed to Scraper.scrape(...)
  */
 class ScrapeOptions {
-    node = undefined; 
-    loc = undefined; 
+    node = undefined;
+    loc = undefined;
     opts = {};
 
     constructor(n, l, o) {
@@ -228,7 +228,7 @@ class Storing {
     static PREV_URI_MAP = 'prevUriMap';
     static SPEC = 'spec';
     static GALLERY_DEFS = 'galleryDefs';
-    
+
 
     /**
      * Build the stored object form of the prevUriMap.
@@ -238,14 +238,14 @@ class Storing {
         var obj = {};
         obj[Storing.PREV_URI_MAP] = m;
         return obj;
-    }  
+    }
 
 
     /**
      * Build an object formed to save the galleryDefs in chrome.storage.
      * If passed a bad gDefs, we return an empty object.
-     * 
-     * @param {Array<GalleryDef>} gDefs 
+     *
+     * @param {Array<GalleryDef>} gDefs
      */
     static buildGalleryDefsStoreObj(gDefs) {
         var obj = {};
@@ -256,8 +256,8 @@ class Storing {
 
     /**
      * Wrap the "spec" key for storage.
-     * 
-     * @param {ConfigSpec} configSpec 
+     *
+     * @param {ConfigSpec} configSpec
      */
     static buildConfigSpecStoreObj(configSpec) {
         var obj = {};
@@ -319,14 +319,14 @@ class GalleryDef {
     /**
      * Static initializer that takes a duck-typed gallery def, and
      * returns a built gallery def.
-     * @param {*} o 
+     * @param {*} o
      */
     static fromStorage(o) {
         return new GalleryDef(
-            o.galleryUri, 
-            o.thumbSel, 
-            o.thumbSrcProp, 
-            o.linkSel, 
+            o.galleryUri,
+            o.thumbSel,
+            o.thumbSrcProp,
+            o.linkSel,
             o.linkHrefProp
         );
     }
@@ -349,7 +349,7 @@ class GalleryDef {
 
 
 /**
- * Per-site gallery definition configuration. For the "spec.messages" 
+ * Per-site gallery definition configuration. For the "spec.messages"
  * stored array value.
  */
 class SpecMessage {
@@ -385,9 +385,9 @@ class SpecMessage {
 
 
 /**
- * Per-URL manipulation procedure to turn thumbSrc or linkHref into 
+ * Per-URL manipulation procedure to turn thumbSrc or linkHref into
  * the zoom URI. Currently the only supported verb is "replace".
- * This class is used for SpecProcessing.actions. 
+ * This class is used for SpecProcessing.actions.
  */
 class SpecProcessingAction {
     static VERB_REPLACE = 'replace';
@@ -407,7 +407,7 @@ class SpecProcessingAction {
 
 
 /**
- * Per-site manipulation procedures that have "actions" to 
+ * Per-site manipulation procedures that have "actions" to
  * calculate zoom URIs. For the "spec.processings" stored array value.
  */
 class SpecProcessing {
@@ -427,7 +427,7 @@ class SpecProcessing {
 
 /**
  * Per-URL regex match for one site's zoom image pages (match), along with the
- * selector to the zoom image (zoom), and element prop to get full-sized URL from (src). 
+ * selector to the zoom image (zoom), and element prop to get full-sized URL from (src).
  */
 class SpecBlessing {
     match = C.ST.E;
@@ -553,7 +553,7 @@ class LastLoc {
 
 
     /**
-     * Constructor of LastLoc. 
+     * Constructor of LastLoc.
      * host and path params are always expected.
      * The other 4 params are at your discretion.
      */
@@ -561,7 +561,7 @@ class LastLoc {
         // The "LastLoc core" properties.
         this.hostname = host;
         this.pathname = path;
-        
+
         // The required Location "duck-type" properties.
         this.protocol = protocol;
         this.port = port;
@@ -615,7 +615,6 @@ class StopEvent extends Event {
         var obj = {};
         obj['timestamp'] = Date.now();
         obj[C.ACTION.STOP] = C.ACTION.STOP;
-        obj[C.ACTION.STOP.toLowerCase()] = C.ACTION.STOP.toLowerCase();
 
         // Call super to set us all up.
         super(C.ACTION.STOP, obj);
@@ -644,7 +643,7 @@ class ResumeEvent extends Event {
 // Export all these data classes.
 export {
     Log,
-    DigOpts, 
+    DigOpts,
     ContentMessage,
     ContentPeeperMessage,
     TabMessage,
