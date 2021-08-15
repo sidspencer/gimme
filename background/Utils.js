@@ -950,7 +950,7 @@ class Utils extends CommonStaticBase {
 
             let message = `Trying to load page in background iframe:\n\t${uri}`;
             this.lm(message);
-            output.toOut(message);
+            Output.getInstance().toOut(message);
 
             // Set a timeout for waiting for the iframe to load. We can't afford to
             // just never complete the promise. Wait 7 seconds.
@@ -970,7 +970,7 @@ class Utils extends CommonStaticBase {
                 if (request.docOuterHtml && request.uri == uri) {
                     let message = `page loaded in bg iframe:\n\t${uri}`;
                     this.lm(message);
-                    output.toOut(message)
+                    Output.getInstance().toOut(message)
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
 
