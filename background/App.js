@@ -239,6 +239,11 @@ class App extends CommonBase {
         this.output.setIsDigging(false);
         this.setIsDiggingGalleryGallery(false);
 
+        // Update the badge with the uriMap size.
+        chrome.browserAction.setBadgeText({ text: C.ST.E + Object.keys(uriMap).length + C.ST.E });
+        chrome.browserAction.setBadgeBackgroundColor(C.COLOR.AVAILABLE_FOPTS);
+
+        // Set in storage
         return Utils.setInStorage(
                 Storing.buildPrevUriMapStoreObj(uriMap),
                 'local'
@@ -1004,9 +1009,8 @@ class App extends CommonBase {
                             // Reject with this unexpected err. Done in case we are chained off of in the future.
                             // (Only the finally() is left in this chain.)
                             reject(err);
-
                         }
-                    })
+                    });
                 })
                 .finally(() => {
                     // Store the combined harvest map, which galleryMap is set to, in storage and reset the flags. Fini!
