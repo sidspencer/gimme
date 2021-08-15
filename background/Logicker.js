@@ -487,6 +487,10 @@ class Logicker extends CommonStaticBase {
                                     resolve(new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, score));
                                 },
                                 (err) => {
+                                    // Update the badge to clear out the 'ML%'.
+                                    chrome.browserAction.setBadgeText({ text: 'R' });
+                                    chrome.browserAction.setBadgeBackgroundColor(C.COLOR.TF_TXT);
+
                                     resolve(zeroResponse);
                                 });
                             };
