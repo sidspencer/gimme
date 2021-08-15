@@ -803,7 +803,7 @@ class App extends CommonBase {
                                         else {
                                             // We got a real unexpected error from the gallery doc loading. Just log it and
                                             // tell the user, but then move on.
-                                            me.lm(`Failed to load gallery doc ${uri}. Error was:\n       ${JSON.stringify(e)}`);
+                                            me.lm(`Failed to load gallery doc ${uri}. Error was:\n\t${e}`);
                                             me.output.toOut('Failed to load gallery page ' + uri);
                                             galleryCount--;
 
