@@ -365,6 +365,9 @@ class Utils extends CommonStaticBase {
                             delete Utils.xhrsInFlight[xhrId];
                             xhr = null;
                             return resolve(res);
+                        })
+                        .catch((errrr) => {
+                            errorHandler(errrr);
                         });
                     }
                     else if (this.status == 200) {
