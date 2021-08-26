@@ -23,7 +23,7 @@ return one zoom-item! Now, with the salting, the map structures are resiliant in
 -Other stuff and fixes etc la la la who fucking cares. The new mantra is RELIABILITY AND USABILITY. This is still just code-noodling at the end of the day, but it shouldn't make you want to pull your hair out from frustration.
 -The best update so far is the "go back to the top" arrow in the popup. Oh, Totally.
 
-# ...The Future (AKA needless pipe dreams)
+# ...The Future (AKA needless pipe dreams, v0.4.15 + v0.4.16?)
 I was trying to get this done for v0.4.14, but there are bug fixes that need to go out **now**, so it must wait. So the next feature emphasis will be on saving the "Gallery Definition" **selectors** that match the links and thumbnails and full-sized images for a website's types of galleries. For each element selector per element type that we find, that data goes into the Options/Preferences waiting for you to review it and save it just as if you had configured it completely manually. This way you can edit up each gallery definition to make discovering galleries and their assets lightning-fast the next time you run gimme against galleries on that site. Saving the discovered selectors automatically for your review might not be as sexy as real ML or AI, but it accelerates downloading from sites dramatically. Suddenly, instead of needing to run a significant set of heuristics and some ML to try to get the right data, now Gimme only needs to run a few calls to `querySelectorAll()` based on the site's Gallery Definition, seeming almost instantaneous. Sorry I didn't get this done for v0.4.13. Stay tuned!
 
 # building
