@@ -6,8 +6,8 @@
   "name": "GimmeGimmeGimme",
   "short_name": "gimme",
   "version": "0.4.14",
-  "description": "Shortcut for downloading. Gimme handles getting media that's on a page, media linked from a gallery of thumbnail images, media one step abstracted by a gallery whose thubnails link to galleries. You can rely on our heuristics and AI, or use the Options page to build out the gallery map Gimme should use (it's in in CSS selecors). Named in honor of Black Flag's song, Gimme Gimme Gimme...",
-  "incognito": "spanning",
+  "description": "Shortcut to downloading from the active tab. We can find and give you a selection meu for: Any images directly on a page (we call that 'scraping'), the linked-to media from a thummbnail image gallery ('digging'), or handling nested galleries (a 'dig dig'). Gimme handles getting media that's on a page, media linked from a gallery of thumbnail images, media one step abstracted by a gallery whose thubnails link to galleries. You can rely on our heuristics and AI, or use the Options page to build out the gallery map Gimme should use (it's in in CSS selecors). Named in honor of Black Flag's song, Gimme Gimme Gimme...",
+  "incognito": "spanning",  
   "offline_enabled": true,
 
   "browser_specific_settings": {
