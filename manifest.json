@@ -6,7 +6,7 @@
   "name": "GimmeGimmeGimme",
   "short_name": "gimme",
   "version": "0.4.14",
-  "description": "Shortcut for downloading multiple images on a page, or even downloading the large versions of images linked to by a gallery of thumbnails. You can rely on the heuristics and AI, or you can use the Options page to inform the extension of exactly what you want downloaded. Named in honor of Black Flag's song, Gimme Gimme Gimme...",
+  "description": "Shortcut for downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme...",
   "incognito": "spanning",
   "offline_enabled": true,
 
