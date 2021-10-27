@@ -6,7 +6,7 @@
   "name": "GimmeGimmeGimme",
   "short_name": "gimme",
   "version": "0.4.15",
-  "description": "Shortcut for downloading. Named in honor of Black Flag's song, Gimme Gimme Gimme...",
+  "description": "A media downloader for on-page and gallery-linked media. Named after Black Flag's \"Gimme Gimme Gimme\".",
   "incognito": "spanning",
   "offline_enabled": true,
 
