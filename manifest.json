@@ -6,8 +6,7 @@
   "name": "GimmeGimmeGimme",
   "short_name": "gimme",
   "version": "0.4.14",
-  "description": "A downloader that presents a list of matching media for 'scrape' operations (all images directly on the page), or for 'dig' operations (Finding the full-sized image of each thumbnail in the gallery), or for a 'dig dig' (a gallery whose thumbnails link to other galleries, such that each must be 'dug'). Unlike other gallery downloaders, with Gimme you don't have to supply a CSS or XPath description of a gallery. However, If you want to, or you download galleries from the site frequently, you can set the CSS selector description and avoid any other processing. GimmeGimmeGimme as a very powerful set of heuristics learned by observing real galleries across the internet, as well as TensorFlow MobileNet ML/AI. The UI is ugly at best, but it works really well. Named in honor of Black Flag's song, Gimme Gimme Gimme...",
-D
+  "description": "A media downloader for on-page media and gallery-linked media.", 
   "incognito": "spanning",  
   "offline_enabled": true,
 
