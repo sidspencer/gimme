@@ -1,9 +1,9 @@
 const webpack = require("webpack");
+const path = require("path");
 
 module.exports = {
     mode: 'development',
-    // WINDOWS: context: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
-    context: '/Users/dis/Source/thirdlogan/gimme',
+    context: path.resolve(__dirname),
     entry: {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
@@ -12,8 +12,7 @@ module.exports = {
         baselibs: './baselibs/DataClasses.js'
     },
     output: {
-        // WINDOWS: path: 'C:\\Users\\wrait\\Source\\thirdlogan\\gimme',
-        path: '/Users/dis/Source/thirdlogan/gimme',
+        path: path.resolve(__dirname),
         filename: './[name]/bundle.js',
         publicPath: "./",
         libraryTarget: 'umd',
