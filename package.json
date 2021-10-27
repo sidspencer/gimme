@@ -2,7 +2,7 @@
   "name": "gimmegimmegimme",
   "displayName": "GimmeGimmeGimme",
   "version": "0.4.15",
-  "description": "A tool for helping you download media from a page, or from the pages that are linked.",
+  "description": "A media downloader for on-page and gallery-linked media. Named after Black Flag's \"Gimme Gimme Gimme\".",
   "type": "module",
   "main": "popup/Popup.js",
   "module": "popup/Popup.js",
