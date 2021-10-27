@@ -17,7 +17,8 @@ module.exports = {
         publicPath: "./",
         libraryTarget: 'umd',
         globalObject: 'window',
-        umdNamedDefine: true
+        umdNamedDefine: true,
+        hashFunction: "xxhash64"
     },
     module: {
         rules:[
