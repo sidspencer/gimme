@@ -808,7 +808,7 @@ class Digger extends CommonBase {
 
         // Load the document and process it. Either resolve with the pair, or reject. digDeeper()
         // can safely reject, as it is the final attempt to look at the zoom page.
-        var p = Utils.loadUriDoc(zoomPageUri, uriDocId)
+        var p = Utils.loadUriDoc(zoomPageUri, uriDocId, this.output)
         .then((doc) => {
             this.lm('Digger loaded doc: ' + zoomPageUri);
             this.output.toOut('Loaded document ' + zoomFilename);
