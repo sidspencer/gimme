@@ -187,8 +187,9 @@ class App extends CommonBase {
 
                 // For data-returning php files. (they really exist a fair amount)
                 if (/\/.+?.php\?/.test(uri)) {
-                    destFileName = destFileName + '.jpg';
+                    destFileName = destFileName.replace('.php', '.jpg');
                 }
+
                 // For weird filenames with parentheses in them.
                 if (/^\(.*\)/.test(destFileName)) {
                     destFileName = destFileName.replace(/^\(.*\)/, C.ST.E);
@@ -292,7 +293,7 @@ class App extends CommonBase {
 
         this.lm('STARTING ZIP DOWNLOAD');
 
-        Utils.downloadInZip(harvestedMap.values()).then(() => {
+        Utils.downloadInZip(harvestedMap.values(), this.output).then(() => {
             for (var index = 0; index < harvestedMap.values(); index++) {
                 me.output.setEntryAsDownloading(index);
             };
@@ -719,6 +720,7 @@ class App extends CommonBase {
         // Variables, all closure all the time.
         var locDocs = [];
         var combinedMap = {};
+        var stoppedBeforeDig = false;
         var me = this;
         var p = C.CAN_FN.PR_RS_DEF();
 
@@ -731,6 +733,7 @@ class App extends CommonBase {
                     // If stop is already called, reject with STOP to shoot to the final catch(). Set a flag so we
                     // know this was an early STOP.
                     if (me.isSTOP()) {
+                        stoppedBeforeDig = true;
                         me.output.toOut(MessageStrings.STOPPING_DDD);
                         me.lsm(`after processContentPage(), before any digging. Reject with STOP.`);
                         return C.CAN_FN.PR_RJ_STOP();
@@ -744,6 +747,7 @@ class App extends CommonBase {
                 .then((mapOfGalleryLinks) => {
                     // Fix the placement of this.
                     if (me.isSTOP()) {
+                        stoppedBeforeDig = true;
                         me.output.toOut(MessageStrings.STOPPING_DDD);
                         me.lsm(`while building gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
 
@@ -769,6 +773,7 @@ class App extends CommonBase {
                                 // any case, we need to set the promise chain to just resolve with STOP and not do any more
                                 // XHRs.
                                 if (me.isSTOP()) {
+                                    stoppedBeforeDig = true;
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
                                     me.lsm(`while executing gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
                                     return C.CAN_FN.PR_RJ_STOP();
@@ -800,6 +805,7 @@ class App extends CommonBase {
                                     }).catch((e) => {
                                         // This gets any STOP in this promise link.
                                         if (me.isSTOP(e)) {
+                                            stoppedBeforeDig = true;
                                             me.output.toOut(MessageStrings.STOPPING_DDD);
                                             me.lsm(`all doc-fetching operations halting, setting the entire promise chain to resolve(STOP).`);
                                             p = C.CAN_FN.PR_RS_STOP();
@@ -837,6 +843,7 @@ class App extends CommonBase {
                         // A STOP here means we will truncate the promise-chain to only the locDocs we have processed
                         // up until this point.
                         if (me.isSTOP(trueOrStop)) {
+                            stoppedBeforeDig = true;
                             me.output.toOut(MessageStrings.STOPPING_DDD);
                             me.lsm(`while going through locDocs. Truncating promise chain.`);
                             return C.CAN_FN.PR_RJ_STOP();
@@ -856,6 +863,7 @@ class App extends CommonBase {
                             // A stop here means the STOP was signalled while the promises were executing. We do similarly
                             // to above, setting the whole chain to just one resolve(STOP)
                             if (me.isSTOP()) {
+                                stoppedBeforeDig = true;
                                 me.output.toOut(MessageStrings.STOPPING_DDD);
                                 me.lsm(`Right before digging gallery ${lDoc.loc.href}. Truncating promise chain.`);
                                 return C.CAN_FN.PR_RS_STOP();
