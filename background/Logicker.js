@@ -20,7 +20,7 @@ import Output from './Output.js';
 class Logicker extends CommonStaticBase {
     // service object
     static hasSpecialRules = false;
-    static knownBadImgRegex = /^SUPER_FAKE_NOT_FOUND_IN_NATURE_ONLY_ZOOL$/;
+    static knownBadImgRegex = /\/(spinner\.svg|logo\.png|header\.jpg|placeholder\.png|layers\.svg)/;
     static messages = [];
     static processings = [];
     static blessings = [];
@@ -87,45 +87,21 @@ class Logicker extends CommonStaticBase {
             if (!!Logicker.mnModel) {
                 // If it's already loaded, resolve with it.
                 this.lm('returning cached copy of model.');
-                resolve(Logicker.mnModel);
-            }
-            else if (Logicker.loadingModel === true) {
-                //this.lm('Model is loading. We will wait a the end of the promise chain.');
+                Logicker.loadingModel = false;
 
-                // If it's still loading, we chain onto the promise. This way we do not double-load,
-                // and we continue execution once it's been loaded by the first caller.
-                Logicker.modelLoadPromiseChain.then(() => {
+                resolve(Logicker.mnModel);
+            } 
+            else {
+                mobilenet.load().then((mnModel) => {
+                    Logicker.mnModel = mnModel;
+
                     if (!!Logicker.mnModel) {
                         resolve(Logicker.mnModel);
                     }
                     else {
-                        reject('Mobilenet model came back null.')
+                        reject('Mobilenet model came back null.');
                     }
                 });
-            }
-            else {
-                Logicker.loadingModel = true;
-                me.lm('Loading model...');
-                const startTime = performance.now();
-
-                Logicker.modelLoadPromiseChain =
-                    Logicker.modelLoadPromiseChain.then(() => {
-                        //return  Promise.reject('No current mobilenet support');
-                        return mobilenet.load().then((mnModel) => {
-                            Logicker.mnModel = mnModel;
-                            Logicker.loadingModel = false;
-
-                            if (!!Logicker.mnModel) {
-                                resolve(Logicker.mnModel);
-                            }
-                            else {
-                                reject('Mobilenet model came back null.')
-                            }
-                        });
-                    });
-
-                const totalTime = Math.floor(performance.now() - startTime);
-                me.lm(`Model loaded and initialized in ${totalTime}ms...`);
             }
         });
     }
@@ -456,20 +432,25 @@ class Logicker extends CommonStaticBase {
                                         return;
                                     }
 
+                                     // The mobilenet similarity vector.
+                                     var classAgreements = [];
+                                     var totalClassesCount = classifications.length;
+
                                     // Set the badge to say we're in ML land. Alternate its colors to signify we're crunching.
-                                    chrome.browserAction.setBadgeText({ text: `ML%` });
+                                    chrome.browserAction.setBadgeText({ text: `ML%-${totalClassesCount}` });
                                     chrome.browserAction.setBadgeBackgroundColor(
                                         (useAlt = !useAlt) ? C.COLOR.TF_ALT : C.COLOR.TF_ACT
                                     );
 
-                                    // The mobilenet similarity vector.
-                                    var classAgreements = [];
-                                    var totalClassesCount = classifications.length;
-
                                     // For each of the class-match classifications, see how they compare to the thumbnail's classifications.
                                     // As the classifications are just arrays of objects of the form {className: C.ST.E, propability: 0}, we must
                                     // iterate in a nested loop. :(
-                                    classifications.forEach((cls) => {
+                                    classifications.forEach((cls, idx) => { // Set the badge to say we're in ML land. Alternate its colors to signify we're crunching.
+                                        chrome.browserAction.setBadgeText({ text: `ML-${idx}` });
+                                        chrome.browserAction.setBadgeBackgroundColor(
+                                            (useAlt = !useAlt) ? C.COLOR.TF_ALT : C.COLOR.TF_ACT
+                                        );
+
                                         thumbClassifications.forEach((tCls) => {
                                             if (tCls.className.indexOf(cls.className) != -1) {
                                                 if (Math.abs(cls.probability - tCls.probability) < C.L_CONF.SCORE_CUTOFF) {
