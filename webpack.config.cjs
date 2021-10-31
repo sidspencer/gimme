@@ -13,11 +13,11 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname),
-        filename: './[name]/bundle.js',
-        publicPath: "./",
+        filename: '[name]/bundle.js',
+        publicPath: '/[name]',
         libraryTarget: 'umd',
-        globalObject: 'window',
         umdNamedDefine: true,
+        globalObject: 'window',
         hashFunction: "xxhash64"
     },
     module: {
