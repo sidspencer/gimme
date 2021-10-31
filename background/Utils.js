@@ -6,7 +6,6 @@ import {
     Log,
     LastLoc,
 } from '../baselibs/DataClasses.js';
-import { default as Output } from './Output.js'
 
 
 /**
@@ -358,7 +357,6 @@ class Utils extends CommonStaticBase {
                     // Auto-respond to redirects.
                     if (rUri !== uri && (this.status == 301 || this.status == 302 || this.status == 503 )) {
                         Utils.lm(`Following redirect location for:\n\t${uri} -> ${rUri}`);
-                        Output.getInstance().toOut(`Following redirect location for:\n\t${uri} -> ${rUri}`);
 
                         Utils.sendXhr(method, rUri, props, responseType).then((res) => {
                             // delete the xhr as best we can. Resolve with the res.
@@ -727,7 +725,7 @@ class Utils extends CommonStaticBase {
     /**
      * Download as zip.
      */
-    static downloadInZip(fileOpts) {
+    static downloadInZip(fileOpts, output) {
         var zip = new JSZip();
         var promises = [];
 
@@ -782,7 +780,7 @@ class Utils extends CommonStaticBase {
                 var zipUri = URL.createObjectURL(content);
 
                 // Download. Reclaim the object uri memory on finally, but return the downloadFile() promise result.
-                var prm = Utils.downloadFile(zipUri, zipFilename, Output.getInstance());
+                var prm = Utils.downloadFile(zipUri, zipFilename, output);
                 prm.finally(() => { URL.revokeObjectURL(zipUri); });
 
                 // return the downloadFile() promise result.
@@ -938,7 +936,7 @@ class Utils extends CommonStaticBase {
      * Promise-based loader of an external resource into a <iframe>
      * in the background page. Returns the iframe's document object.
      */
-    static loadUriDoc(uri, id) {
+    static loadUriDoc(uri, id, output) {
         return new Promise((resolve, reject) => {
             id = (!id && id !== 0) ? C.UTILS_CONF.DEFAULT_IFRAME : id;
 
@@ -953,7 +951,7 @@ class Utils extends CommonStaticBase {
 
             let message = `Trying to load page in background iframe:\n\t${uri}`;
             this.lm(message);
-            Output.getInstance().toOut(message);
+            output.toOut(message);
 
             // Set a timeout for waiting for the iframe to load. We can't afford to
             // just never complete the promise. Wait 7 seconds.
@@ -973,7 +971,7 @@ class Utils extends CommonStaticBase {
                 if (request.docOuterHtml && request.uri == uri) {
                     let message = `page loaded in bg iframe:\n\t${uri}`;
                     this.lm(message);
-                    Output.getInstance().toOut(message)
+                    output.toOut(message)
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
 
