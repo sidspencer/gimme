@@ -3,16 +3,11 @@ import { default as Digger } from './Digger.js';
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
-import { default as Voyeur } from './Voyeur.js';
 import { default as App } from './App.js';
 import { default as C } from '../baselibs/C.js';
 import {
     InspectionOptions,
-    Log,
     ResumeEvent,
-    GalleryDef,
-    ConfigSpec,
-    Storing,
 } from '../baselibs/DataClasses.js';
 import CommonStaticBase from '../baselibs/CommonStaticBase.js';
 
@@ -266,6 +261,7 @@ class EventPage extends CommonStaticBase {
      */
     static undefineApp() {
         EventPage.app = undefined;
+        Logicker.mnModel = undefined;
         return(true);
     }
 
