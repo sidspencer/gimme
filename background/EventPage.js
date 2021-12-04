@@ -261,7 +261,6 @@ class EventPage extends CommonStaticBase {
      */
     static undefineApp() {
         EventPage.app = undefined;
-        Logicker.mnModel = undefined;
         return(true);
     }
 

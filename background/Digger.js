@@ -970,14 +970,7 @@ class Digger extends CommonBase {
             this.lm('Inspecting all media on ' + zoomFilename);
             return this.inspectZoomPage(doc, thumbUrl, zoomPageUrl);
         })
-         // 4 - Use TensorFlow's Mobilenet pre-trained ML model. ONLY WORKS FOR IMAGES!!!!
-        .catch((previousError) => {
-            errors.push(previousError);
-            if (searchDepth < C.SEARCH_DEPTH.TF_MATCH) { return Promise.resolve(null); }
-
-            return Logicker.tfClassificationMatch(thumbUrl.href, doc);
-        })
-        // 5- Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs. It then calls processZoomPage.
+        // 4- Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs. It then calls processZoomPage.
         .catch((previousError) => {
             errors.push(previousError);
             if (searchDepth < C.SEARCH_DEPTH.DIG_DEEPER) { return Promise.resolve(null); };

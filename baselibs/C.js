@@ -332,8 +332,7 @@ class SearchDepth {
     static SKIM =  1;
     static LARGEST_IMAGE =  2;
     static INSPECT =  3;
-    static TF_MATCH =  4;
-    static DIG_DEEPER =  5;
+    static DIG_DEEPER =  4;
 };
 
 
