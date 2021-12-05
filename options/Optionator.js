@@ -180,7 +180,7 @@ class Dominatrix extends CommonStaticBase {
         addSubEntry.addEventListener('click', () => {
             // Create the label.
             var newLabel = (!!val.label ? document.createElement('label') : false);
-            var newValueId = div.id + '_' + C.DOMX_CONF.VALUE_PREFIX + (idx + 1);
+            var newValueId = rootNode.id + '_' + C.DOMX_CONF.VALUE_PREFIX + (idx + 1);
             if (!!newLabel) {
                 newLabel.id = 'label_' + newValueId
                 newLabel.textContent = val.label;
