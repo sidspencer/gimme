@@ -1,5 +1,6 @@
 import { default as C } from './C.js';
 import { Log } from './DataClasses.js';
+import { default as MessageStrings } from './MessageStrings.js';
 
 
 /**
