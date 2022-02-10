@@ -14,10 +14,18 @@ Glaring problems that plagued v0.4.13 and earlier were tracked-down and fixed. M
 
 ## current effort: v0.4.15
 
-### Planned Features:
-- There will be more stability, increased heuristic accuracy, and better use of TF. (vague, puttering goals) 
--  Make the `[STOP]` button work. Properly cancel the promises, stop the XHRs in flight, stop all the digging... Plumbing is there, but it doesn't work.
-- Properly handle gallery URI redirects off links around gallery-gallery thumbs. We currently fail to pick up the redirect, and just fail at finding the gallery. We need to do a `HEAD` request to each of the gallery-gallery links to catch any `request.redirectURL` values and use those.
+# ...The Future (AKA needless pipe dreams) v0.4.15 - v 0.4.18 Roadmap
+There are some major bugs crippling the Options page and I finally got the stop button working way better, so v.4.15 will likely end up being released very soon as a bugfix release. All the bugs I've found are bug fixes that should go out **now**. Sadly, I had to remove the TensorFlow AI from the extension's toolkit because the not-so-great matches weren't worth the horrible slowdowns and browser-crashing memory usage. (I hope to be able to replace its image-matching-AI soon with either a lighter library, or with a service.) Yeah, bugs slightly better.
+
+### v0.4.16
+Y'all know there are some pet features I keep wanting to work on, but they keep shuffling. I kicked the tires on other downloaders that include gallery download support, but the gallery structure must be in their own definitions file, and that's just silly. But it made me realize that I could add lots of value by improving the Options page (especially in my namings), and being able to import and export flat files of the gallery definitions would be very useful. At the very least, you could set up other accounts with your gallery definition overrides easily, and I might even get in the business of publishing static maps to match the other downloaders. I want this to go out with the storing of the program's discovered structures for galleries too (which is being tracked and recorded, but not yet available in Options). I just need to do it with good descriptions and better UI. It'll get users.
+
+### v0.4.17 
+This will probably end up as a bug-fix release for the ambitious stuff I have planned for v0.4.16!
+
+### v0.4.18
+Extensions must migrate to manifest v3 using webworkers before 2022 to stay compatible with Chrome. I don't know how easy it will be to port to
+a webworker way of background processing -- it depends on async and Promise behavior -- but it **must** be done.
 
 
 ### Bug Fixes:
