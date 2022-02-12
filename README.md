@@ -12,12 +12,12 @@ This extension works with Chrome, Firefox, and Edge -- it can be found in all th
 Glaring problems that plagued v0.4.13 and earlier were tracked-down and fixed. Most crashes, hangs, and times when it missed obvious matches are resolved. It even does better with lazy-loaded galleries. But the killer feature: there's a little "back to top" arrow on the popup list of files. (LOL, but seriously, it saves some time.)
 
 
-## current effort: v0.4.15
+## current effort: v0.4.15, manifest v3
+So no one is allowed to upload manifest v2 extensions to the Chrome store as of last month. I missed the memo, but I'm on it now. Also there are some major bugs crippling the Options page and I finally got the stop button working way better, so v.4.15 will likely end up being released very soon as a bugfix release. All the bugs I've found are bug fixes that should go out **now**. Sadly, I had to remove the TensorFlow AI from the extension's toolkit because the not-so-great matches weren't worth the horrible slowdowns and browser-crashing memory usage. (I hope to be able to replace its image-matching-AI soon with either a lighter library, or with a service.) Yeah, bugs slightly better.
+
+
 
 # ...The Future (AKA needless pipe dreams) v0.4.15 - v 0.4.18 Roadmap
-There are some major bugs crippling the Options page and I finally got the stop button working way better, so v.4.15 will likely end up being released very soon as a bugfix release. All the bugs I've found are bug fixes that should go out **now**. Sadly, I had to remove the TensorFlow AI from the extension's toolkit because the not-so-great matches weren't worth the horrible slowdowns and browser-crashing memory usage. (I hope to be able to replace its image-matching-AI soon with either a lighter library, or with a service.) Yeah, bugs slightly better.
-
-### v0.4.16
 Y'all know there are some pet features I keep wanting to work on, but they keep shuffling. I kicked the tires on other downloaders that include gallery download support, but the gallery structure must be in their own definitions file, and that's just silly. But it made me realize that I could add lots of value by improving the Options page (especially in my namings), and being able to import and export flat files of the gallery definitions would be very useful. At the very least, you could set up other accounts with your gallery definition overrides easily, and I might even get in the business of publishing static maps to match the other downloaders. I want this to go out with the storing of the program's discovered structures for galleries too (which is being tracked and recorded, but not yet available in Options). I just need to do it with good descriptions and better UI. It'll get users.
 
 ### v0.4.17 
