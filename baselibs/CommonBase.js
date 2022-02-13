@@ -36,12 +36,14 @@ class CommonBase {
         // the event listener when we get the stop event. We never want to stop listening for 
         // stop events. DO NOT REMOVE THE EVENT LISTENER. (However, if things change, having
         // them in static maps helps really remove them.)
+        var me = this;
         CommonBase.stopListeners[this.listenerKey] = (evt) => {
             if (evt.STOP === C.ACTION.STOP) {
                 //window.document.removeEventListener(C.ACTION.STOP, CommonBase.stopListeners[this.listenerKey]);
                 //delete CommonBase.stopListeners[this.listenerKey];
 
-                this.stop = true;
+                me.log.lm(`${typeof(this)} is setting stop = true.`);
+                me.stop = true;
             }
         };
         window.document.addEventListener(C.ACTION.STOP, CommonBase.stopListeners[this.listenerKey]);

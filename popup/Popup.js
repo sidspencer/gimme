@@ -5,7 +5,6 @@ import {
     Storing, 
     FileOption,
     StopEvent,
-    ResumeEvent,
 } from '../baselibs/DataClasses.js';
 import CommonBase from '../baselibs/CommonBase.js';
 
@@ -393,9 +392,15 @@ class Popup extends CommonBase {
          * it with a silly dictionary (and it has the time triggered).
          */
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage((bgWindow) => {                
-                var evt = new StopEvent();
-                bgWindow.document.dispatchEvent(evt);
+            chrome.runtime.getBackgroundPage((bgWindow) => {   
+                // -- NOT WORKING. WHY??? --             
+                //var evt = new StopEvent();
+                //bgWindow.document.dispatchEvent(evt);
+
+                Output.getInstance().toOut(`Stopping! ...`);
+                let ep = bgWindow[C.EVENT_PAGE_CLASS];
+                !!ep.app && (ep.app.stop = true);
+                !!ep.app && !!ep.app.digger && (ep.app.digger.stop = true);
             });
         });
 

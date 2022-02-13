@@ -1,7 +1,6 @@
 import { default as Scraper } from './Scraper.js';
 import { default as Digger } from './Digger.js';
 import { default as Output } from './Output.js';
-import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
 import { default as App } from './App.js';
 import { default as C } from '../baselibs/C.js';
