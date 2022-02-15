@@ -316,20 +316,19 @@ class Digger extends CommonBase {
         // Execute all the Promises together. They must all resolve, or
         // it'll kill the whole batch.
         return (
-            Promise.all(diggingBatch)
+            Promise.allSettled(diggingBatch)
                 .then((pairs) => {
                     if (me.isSTOP()) { me.lsm(' Letting this harvestBatch occur. Stop was signaled, however.')};
 
                     return (
-                        me.harvestBatch(pairs)
-                            .then((input) => {
-                                if (me.isSTOP()) {
-                                    return Promise.reject(C.ACTION.STOP);
-                                }
-                                else {
-                                    return Promise.resolve(input);
-                                }
-                            })
+                        me.harvestBatch(pairs).then((input) => {
+                            if (me.isSTOP()) {
+                                return Promise.reject(C.ACTION.STOP);
+                            }
+                            else {
+                                return Promise.resolve(input);
+                            }
+                        })
                     );
                 }).catch((err) => {
                     if (me.isSTOP(err)) {
@@ -655,6 +654,7 @@ class Digger extends CommonBase {
         setTimeout(f, 700);
     }
 
+    
     /**
      * Find all the "full-sized"/"zoomed" media on zoom pages, as indicated by a
      * galleryMap (thumbUri -> zoomPageUri).
@@ -690,6 +690,7 @@ class Digger extends CommonBase {
      */
     recordDigResult(thumbUri, zoomedImgUri, isFailure) {
         var id = C.ST.E;
+        var isFailure = false;
         if (Utils.exists(thumbUri) && Utils.exists(zoomedImgUri)) {
             this.lm(
                 ' Zoomed image reported.\n' +
@@ -704,7 +705,7 @@ class Digger extends CommonBase {
         }
 
         // Set the entry as failed or dug.
-        if (isFailure) {
+        if (!!isFailure) {
             this.output.setEntryAsFailed(id, zoomedImgUri || '[failed]');
         }
         else {
@@ -713,6 +714,8 @@ class Digger extends CommonBase {
 
         // Update the out text and the badge.
         this.output.toOut('Completed ' + (++this.completedXhrCount) + ' media fetches...');
+        this.lm(`-XHR #${this.completedXhrCount}: ` + (!!isFailure? 'failed' : 'dug') +` "${zoomedImgUri}"`);
+
         chrome.browserAction.setBadgeText({ text: C.ST.E + this.completedXhrCount + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.NEWLY_DUG);
     }
@@ -809,19 +812,19 @@ class Digger extends CommonBase {
         // Load the document and process it. Either resolve with the pair, or reject. digDeeper()
         // can safely reject, as it is the final attempt to look at the zoom page.
         var p = Utils.loadUriDoc(zoomPageUri, uriDocId, this.output)
-        .then((doc) => {
-            this.lm('Digger loaded doc: ' + zoomPageUri);
-            this.output.toOut('Loaded document ' + zoomFilename);
+            .then((doc) => {
+                this.lm('Digger loaded doc: ' + zoomPageUri);
+                this.output.toOut('Loaded document ' + zoomFilename);
 
-            return this.processZoomPage(doc, new URL(thumbUri), new URL(zoomPageUri), searchDepth);
-        })
-        .then((pair) => {
-            return Promise.resolve(pair);
-        })
-        .catch((e) => {
-            this.lm('digDeeper iframe-load error: ' + JSON.stringify(e));
-            return Promise.reject(e);
-        });
+                return this.processZoomPage(doc, new URL(thumbUri), new URL(zoomPageUri), searchDepth);
+            })
+            .then((pair) => {
+                return Promise.resolve(pair);
+            })
+            .catch((e) => {
+                this.lm('digDeeper iframe-load error: ' + JSON.stringify(e));
+                return Promise.reject(e);
+            });
 
         return p;
     };
@@ -959,6 +962,7 @@ class Digger extends CommonBase {
             if (this.inspectionOptions.imgs !== true) { return Promise.reject('Not looking for images'); };
 
             this.output.toOut('Looking for the largest Image on ' + zoomFilename);
+            this.lm(`+Looking with getPairWithLargestImage()`)
             return Logicker.getPairWithLargestImage(thumbUrl.href, doc);
         })
         // 3 - Use document inspection, using each options-defined media-type of scrape.
@@ -967,7 +971,7 @@ class Digger extends CommonBase {
             if (searchDepth < C.SEARCH_DEPTH.INSPECT) { return Promise.resolve(null); };
 
             this.output.toOut('Inspecting all media on ' + zoomFilename);
-            this.lm('Inspecting all media on ' + zoomFilename);
+            this.lm(`+Inspecting all media on ${zoomFilename}`);
             return this.inspectZoomPage(doc, thumbUrl, zoomPageUrl);
         })
         // 4- Iterate again, using Plan B. digDeeper() uses an iframe, so client-side rendering runs. It then calls processZoomPage.
@@ -975,20 +979,24 @@ class Digger extends CommonBase {
             errors.push(previousError);
             if (searchDepth < C.SEARCH_DEPTH.DIG_DEEPER) { return Promise.resolve(null); };
 
-            this.output.toOut('Checking ' + zoomFilename + ' a second way');
+            this.output.toOut(`Checking for JavaScript initialization: ${zoomFilename}`);
+            this.lm(`+Checking for JS init, using iframe: ${zoomFilename}`);
             return this.digDeeper(thumbUrl.href, zoomPageUrl.href, (C.SEARCH_DEPTH.DIG_DEEPER - 1));
         })
         // Pair Found - Resolve with that pair.
         .then((pair) => {
             if (!pair || pair === null) {
+                this.lm(`processZoomPage(): rejecting promise! invalid Pair, ${JSON.stringify(pair)}`);
                 return Promise.reject('Invalid pair');
             }
             else {
+                this.lm(`processZoomPage(): sucessful pair, ${JSON.stringify(pair)}`);
                 return Promise.resolve(pair);
             }
         })
         // No Pair - Log errors[], resolve with null.
         .catch((previousError) => {
+            this.lm(`processZoomPage() did not find the Full-Sized media.\n  error: ${JSON.stringify(previousError)}`);
             errors.push(previousError);
 
             // Reject with the combined error messages.
@@ -1070,7 +1078,7 @@ class Digger extends CommonBase {
                 zoomUri = me.findZoomUriByNameMatch(doc, thumbUrl, zoomPageUrl, optName);
 
                 if (!zoomUri) {
-                    me.find
+                    return Promise.reject(`Could not find zoomUrl via name match.`)
                 }
             }
         });
@@ -1109,10 +1117,14 @@ class Digger extends CommonBase {
         }
         // Otherwise, use the Logicker's filename-matching on each object we find. Use the first match.
         else {
+            chrome.browserAction.setBadgeText({ text: '' });
+            chrome.browserAction.setBadgeBackgroundColor(C.COLOR.AVAILABLE_FOPTS);
+    
             urls.forEach((url) => {
                 if (!!zUri) { return; };
 
                 // Regardless of mediaType, try to use the filename heuristic.
+                this.lm(`Utilizing file-naming-heuristics for a partial name match: ${url}`);
                 if (Utils.exists(url) && url.pathname && Logicker.isPossiblyZoomedFile(tUrl, url)) {
                     zUri = url.href;
                 }
