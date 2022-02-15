@@ -5,11 +5,9 @@ import {
     ContentMessage,
     ProcessingInstructions,
     UriPair,
-    ScoredUriPair,
     Dimensions,
     Log,
 } from '../baselibs/DataClasses.js';
-import Output from './Output.js';
 
 
 /**
@@ -75,49 +73,7 @@ class Logicker extends CommonStaticBase {
         }
     }
 
-
-    /**
-     * Using the TF Mobilenet model, get a classification vector for the image.
-     */
-    static classifyImage(imgElement) {
-        var me = this;
-
-        let p = new Promise((resolve, reject) => {
-            // Stash away the original height and width.
-            var originalHeight = imgElement.height;
-            var originalWidth = imgElement.width;
-
-            // Set the height and width to be the size that mobilenet expects.
-            imgElement.height = C.L_CONF.IMAGE_SIZE;
-            imgElement.width = C.L_CONF.IMAGE_SIZE;
-
-            // Use mobilenet to get a classification array of objects.
-            Logicker.mnModel.classify(imgElement, C.L_CONF.CLASSIFICATIONS).then((imgClassifications) => {
-                // Restore the img's height and width.
-                imgElement.height = originalHeight;
-                imgElement.width = originalWidth;
-
-                // Resolve with the classifications array if we got it.
-                if (Array.isArray(imgClassifications)) {
-                    //me.lm('mnModel.classify found these: ' + JSON.stringify(imgClassifications));
-                    resolve(imgClassifications);
-                }
-                else {
-                    me.lm('[Logicker] Classifications came back null');
-                    reject(null);
-                }
-            }).catch((err) => {
-                me.lm(`[Logicker] mnModel.classify() gave error: ${err}`);
-                reject(null);
-            });
-        });
-
-        // Either resolves with the mobilenet classifications array, or rejects due the
-        // array not being right.
-        return p;
-    }
-
-
+    
     /**
      * Load an image via the Image() object, sized so tf can analyse it.
      */
