@@ -59,6 +59,7 @@ class PopupElementId {
     // Buttons
     static GET_ALL_FILE_OPTS = 'getAllFileOptsButton';
     static GET_ALL_JPG_OPTS = 'getAllJpgOptsButton';
+    static GET_ALL_JPG_N_MP4_OPTS = 'getAllJpgNMp4OptsButton'
     static TOGGLE_VOYEUR = 'toggleVoyeurButton'
     static DIG_GALLERY = 'digGalleryButton';
     static DIG_FILE_OPTIONS = 'digFileOptionsButton';
@@ -309,6 +310,7 @@ class Color {
     static TF_ACT = { color: '#ede309' };
     static TF_ALT = { color: '#fe7a00' };
     static TF_TXT = { color: '#5c5c5c' };
+    static WAITING = { color: '#7f1a1' };
 }
 
 
@@ -402,6 +404,9 @@ class OptionsConfiguration {
     // Special value to enable alllllll the buttons. Even the ones that barely work.
     static HALF_BAKED_VAL = "-1";
 
+    // Make a const for the test domain, gtob obviously!
+    static EX_DOMAIN = "EXAMPLE-greentextonblack.net";
+
      // Enumeration of the spec form sections.
     static SECTIONS = {
         CONFIG: 'CONFIG',
@@ -452,36 +457,37 @@ class OptionsConfiguration {
     // These are the default spec.config reference values.
     // (SpecGeneralConfig is the duck-type class used here.)
     static CANNED_CONFIG = {
-        concurrentDls: '20',
-        minZoomWidth: '300',
-        minZoomHeight: '300',
-        dlChannels: '11',
-        dlBatchSize: '5',
-        knownBadImgRegex: '/\\/(logo\\.png|logo\\.jpg|logo_white\\.png|loading|header/\\.jpg|premium_|preview\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo\\.svg|logo-desktop-w\\.svg|user\\.svg|speech\\.svg|folder\\.svg|layers\\.svg|tag\\.svg|video\\.svg|favorites\\.svg|spinner\\.svg|preview\\.jpg)/i',
-        enableHalfBakedFeatures: '0',
+        concurrentDls: '24',
+        minZoomWidth: '350',
+        minZoomHeight: '350',
+        dlChannels: '7',
+        dlBatchSize: '13',
+        knownBadImgRegex: '/\\/(((logo|loading|header|preview|home|user|profile|tag|video|layers|folder|1px|spacer)\\.(png|gif|jpg|svg))|' +
+            'logo_white\\.png|holder-trailer-home\\.jpg|logo-mobile-w\\.svg|logo-desktop-w\\.svg|speech\\.svg)/i',
+        enableHalfBakedFeatures: 'off',
     };
 
     // The default spec.processings example reference values.
     // (SpecProcessing and SpecProcessingAction are the duck-type classes used here.)
     static CANNED_PROCESSINGS = [
         {
-            match: 'fakeexample.fake',
+            match: OptionsConfiguration.EX_DOMAIN,
             actions: [
                 {
                     noun: 'src',
                     verb: 'replace',
-                    match: '/^t-/',
-                    new: 'big-'
+                    match: '\\/thumb',
+                    new: '\\/pic'
                 },
                 {
-                    noun: 'href',
+                    noun: 'src',
                     verb: 'replace',
-                    match: '/\\/fakeout\\//',
-                    new: '/realpath/'
+                    match: '\?.*',
+                    new: '?client=gimme'
                 }
             ],
             dig: true,
-            scrape: false,
+            scrape: true,
         }
     ];
 
@@ -489,11 +495,11 @@ class OptionsConfiguration {
     // (SpecMessage is the duck-type class used here.)
     static CANNED_MESSAGES = [
         {
-            match: 'fakeexample.fake',
-            link: 'a.link[href]',
-            href: 'href',
-            thumb: 'img.thumb[data-src]',
-            src: 'dataset.src',
+            match: OptionsConfiguration.EX_DOMAIN,
+            link: 'div#main-gallery a.pic-link',
+            href: 'dataset.toFullPic',
+            thumb: 'img.thumb',
+            src: 'src',
         }
     ];
 
@@ -501,9 +507,9 @@ class OptionsConfiguration {
     // (SpecBlessing is the duck-type class used here.)
     static CANNED_BLESSINGS = [
         {
-            match: 'fakeexample.fake',
-            zoom: 'img.zoomed',
-            src: 'src',
+            match: OptionsConfiguration.EX_DOMAIN,
+            zoom: 'img#fullPic',
+            src: 'currentSrc',
         }
     ];
 
@@ -531,6 +537,7 @@ class DominatrixConfiguration {
     static DELETE_BUTTON_CLASS = 'delete';
     static ADD_SUB_ENTRY_CLASS = 'addSubentry';
     static DELETE_BUTTON_TEXT = 'X';
+    static EXPORTER_DIV_ID = 'exporter';
  }
 
 
@@ -574,7 +581,7 @@ class MimeTypeRegex {
         'TIFF': /image\/tiff/,
     }
     static ALLMEDIA = /(image|application|audio|video)\/(jpg|jpeg|png|gif|tiff|mpg|mp4|flv|avi|zip|tar|gz|mp3|ogg|aac|m4a)/;
-    static ALLSUPPORTED = /(image|application|audio|video|text)\/(jpg|jpeg|png|gif|tiff|mpg|mp4|flv|avi|zip|tar|gz|mp3|ogg|aac|m4a|html|xhtml|rtf|pdf|octet-stream)/;
+    static ALLSUPPORTED = /(image|application|audio|video|text)\/(jpg|jpeg|png|gif|tiff|mpg|mp4|flv|avi|zip|tar|gz|mp3|ogg|aac|m4a|html|xhtml|rtf|pdf|octet-stream|webm)/;
 }
 
 

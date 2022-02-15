@@ -32,6 +32,9 @@ class Dominatrix extends CommonStaticBase {
         if (!Utils.exists(Dominatrix.log)) {
             super.setup(C.LOG_SRC.DOMINATRIX);
         }
+
+        let exp = document.querySelector(`${C.DOMX_CONF.EXPORTER_DIV_ID} > a`);
+        exp && (exp.onclick = () => { this.showSpecToUser(); });
     }
 
 
@@ -353,6 +356,50 @@ class Dominatrix extends CommonStaticBase {
     static getBlessingEntries() {
         return Dominatrix.getEntries(Dominatrix.SectionElements.BLESSINGS);
     };
+
+
+    /**
+     * Show the spec
+     */
+    static showSpecToUser() {
+        const doneId = 'donejson';
+        const preId = 'specjson';
+
+        let spec = {};
+        spec.config = Dominatrix.getConfig();
+        spec.messages = Dominatrix.getMessageEntries();
+        spec.processings = Dominatrix.getProcessingEntries();
+        spec.blessings = Dominatrix.getBlessingEntries();
+
+        let pre = document.createElement('pre');
+        pre.id = preId;
+        pre.textContent = `let spec = ${JSON.stringify(spec)}`;
+
+        let done = document.createElement('button');
+        done.id = doneId;
+        done.textContent = 'bored?';
+        done.onclick = () => {
+            try { document.getElementById(doneId).remove(); } catch {};
+            try { document.getElementById(preId).remove(); } catch {};
+        }
+
+        document.getElementById(C.DOMX_CONF.EXPORTER_DIV_ID).appendChild(pre);
+        document.getElementById(C.DOMX_CONF.EXPORTER_DIV_ID).appendChild(done);
+    }
+
+
+    // /**
+    //  * What is really desired...
+    //  */
+    // static exportSpecToUser() {
+    //     // auto-download starts. Just with a hidden "a", maybe easier.
+    // }
+    // /**
+    //  * What is really desired...
+    //  */
+    // static importSpecFromUser() {
+    //     // Little pop-over with an "import". Dead-simple, we have the api.
+    // }
 }
 Dominatrix.setup();
 
