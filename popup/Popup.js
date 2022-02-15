@@ -299,6 +299,20 @@ class Popup extends CommonBase {
 
 
         /**
+         * This button is in the "action buttons" group. They act upon the list of file download options. This
+         * fires the checkboxes' click events for all jpg files only.
+         */
+        document.getElementById(C.ELEMENT_ID.GET_ALL_JPG_N_MP4_OPTS).addEventListener(C.EVT.CLICK, () => {
+            document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
+                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg|mp4|m4v)$/, 'i'))) {
+                    var evt = new MouseEvent(C.EVT.CLICK);
+                    cbEl.dispatchEvent(evt);
+                }
+            });
+        });
+
+
+        /**
          * This button is in the "action buttons" group. It clears the download list, clears the 
          * previouslyHarvestedUriMap, shows the scrape/dig buttons, and hides the "action buttons".
          */
@@ -394,12 +408,12 @@ class Popup extends CommonBase {
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage((bgWindow) => {   
                 // -- NOT WORKING. WHY??? --             
-                //var evt = new StopEvent();
-                //bgWindow.document.dispatchEvent(evt);
+                // var evt = new StopEvent();
+                // bgWindow.document.dispatchEvent(evt);
 
+                // This sometimes works. Ugh!
                 Output.getInstance().toOut(`Stopping! ...`);
                 let ep = bgWindow[C.EVENT_PAGE_CLASS];
-                !!ep.app && (ep.app.stop = true);
                 !!ep.app && !!ep.app.digger && (ep.app.digger.stop = true);
             });
         });

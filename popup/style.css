@@ -96,6 +96,7 @@ div.doublewide {
 div.doublewide > button {
     display: inline-block;
     width: 100px;
+    margin: 3px;
 }
 
 #toggleVoyeurButton {
@@ -118,4 +119,28 @@ div#backToTop {
     font-size: 30px;
     font-weight: bold;
     cursor: pointer;
+}
+
+div#exporter {
+    display: block;
+    overflow: auto;
+    min-width: 30em;
+    min-height: 5em;
+    max-width: 90vw;
+    max-height: 90vw;
+}
+
+pre#specjson {
+    margin: 1em;
+    padding: 0.5em;
+    background-color: grey;
+    color: black;
+    font-size: 10px;
+    font-family: monospace;
+}
+
+button#donejson {
+    border: 1px double yellow;
+    color: yellow;
+    margin: 0.5em 1em 1em 1em;
 }
