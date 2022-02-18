@@ -308,7 +308,7 @@ class Utils extends CommonStaticBase {
     /**
      * Promise-wrapper for doing an XHR
      */
-    static sendXhr(method, uri, props, responseType) {
+    static sendXhr(method, uri, props, responseType, resolveOnError=false) {
         return new Promise((resolve, reject) => {
             if (Utils.stop) { return C.CAN_FN.PR_RJ_STOP(); };
 
@@ -334,8 +334,8 @@ class Utils extends CommonStaticBase {
                 delete Utils.xhrsInFlight[xhrId];
                 xhr = null;
 
-                // reject with the error status we were called with.
-                reject(errorStatus);
+                // reject/resolve with the error status we were called with.
+                (resolveOnError ? resolve : reject)(errorStatus);
             };
 
 
