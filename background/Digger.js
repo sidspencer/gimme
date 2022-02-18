@@ -316,7 +316,7 @@ class Digger extends CommonBase {
         // Execute all the Promises together. They must all resolve, or
         // it'll kill the whole batch.
         return (
-            Promise.allSettled(diggingBatch)
+            Promise.all(diggingBatch)
                 .then((pairs) => {
                     if (me.isSTOP()) { me.lsm(' Letting this harvestBatch occur. Stop was signaled, however.')};
 
@@ -1076,10 +1076,6 @@ class Digger extends CommonBase {
 
             if (this.inspectionOptions[optName] === true) {
                 zoomUri = me.findZoomUriByNameMatch(doc, thumbUrl, zoomPageUrl, optName);
-
-                if (!zoomUri) {
-                    return Promise.reject(`Could not find zoomUrl via name match.`)
-                }
             }
         });
 
