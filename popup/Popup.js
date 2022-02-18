@@ -255,7 +255,7 @@ class Popup extends CommonBase {
          * as to what files to download.
          */
         document.getElementById(C.ELEMENT_ID.DIG_FILE_OPTIONS).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage((bgWindow) => {
+            chrome.runtime.getBackgroundPage((bgWindow) => { 
                 bgWindow[EP].goDigFileOptions(window.document);
             });
         });
@@ -290,7 +290,7 @@ class Popup extends CommonBase {
          */
         document.getElementById(C.ELEMENT_ID.GET_ALL_JPG_OPTS).addEventListener(C.EVT.CLICK, () => {
             document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
-                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg)$/, 'i'))) {
+                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg)/, 'i'))) {
                     var evt = new MouseEvent(C.EVT.CLICK);
                     cbEl.dispatchEvent(evt);
                 }
@@ -304,7 +304,7 @@ class Popup extends CommonBase {
          */
         document.getElementById(C.ELEMENT_ID.GET_ALL_JPG_N_MP4_OPTS).addEventListener(C.EVT.CLICK, () => {
             document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
-                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg|mp4|m4v)$/, 'i'))) {
+                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg|mp4|m4v)/, 'i'))) {
                     var evt = new MouseEvent(C.EVT.CLICK);
                     cbEl.dispatchEvent(evt);
                 }
