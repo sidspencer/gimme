@@ -311,6 +311,14 @@ class Color {
     static TF_ALT = { color: '#fe7a00' };
     static TF_TXT = { color: '#5c5c5c' };
     static WAITING = { color: '#7f1a1' };
+    static REMOVE_BADGE = { color: null };
+    static DIGGING0 = { color: '#00ff00' };
+    static DIGGING1 = { color: '#108810' };
+    static DIGGING2 = { color: '#77FF12' };
+    static DIGGING3 = { color: '#66cc33' };
+    static DIGGING4 = { color: '#559922' };
+    static DIGGING5 = { color: '#eebb11' };
+    static NUM_DIGGINGS = 5;
 }
 
 

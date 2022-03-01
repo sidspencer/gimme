@@ -749,6 +749,28 @@ class Digger extends CommonBase {
 
 
     /**
+     * Give the user some feedback to show we're still running. Do it via the badge.
+     * We rotate colors for whizz-bang-ness, but users can override it.
+     */
+    fbackCount = 0;
+    provideDigFeedback(userText, userColor) {        
+        chrome.browserAction.setBadgeBackgroundColor((!!userColor && !!userColor.color) ? userColor : 
+            C.COLOR[`DIGGING${(++this.fbackCount) % C.COLOR.NUM_DIGGINGS}`]
+        );
+        chrome.browserAction.setBadgeText({ text: `${userText}` });
+    }
+
+
+    /**
+     * Give the user some feedback to show we're still running. Do it via the badge.
+     */
+    clearDigFeedback() {
+        chrome.browserAction.setBadgeText({ text: C.ST.E });
+        chrome.browserAction.setBadgeBackgroundColor(C.COLOR.REMOVE_BADGE);
+    }
+
+
+    /**
      * Find all the clicked-through (hopefully) large versions of images on pic detail page.
      * Do it by finding all the 'a img' selecteds, and then grabbing the document specified by
      * the <a> -- this is queried for any <img> with a similar filename to the supposed "thumbnail".
@@ -808,6 +830,7 @@ class Digger extends CommonBase {
         var uriDocId = zoomFilename.substring('id' + zoomFilename.substring(0, zoomFilename.indexOf(C.ST.D)));
         this.lm('uriDocId: ' + uriDocId);
         this.output.toOut('Finding zoom-item for thumbnail named ' + thumbFilename + C.ST.E);
+        this.provideDigFeedback('++');
 
         // Load the document and process it. Either resolve with the pair, or reject. digDeeper()
         // can safely reject, as it is the final attempt to look at the zoom page.
@@ -856,6 +879,9 @@ class Digger extends CommonBase {
 
         this.output.toOut('Finding zoom-media for thumbnail named ' + thumbFilename + C.ST.E);
         this.lm('working on ' + zoomPageUri);
+
+        // Provide the user with a doo-dad to know we're still running.
+        this.provideDigFeedback('@');
 
         // Do a HEAD request XHR to discover the content-type of the zoom-page. Either it is
         // media, and we resolve with it, it is an HTML doc and we process it, or skip it if
