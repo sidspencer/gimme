@@ -413,8 +413,10 @@ class Popup extends CommonBase {
 
                 // This sometimes works. Ugh!
                 Output.getInstance().toOut(`Stopping! ...`);
-                let ep = bgWindow[C.EVENT_PAGE_CLASS];
-                !!ep.app && !!ep.app.digger && (ep.app.digger.stop = true);
+
+                // Only doing it async seems to make it work.
+                var a = bgWindow[EP].app;
+                setTimeout(() => !!a && (a.stop = true));
             });
         });
 
