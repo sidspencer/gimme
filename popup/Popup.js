@@ -4,7 +4,6 @@ import { default as Utils } from '../background/Utils.js'
 import {
     Storing, 
     FileOption,
-    StopEvent,
 } from '../baselibs/DataClasses.js';
 import CommonBase from '../baselibs/CommonBase.js';
 
@@ -407,14 +406,9 @@ class Popup extends CommonBase {
          */
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
             chrome.runtime.getBackgroundPage((bgWindow) => {   
-                // -- NOT WORKING. WHY??? --             
-                // var evt = new StopEvent();
-                // bgWindow.document.dispatchEvent(evt);
-
-                // This sometimes works. Ugh!
-                Output.getInstance().toOut(`Stopping! ...`);
-
-                // Only doing it async seems to make it work.
+                // Only doing it async, and setting stop on app seems to make it work. 
+                // It still takes a few seconds... The StopEvent dispatch doesn't ever work.
+                Output.getInstance().toOut(`Stopping! ... (Takes a few seconds)`);
                 var a = bgWindow[EP].app;
                 setTimeout(() => !!a && (a.stop = true));
             });
@@ -424,6 +418,7 @@ class Popup extends CommonBase {
         document.getElementById(C.ELEMENT_ID.BACK_TO_TOP).addEventListener(C.EVT.CLICK, () => {
             window.scroll({ top: 0 });
         });
+
 
         /*
         document.getElementById(C.ELEMENT_ID.RESUME).addEventListener(C.EVT.CLICK, () => {
