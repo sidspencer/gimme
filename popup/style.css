@@ -112,6 +112,10 @@ div#stopButtonHolder {
     margin: 5px 5px 5px 300px;
 }
 
+div#actionHolder > div {
+    margin: 5px;
+}
+
 div#backToTop {
     position:fixed;
     bottom: 5px;
