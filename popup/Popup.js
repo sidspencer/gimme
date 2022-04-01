@@ -410,7 +410,7 @@ class Popup extends CommonBase {
                 // It still takes a few seconds... The StopEvent dispatch doesn't ever work.
                 Output.getInstance().toOut(`Stopping! ... (Takes a few seconds)`);
                 var a = bgWindow[EP].app;
-                setTimeout(() => !!a && (a.stop = true));
+                setTimeout(() => !!a && (a.stop = true), 10);
             });
         });
 
