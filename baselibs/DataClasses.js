@@ -4,7 +4,7 @@ import { default as C } from './C.js';
  * Data classes. They hold data.
  *********************************************/
 
- 
+
  /**
   * Digging/Scraping opts, set by Logicker from the message options.
   */
@@ -69,6 +69,10 @@ class Log {
 
     log(message) {
         console.log(`${this.ls} ${message}`);
+    }
+
+    static logBare(message) {
+        console.log(`[gimme3] ${message}`);
     }
 }
 
@@ -156,8 +160,8 @@ class GalleryOptions {
  * The options passed to Scraper.scrape(...)
  */
 class ScrapeOptions {
-    node = undefined; 
-    loc = undefined; 
+    node = undefined;
+    loc = undefined;
     opts = {};
 
     constructor(n, l, o) {
@@ -172,25 +176,47 @@ class ScrapeOptions {
  * Passed to Digger, Used by the event page
  */
 class InspectionOptions {
-    imgs = true;
-    cssBgs = true;
-    videos = true;
-    js = true;
-    audios = true;
-    qs = true;
+    optCount = 0;
+    searchDefault = true;
+
+    // Individual type settings. Do or do not allow as zoom-media?
+    imgs = this.searchDefault;
+    cssBgs = this.searchDefault;
+    videos = this.searchDefault;
+    js = this.searchDefault;
+    audios = this.searchDefault;
+    qs = this.searchDefault;
 
     constructor(i, c, v, j, a, q) {
+        // Empty args means use the defaults -- true for all!
         if (arguments.length === 0) { return; };
 
-        var v = false;
-        if (arguments.length === 1) { v = true; }
+        // Only set the values we get. The rest stay at default val.
+        this.optCount = arguments.length;
+        if (this.optCount > 0) { this.imgs = i; }
+        if (this.optCount > 1) { this.cssBgs = c; }
+        if (this.optCount > 2) { this.videos = v; }
+        if (this.optCount > 3) { this.js = j; }
+        if (this.optCount > 4) { this.audios = a; }
+        if (this.optCount > 5) { this.qs = q; }
+    }
 
-        this.imgs = i || v;
-        this.cssBgs = c || v;
-        this.videos = v || v;
-        this.js = j || v;
-        this.audios = a || v;
-        this.qs = q || v;
+    /**
+     * Set the search/don't-search pref for any search type
+     * not explicitly set in the constructor.
+     */
+    overrideSearchDefault(df) {
+        this.searchDefault = !!df;
+
+        // Only override options we didn't get. That is why we store
+        // the arg count the constructor got.
+        if (this.optCount === 6) { return; }
+        if (this.optCount < 6) { this.qs = this.searchDefault; }
+        if (this.optCount < 5) { this.audios = this.searchDefault; }
+        if (this.optCount < 4) { this.js = this.searchDefault; }
+        if (this.optCount < 3) { this.videos = this.searchDefault; }
+        if (this.optCount < 2) { this.cssBgs = this.searchDefault; }
+        if (this.optCount < 1) { this.imgs = this.searchDefault; }
     }
 }
 
@@ -200,13 +226,44 @@ class InspectionOptions {
  */
 class Storing {
     static PREV_URI_MAP = 'prevUriMap';
-    
-    static storePrevUriMap(m) {
+    static SPEC = 'spec';
+    static GALLERY_DEFS = 'galleryDefs';
+
+
+    /**
+     * Build the stored object form of the prevUriMap.
+     * @param {}
+     */
+    static buildPrevUriMapStoreObj(m) {
         var obj = {};
         obj[Storing.PREV_URI_MAP] = m;
-
         return obj;
-    }  
+    }
+
+
+    /**
+     * Build an object formed to save the galleryDefs in chrome.storage.
+     * If passed a bad gDefs, we return an empty object.
+     *
+     * @param {Array<GalleryDef>} gDefs
+     */
+    static buildGalleryDefsStoreObj(gDefs) {
+        var obj = {};
+        obj[Storing.GALLERY_DEFS] = gDefs;
+        return obj;
+    }
+
+
+    /**
+     * Wrap the "spec" key for storage.
+     *
+     * @param {ConfigSpec} configSpec
+     */
+    static buildConfigSpecStoreObj(configSpec) {
+        var obj = {};
+        obj[Storing.SPEC] = configSpec;
+        return obj;
+    }
 }
 
 
@@ -225,7 +282,7 @@ class UriPair {
 
 
 /**
- * 
+ * For the Logicker, a match score added to the pair.
  */
 class ScoredUriPair {
     thumbUri = undefined;
@@ -236,6 +293,151 @@ class ScoredUriPair {
         this.thumbUri = t;
         this.zoomUri = z;
         this.score = s;
+    }
+}
+
+
+/**
+ * For storing discovered gallery structure.
+ */
+class GalleryDef {
+    galleryUri = C.ST.E;
+    thumbSel = C.ST.E;
+    thumbSrcProp = 'src';
+    linkSel = C.ST.E;
+    linkHrefProp = 'href';
+
+    constructor(gu, ts, tsp, ls, lsp) {
+        this.galleryUri = gu;
+        this.thumbSel = ts;
+        this.thumbSrcProp = tsp;
+        this.linkSel = ls;
+        this.linkHrefProp = lsp;
+    }
+
+
+    /**
+     * Static initializer that takes a duck-typed gallery def, and
+     * returns a built gallery def.
+     * @param {*} o
+     */
+    static fromStorage(o) {
+        return new GalleryDef(
+            o.galleryUri,
+            o.thumbSel,
+            o.thumbSrcProp,
+            o.linkSel,
+            o.linkHrefProp
+        );
+    }
+
+
+    /**
+     * These two objects need to merge.
+     * In the meantime...
+     */
+    toSpecMessage() {
+        return new SpecMessage(
+            this.galleryUri,
+            this.linkSel,
+            this.linkHrefProp,
+            this.thumbSel,
+            this.thumbSrcProp
+        );
+    }
+}
+
+
+/**
+ * Per-site gallery definition configuration. For the "spec.messages"
+ * stored array value.
+ */
+class SpecMessage {
+    match = C.ST.E;
+    link = C.ST.E;
+    href = 'href';
+    thumb = C.ST.E;
+    src = 'src';
+
+    constructor(m, l, h, t, s) {
+        this.match = m;
+        this.link = l;
+        this.href = h;
+        this.thumb = t;
+        this.src = s;
+    }
+
+
+    /**
+     * These two objects need to merge.
+     * In the meantime...
+     */
+    static toGalleryDef() {
+        return new GalleryDef(
+            this.match,
+            this.thumb,
+            this.src,
+            this.link,
+            this.href
+        );
+    }
+}
+
+
+/**
+ * Per-URL manipulation procedure to turn thumbSrc or linkHref into
+ * the zoom URI. Currently the only supported verb is "replace".
+ * This class is used for SpecProcessing.actions.
+ */
+class SpecProcessingAction {
+    static VERB_REPLACE = 'replace';
+
+    noun = C.ST.E;
+    verb = SpecProcessingAction.VERB_REPLACE;
+    match = C.ST.E;
+    new = C.ST.E;
+
+    constructor(n, v, m, n2) {
+        this.noun = n;
+        this.verb = v;
+        this.match = m;
+        this.new = n2;
+    }
+}
+
+
+/**
+ * Per-site manipulation procedures that have "actions" to
+ * calculate zoom URIs. For the "spec.processings" stored array value.
+ */
+class SpecProcessing {
+    match = C.ST.E;
+    actions = []; // an Array<SpecProcessingAction>
+    dig = true;
+    scrape = true;
+
+    constructor(m, a, d, s) {
+        this.match = m;
+        this.actions = (Array.isArray(a) ? a : []);
+        this.dig = d;
+        this.scrape = s;
+    }
+}
+
+
+/**
+ * Per-URL regex match for one site's zoom image pages (match), along with the
+ * selector to the zoom image (zoom), and element prop to get full-sized URL from (src).
+ */
+class SpecBlessing {
+    match = C.ST.E;
+    zoom = C.SEL_PROP.IMG;
+    src = C.SEL_PROP.SRC;
+
+    constructor(m, z, s) {
+        this.match = m;
+        this.zoom = z;
+        this.src = s;
     }
 }
 
@@ -252,6 +454,48 @@ class ProcessingInstructions {
         this.doDig = dig;
         this.doScrape = scrape;
         this.processedMap = map;
+    }
+}
+
+
+/**
+ * The type for the "config" member of the ConfigSpec object.
+ */
+class SpecGeneralConfig {
+    concurrentDls = '10';
+    minZoomWidth = '0';
+    minZoomHeight = '0';
+    dlChannels = '5';
+    dlBatchSize = '5';
+    knownBadImgRegex = /^fake_fake_fake$/;
+    enableHalfBakedFeatures = '0'; // '-1' enables them.
+
+    constructor(cd, mzw, mzh, dlc, dlbs, kbir, ehbf) {
+        this.concurrentDls = cd;
+        this.minZoomWidth = mzw;
+        this.minZoomHeight = mzh;
+        this.dlChannels = dlc;
+        this.dlBatchSize = dlbs;
+        this.knownBadImgRegex = kbir;
+        this.enableHalfBakedFeatures = ehbf;
+    }
+}
+
+
+/**
+ * The type for the "spec" chrome.storage key.
+ */
+class ConfigSpec {
+    config = {};       // SpecGeneralConfig instance
+    messages = [];     // Array<SpecMessage>
+    processings = [];  // Array<SpecProcessing>
+    blessings = [];    // Array<SpecBlessing>
+
+    constructor(c, m, p, b) {
+        this.config = c;
+        this.messages = m;
+        this.processings = p;
+        this.blessings = b;
     }
 }
 
@@ -309,7 +553,7 @@ class LastLoc {
 
 
     /**
-     * Constructor of LastLoc. 
+     * Constructor of LastLoc.
      * host and path params are always expected.
      * The other 4 params are at your discretion.
      */
@@ -317,7 +561,7 @@ class LastLoc {
         // The "LastLoc core" properties.
         this.hostname = host;
         this.pathname = path;
-        
+
         // The required Location "duck-type" properties.
         this.protocol = protocol;
         this.port = port;
@@ -371,7 +615,6 @@ class StopEvent extends Event {
         var obj = {};
         obj['timestamp'] = Date.now();
         obj[C.ACTION.STOP] = C.ACTION.STOP;
-        obj[C.ACTION.STOP.toLowerCase()] = C.ACTION.STOP.toLowerCase();
 
         // Call super to set us all up.
         super(C.ACTION.STOP, obj);
@@ -400,7 +643,7 @@ class ResumeEvent extends Event {
 // Export all these data classes.
 export {
     Log,
-    DigOpts, 
+    DigOpts,
     ContentMessage,
     ContentPeeperMessage,
     TabMessage,
@@ -421,4 +664,5 @@ export {
     Dimensions,
     StopEvent,
     ResumeEvent,
+    GalleryDef,
 };

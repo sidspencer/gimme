@@ -1,26 +1,23 @@
-import * as tf from '../node_modules/@tensorflow/tfjs/dist/tf.esm';
-import * as mobilenet from '../node_modules/@tensorflow-models/mobilenet/dist/mobilenet.esm';
 import { default as Utils } from './Utils.js';
-import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
-import { default as C } from '../lib/C.js';
+import { default as CommonStaticBase } from '../baselibs/CommonStaticBase.js';
+import { default as C } from '../baselibs/C.js';
 import {
     ContentMessage,
     ProcessingInstructions,
     UriPair,
-    ScoredUriPair,
     Dimensions,
     Log,
-} from '../lib/DataClasses.js';
+} from '../baselibs/DataClasses.js';
 
 
 /**
- * Logicker static class for stateless rules about how to 
+ * Logicker static class for stateless rules about how to
  * find things on pages in general, and for specific sites.
  */
 class Logicker extends CommonStaticBase {
     // service object
     static hasSpecialRules = false;
-    static knownBadImgRegex = /^SUPER_FAKE_NOT_FOUND_IN_NATURE_ONLY_ZOOL$/;
+    static knownBadImgRegex = /\/(spinner\.svg|logo\.png|header\.jpg|placeholder\.png|layers\.svg)/;
     static messages = [];
     static processings = [];
     static blessings = [];
@@ -76,98 +73,6 @@ class Logicker extends CommonStaticBase {
         }
     }
 
-    /**
-     * Load the mobilenet image-matching model, and do it only once per instance.
-     * Returns a promise resolving to our copy of this model.
-     */
-    static loadModel() {
-        var me = this;
-
-        return new Promise((resolve, reject) => {
-            if (!!Logicker.mnModel) {
-                // If it's already loaded, resolve with it.
-                this.lm('returning cached copy of model.');
-                resolve(Logicker.mnModel);
-            }
-            else if (Logicker.loadingModel === true) {
-                //this.lm('Model is loading. We will wait a the end of the promise chain.');
-                
-                // If it's still loading, we chain onto the promise. This way we do not double-load,
-                // and we continue execution once it's been loaded by the first caller.
-                Logicker.modelLoadPromiseChain.then(() => {
-                    if (!!Logicker.mnModel) {
-                        resolve(Logicker.mnModel);
-                    }
-                    else {
-                        reject('Mobilenet model came back null.')
-                    }                   
-                });
-            }
-            else {
-                Logicker.loadingModel = true;
-                me.log.log('Loading model...');
-                const startTime = performance.now();
-
-                Logicker.modelLoadPromiseChain = 
-                    Logicker.modelLoadPromiseChain.then(() => { 
-                        return mobilenet.load().then((mnModel) => {
-                            Logicker.mnModel = mnModel;
-                            Logicker.loadingModel = false;
-
-                            if (!!Logicker.mnModel) {
-                                resolve(Logicker.mnModel);
-                            }
-                            else {
-                                reject('Mobilenet model came back null.');
-                                
-                            } 
-                        });
-                    });
-
-                const totalTime = Math.floor(performance.now() - startTime);
-                me.log.log(`Model loaded and initialized in ${totalTime}ms...`);
-            }           
-        });
-    }
-
-
-    /**
-     * Using the TF Mobilenet model, get a classification vector for the image.
-     */
-    static classifyImage(imgElement) {
-        var me = this;
-
-        let p = new Promise((resolve, reject) => {
-            // Stash away the original height and width.
-            var originalHeight = imgElement.height;
-            var originalWidth = imgElement.width;
-    
-            // Set the height and width to be the size that mobilenet expects.
-            imgElement.height = C.L_CONF.IMAGE_SIZE;
-            imgElement.width = C.L_CONF.IMAGE_SIZE;
-
-            // Use mobilenet to get a classification array of objects.
-            Logicker.mnModel.classify(imgElement, C.L_CONF.CLASSIFICATIONS).then((imgClassifications) => {
-                // Restore the img's height and width.
-                imgElement.height = originalHeight;
-                imgElement.width = originalWidth;
-
-                // Resolve with the classifications array if we got it.
-                if (Array.isArray(imgClassifications)) {
-                    //me.log.log('mnModel.classify found these: ' + JSON.stringify(imgClassifications));
-                    resolve(imgClassifications);  
-                }
-                else {
-                    reject('[Logicker] Classifications came back null');
-                }
-            });
-        });
-
-        // Either resolves with the mobilenet classifications array, or rejects due the
-        // array not being right.
-        return p;
-    }
-
     
     /**
      * Load an image via the Image() object, sized so tf can analyse it.
@@ -199,21 +104,22 @@ class Logicker extends CommonStaticBase {
     static findBlessedZoomUri(doc, thumbUri) {
         var zoomImgUri = C.ST.E;
         var me = this;
+        //var out = Output.getInstance();
 
         // Look through the blessings for one that matches this thumbUri.
         if (Logicker.blessings.length !== -1) {
             Logicker.blessings.forEach((blessing) => {
-                //me.log.log('applying blessing: ' + JSON.stringify(blessing));
+                //me.lm('applying blessing: ' + JSON.stringify(blessing));
 
                 // If the thumbUri matches the pattern and we can find the blessed element,
                 // use the blessing src prop on the element to get the right zoom uri.
                 var matcher = new RegExp(blessing.match);
                 if (matcher.test(doc.documentURI)) {
-                    //me.log.log('blessing matched thumbUri: ' + thumbUri);
+                    //me.lm('blessing matched thumbUri: ' + thumbUri);
                     var zoomImg = doc.querySelector(blessing.zoom);
 
                     if (!!zoomImg) {
-                        //me.log.log('found blessed zoomImg: ' + zoomImg[blessing.src]);
+                        //me.lm('found blessed zoomImg: ' + zoomImg[blessing.src]);
 
                         if (blessing.src.indexOf(C.SEL_PROP.STYLE) === 0) {
                             var parts = blessing.src.split(C.ST.D);
@@ -227,6 +133,8 @@ class Logicker extends CommonStaticBase {
             });
         }
 
+        // -HACK- ???????
+        // Why is this is findBlessedZoomUri?????
         // Look for the trivial case, where it's a div.photo parent of a div child, where the div
         // child has a backgroundImage instead of an img tag -- totally sneaky pete.
         if (zoomImgUri.length === 0) {
@@ -243,7 +151,7 @@ class Logicker extends CommonStaticBase {
             }
         }
 
-        // Returns empty string when there's no special rules.
+        // Returns empty string when there's no special rules. (And the hacks failed)
         return zoomImgUri;
     };
 
@@ -267,7 +175,7 @@ class Logicker extends CommonStaticBase {
 
     /**
      * Algorithms to figure out if the zoomPage's image matches the thumbnail src. Since
-     * we are used in a variety of contexts, this could mean any kind of file mapping from 
+     * we are used in a variety of contexts, this could mean any kind of file mapping from
      * src to dest. It will always start with an image or element with background-image on the
      * gallery thumbs page (srcUrl), and always be tested against some destUrl that could end
      * up being another image, or a movie, or a pdf, or a song.... who knows.
@@ -278,7 +186,7 @@ class Logicker extends CommonStaticBase {
         // confirm type and value existence, then trim whitespace. Otherwise, blank string, which
         // will make isPossibly be returned as false.
         if (!(thumbUrl && zoomUrl && (thumbUrl.href.length > 0) && (zoomUrl.href.length > 0))) {
-            return false;    
+            return false;
         }
 
         if (Logicker.isKnownBadImg(zoomUrl)) {
@@ -328,7 +236,7 @@ class Logicker extends CommonStaticBase {
             }
         });
 
-        // count the trues, count the falses. 
+        // count the trues, count the falses.
         // Cut it off at 70% match.
         var sum = maybes.reduce((count, val) => {
             return (count + val);
@@ -338,14 +246,14 @@ class Logicker extends CommonStaticBase {
         if (maybeRatio > 0.7) {
             isPossibly = true;
         }
-    
+
         return isPossibly;
     };
 
 
     /**
      * put any image srcs or patterns here that you know you don't want.
-     * Like logos and whatnot. Currently blocks all png files. 
+     * Like logos and whatnot. Currently blocks all png files.
      */
     static isKnownBadImg(src) {
         var isBad = false;
@@ -361,7 +269,7 @@ class Logicker extends CommonStaticBase {
 
 
     /**
-     * Is this image large enough to be a zoom image? 
+     * Is this image large enough to be a zoom image?
      * Any object with the "width" and "height" properties can be used.
      */
     static isZoomSized(obj) {
@@ -370,159 +278,9 @@ class Logicker extends CommonStaticBase {
 
 
     /**
-     * Try to find the best matching image in the doc by using tensorFlow image classification using
-     * Mobilenet, and just comparing classification vectors.
-     */
-    static tfClassificationMatch(thumbUri, doc) {
-        var me = this;
-
-        // Make sure the model is loaded. We will wait for that using
-        // a promise chain built inside loadModel().
-        let p = Logicker.loadModel().then((mobilenetModel) => {
-            return new Promise((resolve, reject) => {
-                Logicker.loadImage(thumbUri).then((thumbImg) => {
-                    if (!!thumbImg) {
-                        resolve(Logicker.classifyImage(thumbImg));
-                    }
-                    else {
-                        me.log.log(`ThumbUri will not load, rejecting: ${thumbUri}`);
-                        reject('ThumbUri will not load: ' + thumbUri);
-                    }
-                });
-            });
-        })
-        // Process all the images in the doc for scores.
-        .then((thumbClassifications) => {
-            return new Promise((topLevelResolve, topLevelReject) => {
-                var imgs = doc.querySelectorAll(C.SEL_PROP.IMG);
-                var imgPromises = [];
-                var largestImgSrc = undefined;
-                var largestDims = new Dimensions(Logicker.MinZoomHeight, Logicker.MinZoomWidth);
-
-                // Check every image for similarities.
-                //me.log.log('Checking ${imgs.length} images for TF similarity to the test image.`);
-                imgs.forEach((img) => {                
-                    var imgSrc = img.src;
-                    var originalDims = new Dimensions(
-                        (!!this.naturalHeight ? this.naturalHeight : this.height),
-                        (!!this.naturalWidth ? this.naturalWidth : this.width)
-                    );
-                    var zeroResponse = new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, 0);
-
-                    // Load all the images in the document, wrapping their onload/onerror in promises. Score them.
-                    imgPromises.push(
-                        new Promise((resolve, reject) => {
-                            let testImg = new Image(
-                                C.L_CONF.IMAGE_SIZE, 
-                                C.L_CONF.IMAGE_SIZE
-                            );
-
-                            // Must use the "function" keyword so "this" points to the image.
-                            testImg.onload = function onload() {
-                                //me.log.log('Loaded document image for TF scoring: ' + imgSrc);
-                                if (Logicker.isKnownBadImg(this.src)) {
-                                    me.log.log('Known bad image naLogicker. Skipping...');
-                                    resolve(zeroResponse);
-                                    return;
-                                } 
-                                else {
-                                    // Skip the image if it is not big enough.
-                                    if (!Logicker.isZoomSized(originalDims)) {
-                                        me.log.log('Image too small. Skipping...');
-                                        resolve(zeroResponse);
-                                        return;
-                                    } 
-                                    else {
-                                        if (originalDims.height > largestDims.height && originalDims.width > largestDims.width) {
-                                            largestImgSrc = this.src;
-                                            largestDims = originalDims;
-                                        }
-                                    }
-                                }
-
-                                // Do the scoring using tfjs mobilenet.
-                                Logicker.classifyImage(this).then((classifications) => {
-                                    if (!Array.isArray(classifications)) {
-                                        me.log.log(`got no classifications for img ${imgSrc}`);
-                                        resolve(zeroResponse);
-                                        return;
-                                    }
-                                    else {
-                                        //me.log.log('got classifications for img ${imgSrc}: ${JSON.stringify(classifications)}`);
-                                        me.log.log(`got classifications for img ${imgSrc}`);
-                                    }
-                                    
-                                    var classAgreements = [];
-                                    var totalClassesCount = classifications.length;
-                    
-                                    // For each of the class-match classifications, see how they compare to the thumbnail's classifications.
-                                    // As the classifications are just arrays of objects of the form {className: C.ST.E, propability: 0}, we must
-                                    // iterate in a nested loop. :(
-                                    classifications.forEach((cls) => {
-                                        thumbClassifications.forEach((tCls) => {
-                                            if (tCls.className.indexOf(cls.className) != -1) {
-                                                if (Math.abs(cls.probability - tCls.probability) < C.L_CONF.SCORE_CUTOFF) {
-                                                    classAgreements.push(cls.className);
-                                                } 
-                                            }
-                                        });
-                                    });
-
-                                    // Create a simple percentage score of the class matches. Resolve with the same object structure
-                                    // that getPairWithLargestImage() does.
-                                    var score = classAgreements.length / totalClassesCount;
-                                    me.log.log(`candidate ${imgSrc} has a match score to ${thumbUri} of: ${score}`);
-
-                                    resolve(new ScoredUriPair(thumbUri, (new URL(imgSrc)).href, score));
-                                });
-                            };
-
-                            // On error, still resolve. (Waiting on support for Promise.allSettled()).
-                            // Must use the "function" keyword so "this" points to the image.
-                            testImg.onerror = function onerror(evt) {
-                                me.log.log(
-                                    'Error loading image for TF classifying. Resolving with score of 0.' +
-                                    '           Event for onerror was: ' + JSON.stringify(evt)
-                                );
-                                resolve(zeroResponse);
-                            };
-
-                            testImg.src = imgSrc;
-                        })
-                    )
-                });
-
-                // Go through the img scores and pick the best one.
-                Promise.all(imgPromises).then((imgScores) => {
-                    var topImgScoreObj = new ScoredUriPair(thumbUri, C.ST.E, 0);
-                    
-                    imgScores.forEach((s) => {
-                        if (s.score > topImgScoreObj.score) {
-                            topImgScoreObj = s;
-                        }
-                        else if (s.score === topImgScoreObj.score) {
-                            if (s.zoomUri.indexOf(largestImgSrc) !== -1) {
-                                topImgScoreObj = s;
-                            }
-                            // else, keep the current top scoring image.
-                        }
-                    });
-
-                    me.log.log(`TF Mobilenet's most likely match ->\n -Score: ${topImgScoreObj.score}, Uri: ${topImgScoreObj.zoomUri}`);
-                    topLevelResolve(topImgScoreObj);
-                });
-            });
-        });
-
-        // p resolves with the top image score object for the thumbnail.
-        return p;
-    }
-
-
-    /**
      * Find the largest image in a document. It can't be by dimensions, because the documents returned
      * by the XHRs are not "live", and no elements have dimensions because there was no rendering. SO,
-     * we create Image objects and get the dimensions from those. 
+     * we create Image objects and get the dimensions from those.
      */
     static getPairWithLargestImage(thumbUri, doc) {
         var me = this;
@@ -530,8 +288,8 @@ class Logicker extends CommonStaticBase {
         let p = new Promise((resolve, reject) => {
             var largestImgSrc = false;
             var largestDims = new Dimensions(0, 0);
- 
-            if (!!doc && !!doc.querySelectorAll) {                
+
+            if (!!doc && !!doc.querySelectorAll) {
                 // Get all the imageNodes from the doc we are to search.
                 //
                 // NOTE: Since it is not a *rendered* document, just one returned from the XHR, there are no client rects.
@@ -540,13 +298,14 @@ class Logicker extends CommonStaticBase {
                 var imgsToCheck = imgNodes.length;
 
                 if (imgsToCheck < 1) {
-                    return reject('[Logicker] No images to check.');
+                    reject('[Logicker] No images to check.');
+                    return;
                 }
 
                 for (var i = 0; i < imgNodes.length; i++) {
                     var imgNode = imgNodes[i];
 
-                    // Construct a temporary image object so we can get the natural dimensions. 
+                    // Construct a temporary image object so we can get the natural dimensions.
                     var imageObj = new Image();
 
                     // Must use the "function" keyword so "this" points to the image.
@@ -579,12 +338,12 @@ class Logicker extends CommonStaticBase {
                             }
                         }
                     };
-                    
+
                     // Must use the "function" keyword so "this" points to the image.
-                    imageObj.onerror = function handleImageLoadError(evt) {                        
-                        me.log.log('Error creating image object to get dimensions. evt: ' + JSON.stringify(evt));
+                    imageObj.onerror = function handleImageLoadError(evt) {
+                        me.lm('Error creating image object to get dimensions. evt: ' + JSON.stringify(evt));
                         imgsToCheck--;
-                        
+
                         // If we've reached the last image, call the callback.
                         if (imgsToCheck === 0) {
                             if (!!largestImgSrc) {
@@ -598,22 +357,27 @@ class Logicker extends CommonStaticBase {
 
                     imageObj.src = !!imgNode.src ? imgNode.src : imgNode.currentSrc;
                 }
+
+                if (!!largestImgSrc) {
+                    reject('Could not find largest image');
+                    return;
+                }
             }
             else {
-                me.log.log('Invalid doc object passed to findUrlOfLargestImage().');
+                me.lm('Invalid doc object passed to findUrlOfLargestImage().');
                 console.log(JSON.stringify(doc));
                 reject('[Logicker] Invalid doc object passed to findUrlOfLargestImage().');
                 return;
             }
         });
-        
+
         return p;
     };
 
 
     /**
      * This is where the knowledge-magic comes in. By inspecting a number of sites' galleries,
-     * I have found easy selector/prop pairs to get the URIs by. 
+     * I have found easy selector/prop pairs to get the URIs by.
      */
     static getMessageDescriptorForUrl(url) {
         var d = new ContentMessage();
@@ -628,7 +392,7 @@ class Logicker extends CommonStaticBase {
         // thumb element and uri, and the zoom page anchor element and uri.
         for (var i = 0; i < Logicker.messages.length; i++) {
             var m = Logicker.messages[i];
-            
+
             this.lm('working on message: ' + JSON.stringify(m));
 
             if (url.match(m.match)) {
@@ -637,12 +401,20 @@ class Logicker extends CommonStaticBase {
                 d.linkSelector = m.link;
                 d.linkHrefProp = m.href;
 
-                // Note, :scope the subselector.
-                d.thumbSubselector = (
-                    m.thumb.indexOf(C.SEL_PROP.SCOPE) === -1 ? 
-                    `${C.SEL_PROP.SCOPE} ${m.thumb}` : 
-                    m.thumb
-                );
+                // Note, :scope the subselector is always used for the doc querying. Weird gallery formats sometimes put the link and img in one el,
+                // So I introduced my own custom subselector, "::link-el". If the thumbSubselector is "::link-el", it will use the already-queried and
+                // retrieved link element, but still use thumbSrcProp to get the thumbnail "url" value.
+                if (m.thumb.indexOf(C.SEL_PROP.LINK_EL) === 0) {
+                    d.thumbSubselector = C.SEL_PROP.LINK_EL;
+                }
+                else if (m.thumb.indexOf(C.SEL_PROP.SCOPE) === -1) {
+                    d.thumbSubselector = `${C.SEL_PROP.SCOPE} ${m.thumb}`;
+                }
+                else {
+                    d.thumbSubselector = m.thumb;
+                }
+
+                // In any case, we use the m.src prop.
                 d.thumbSrcProp = m.src;
             }
         }
@@ -653,8 +425,8 @@ class Logicker extends CommonStaticBase {
 
     /**
      * For any processing that should be done before calling the Digger.
-     * Often, you can munge your thumbSrc and linkHref values into place 
-     * enough that you can just call the downloader in App directly. 
+     * Often, you can munge your thumbSrc and linkHref values into place
+     * enough that you can just call the downloader in App directly.
      */
     static postProcessResponseData(galleryMap, pageUri) {
         var instructions = new ProcessingInstructions(true, true, null);
@@ -671,14 +443,14 @@ class Logicker extends CommonStaticBase {
             // if the page uri matches, apply the processings to the galleryMap.
             var matcher = new RegExp(p.match);
             if (pageUri.match(matcher)) {
-                //me.log.log('pageUri matched: ' + pageUri);
+                //me.lm('pageUri matched: ' + pageUri);
 
                 newGalleryMap = {};
                 thumbUris.forEach((thumbUri) => {
                     var thumbUri2 = thumbUri + C.ST.E;
 
                     p.actions.forEach((act) => {
-                        //me.log.log('applying action: ' + JSON.stringify(act));
+                        //me.lm('applying action: ' + JSON.stringify(act));
 
                         // We only support "replace" for now.
                         if (act.verb !== C.PP_VERB.REPLACE) {
@@ -686,11 +458,11 @@ class Logicker extends CommonStaticBase {
                         }
 
                         var matchey = new RegExp(act.match);
-                        //me.log.log('testing thumbUri with matcher...');
+                        //me.lm('testing thumbUri with matcher...');
 
                         // Use the thumbUri if 'src', otherwise the 'href', zoomPageUri
                         if (act.noun === 'src' && thumbUri.match(matchey)) {
-                            //me.log.log('thumbUri matched. Replacing.');
+                            //me.lm('thumbUri matched. Replacing.');
 
                             thumbUri2 = thumbUri.replace(matchey, act.new);
 
@@ -700,10 +472,10 @@ class Logicker extends CommonStaticBase {
                             if (thumbUri2.indexOf(C.ST.Q_MK) !== -1) {
                                 thumbUri2 = thumbUri.substring(0, thumbUri.indexOf(C.ST.Q_MK));
                             }
-                            newGalleryMap[thumbUri] = thumbUri2; 
+                            newGalleryMap[thumbUri] = thumbUri2;
                         }
                         else if (act.noun === C.SEL_PROP.HREF && galleryMap[thumbUri].match(matchey)) {
-                            //me.log.log('zoomPageUri matched. Replacing.');
+                            //me.lm('zoomPageUri matched. Replacing.');
 
                             newGalleryMap[thumbUri] = galleryMap[thumbUri].replace(matchey, act.new);
                         }
@@ -714,7 +486,7 @@ class Logicker extends CommonStaticBase {
                         newGalleryMap[thumbUri] = galleryMap[thumbUri] + C.ST.E;
                     }
 
-                    //me.log.log('new thumbUri, zoomUri: \n ' + thumbUri2 + '\n ' + newGalleryMap[thumbUri2]);
+                    //me.lm('new thumbUri, zoomUri: \n ' + thumbUri2 + '\n ' + newGalleryMap[thumbUri2]);
                 });
 
                 // The scrape and dig flags come through as strings...
@@ -728,7 +500,7 @@ class Logicker extends CommonStaticBase {
             instructions.processedMap = newGalleryMap;
         }
         else {
-            instructions.processedMap = Object.assign({}, galleryMap);            
+            instructions.processedMap = Object.assign({}, galleryMap);
         }
 
         return instructions;
@@ -745,18 +517,18 @@ class Logicker extends CommonStaticBase {
         else if (!firstUri) { return secondUri; }
 
         // strip of the querystring if there is one.
-        var bareSrc = src;        
+        var bareSrc = src;
         var srcQsIndex = bareSrc.indexOf(C.ST.Q_MK);
         if (srcQsIndex !== -1) { bareSrc = bareSrc.substring(0, srcQsIndex); };
 
-        // if there's no extension C.ST.D, and we're not of protocol 'data:' or 'blob:', 
+        // if there's no extension C.ST.D, and we're not of protocol 'data:' or 'blob:',
         // it's probably not a good <img>.
         var extIndex = bareSrc.lastIndexOf(C.ST.D);
         if (extIndex === -1) { return; };
 
         // Get just the name without the extension.
         var imgCanonicalName = bareSrc.substring(bareSrc.lastIndexOf(C.ST.WHACK)+1, extIndex);
-        
+
         // check if the firstUri has the canonical name in one of its path parts.
         var firstHasIt = false;
         var firstUriArray = firstUri.split(C.ST.WHACK);
@@ -764,7 +536,7 @@ class Logicker extends CommonStaticBase {
             if (!firstHasIt && pathPart.indexOf(imgCanonicalName) !== -1) {
                 firstHasIt = true;
             }
-        });                    
+        });
 
         // check if the secondUri has the canonical name in one of its path parts.
         var secondHasIt = false;
@@ -774,15 +546,15 @@ class Logicker extends CommonStaticBase {
                 secondHasIt = true;
             }
         });
-        
-        // Give the first uri priority. 
-        var zoomPageUri = C.ST.E; 
+
+        // Give the first uri priority.
+        var zoomPageUri = C.ST.E;
         if (secondHasIt && !firstHasIt) {
             zoomPageUri = secondUri;
         }
         else {
             zoomPageUri = firstUri;
-        } 
+        }
 
         return zoomPageUri;
     };
@@ -792,7 +564,7 @@ class Logicker extends CommonStaticBase {
      * Get a property value given a tag, and a dot-notation property path as a string.
      * It handles extracting from javascript functions, and from css properties.
      */
-    static googleHackCounter = 0;    
+    static googleHackCounter = 0;
     static extractUrl(tag, propPath, loc) {
         if (!tag || !propPath) {
             return C.ST.E;
@@ -815,8 +587,8 @@ class Logicker extends CommonStaticBase {
         }
 
         var value = iterator;
-        if (!value) { 
-            return C.ST.E; 
+        if (!value) {
+            return C.ST.E;
         };
 
         // Special processing for srcset props.
@@ -824,9 +596,9 @@ class Logicker extends CommonStaticBase {
         if (lastPart === 'srcset') {
             value = value.split(',')[0].split(' ')[0];
         }
-        
-        // Count the '..'s in relative uris. This is needed for the cases where we have to change from a 
-        // C.WAY.CH_CWW reported uri. 
+
+        // Count the '..'s in relative uris. This is needed for the cases where we have to change from a
+        // C.WAY.CH_CWW reported uri.
         var dotdotCount = 0;
         if (lastIterator && lastIterator.getAttribute && lastIterator.getAttribute(lastPart)) {
             dotdotCount = (lastIterator.getAttribute(lastPart).match(/\.\./g) || []).length;
@@ -854,20 +626,20 @@ class Logicker extends CommonStaticBase {
         // may be set relative to the extension (as the origin of the fetched document is in the extension's space).
         // We need to transform these weird src/href values back into having the correct base uri -- the one of the page.
         if (value.indexOf(C.WAY.HTTP) === 0) {
-            // We may be running in the extension's space. That could be a protocol of 
+            // We may be running in the extension's space. That could be a protocol of
             var rgxBackgroundPage = new RegExp('^(.+)?(-)?' + (C.WAY.E_CWW + chrome.runtime.id + C.F_NAMING.W_BACKGROUND_W), 'i');
             var rgxExtBase = new RegExp('^(.+)?(-)?' + (C.WAY.E_CWW + chrome.runtime.id + C.ST.WHACK), 'i');
             var rgxProtocol = new RegExp('^(.+)?(-)?' + C.WAY.E, 'i');
 
             if (value.match(rgxBackgroundPage)) {
                 value = value.replace(
-                    rgxBackgroundPage, 
+                    rgxBackgroundPage,
                     loc.origin + loc.pathname.substring(0, loc.pathname.lastIndexOf(C.ST.WHACK)+1)
-                ); 
+                );
             }
             else if (value.match(rgxExtBase) && dotdotCount > 0) {
                 var trimmedPath = loc.pathname.substring(0, loc.pathname.lastIndexOf(C.ST.WHACK));
-                
+
                 for (var d = 0; d < dotdotCount; d++) {
                     trimmedPath = trimmedPath.substring(0, trimmedPath.lastIndexOf(C.ST.WHACK));
                 }
@@ -879,14 +651,14 @@ class Logicker extends CommonStaticBase {
             }
             else {
                 value = value.replace(rgxProtocol, loc.protocol);
-            }       
+            }
         }
 
         return (new URL(value, loc.origin));
     };
 }
 
-// Call our static setup. It guards against 
+// Call our static setup. It guards against
 Logicker.setup();
 
 // Set the class on the background window just in case.

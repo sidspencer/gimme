@@ -1,9 +1,9 @@
-import { default as CommonBase } from '../lib/CommonBase.js';
+import { default as CommonBase } from '../baselibs/CommonBase.js';
 import { default as Output } from './Output.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Utils } from './Utils.js';
-import { default as C } from '../lib/C.js';
-import { ScrapeDefinition, Log } from '../lib/DataClasses.js';
+import { default as C } from '../baselibs/C.js';
+import { ScrapeDefinition, Log } from '../baselibs/DataClasses.js';
 
 
 /**
@@ -11,7 +11,7 @@ import { ScrapeDefinition, Log } from '../lib/DataClasses.js';
  * functions for scraping a node.
  */
 class Scraper extends CommonBase {
-    // static key to 
+    // static key to
     // Configuration needed to scrape.
     config = {
         opts: {},
@@ -24,8 +24,8 @@ class Scraper extends CommonBase {
     /**
      * Scraper constructor. Scraper is used to find media on the currently active page (tab). It
      * can be used on its own, and is also heavily used by Digger.
-     * 
-     * @param {Output} anOutput 
+     *
+     * @param {Output} anOutput
      */
     constructor() {
         // set up Log and STOP handler.
@@ -48,16 +48,16 @@ class Scraper extends CommonBase {
             propPaths: [ 'currentSrc', 'href' ]
         };
         var spec = Object.assign({}, inputSpec);
-        
+
         // Check for missing values. We can use the defaults unless there is no root node.
         if (!spec.root) {
-            this.log.log('getElementUrls called with no root node.');
+            this.lm('getElementUrls called with no root node.');
             return [];
         }
         if (!spec.loc) { spec.loc = defaultSpec.loc; }
         if (!Array.isArray(spec.propPaths)) { spec.propPaths = defaultSpec.propPaths; };
         if (!spec.selector) { spec.selector = defaultSpec.selector };
-        
+
         // Extract the URL for each returned element. Go with the first property in the list
         // that returns a valid URL.
         var tags = spec.root.querySelectorAll(spec.selector);
@@ -68,7 +68,7 @@ class Scraper extends CommonBase {
                     tagUrls.push(url);
                     return;
                 }
-            } 
+            }
         });
 
         return tagUrls;
@@ -80,7 +80,7 @@ class Scraper extends CommonBase {
      */
     getAllCssBackgroundUrls(root, loc) {
         if (!root) {
-            this.log.log('No root node. Returning blank array.');
+            this.lm('No root node. Returning blank array.');
             return [];
         }
 
@@ -98,11 +98,11 @@ class Scraper extends CommonBase {
                         return;
                     }
 
-                    var bgSrc = bgVal.replace(/^url\(/, C.ST.E).replace(/\)$/, C.ST.E).replace(/\'/g, C.ST.E).replace(/\"/g, C.ST.E);                
+                    var bgSrc = bgVal.replace(/^url\(/, C.ST.E).replace(/\)$/, C.ST.E).replace(/\'/g, C.ST.E).replace(/\"/g, C.ST.E);
 
                     if (Utils.exists(bgSrc)) {
                         var cleansedUrl = Utils.srcToUrl(bgSrc, (loc || C.BLANK.LOC));
-                        
+
                         // Add to the list if an OK url.
                         if (Utils.exists(cleansedUrl)) {
                             urlList.push(cleansedUrl);
@@ -121,7 +121,7 @@ class Scraper extends CommonBase {
      */
     getAllVideoUrls(node, loc) {
         if (!Utils.exists(node)) {
-            this.log.log('No root node. Returning blank array.');
+            this.lm('No root node. Returning blank array.');
             return [];
         }
 
@@ -172,7 +172,7 @@ class Scraper extends CommonBase {
      */
     getAllJsUrls(node, loc, selector) {
         if (!Utils.exists(node)) {
-            this.log.log('No root node. Returning blank array.');
+            this.lm('No root node. Returning blank array.');
             return [];
         }
 
@@ -209,20 +209,20 @@ class Scraper extends CommonBase {
             else if (Utils.exists(atts) && Utils.exists(atts.href) && /^javascript\:/.test(atts.href) && Utils.exists(atts.href.textContent)) {
                 js = js.concat(atts.href.textContent)
             }
-            
+
             // Go through the other on* attributes.
             if (Utils.exists(atts)) {
                 jsAtts.forEach(function mungeJsAttribute(attName) {
                     if (Utils.exists(atts[attName]) && Utils.exists(atts[attName].textContent)) {
                         var content = atts[attName].textContent;
-                        
+
                         if (Utils.exists(content)) {
                             js = js.concat(content);
                         }
                     }
                 });
             }
-           
+
             // Grab all the srcs/urls we can find in the big concatenated javascript string.
             if (js) {
                 // Find all the matches that we can for things looking like media files.
@@ -274,19 +274,19 @@ class Scraper extends CommonBase {
      */
     getAllAudioUrls(node, loc) {
         if (!Utils.exists(node)) {
-            this.log.log('No root node. Returning blank array.');
+            this.lm('No root node. Returning blank array.');
             return [];
         }
 
         var audioUrls = Scraper.getElementUrls(
             new ScrapeDefinition(
-                node, 
-                loc, 
-                ':scope audio[src],audio>source[src],param[value],a[href]', 
+                node,
+                loc,
+                ':scope audio[src],audio>source[src],param[value],a[href]',
                 [ 'currentSrc', 'value']
             )
         );
-    
+
         var cleanAudioUrls = [];
 
         // Make URL objects for all the audio srcs, to get the pathing right.
@@ -308,13 +308,13 @@ class Scraper extends CommonBase {
      */
     getAllImgUrls(node, loc) {
         if (!Utils.exists(node)) {
-            this.log.log('No root node. Returning blank array.');
+            this.lm('No root node. Returning blank array.');
             return [];
         }
 
         return Scraper.getElementUrls(
             new ScrapeDefinition(node, loc, ':scope img', ['dataset.src', 'src'])
-        );    
+        );
     };
 
 
@@ -323,7 +323,7 @@ class Scraper extends CommonBase {
      */
     getAllQsUrls(d, l) {
         if (!Utils.exists(l) && !Utils.exists(d.location)) {
-            this.log.log('No this.config.location. Returning blank array.');
+            this.lm('No this.config.location. Returning blank array.');
             return [];
         }
 
@@ -332,18 +332,18 @@ class Scraper extends CommonBase {
         var qsVars = C.ST.E;
 
         if (!!loc && !!loc.search) {
-            qsVars = loc.search.split('&');        
+            qsVars = loc.search.split('&');
         }
         else {
             return urls;
         }
 
-        // Try to get any variables out of the qs that we can. 
+        // Try to get any variables out of the qs that we can.
         for (var i=0; i < qsVars.length; i++) {
             var pair = qsVars[i].split('=');
             var val = ((pair.length === 1) ? pair[0].substring(1) : pair[1]);
-            
-            // If it has a C.ST.D and is of a known media type, then push it into the 
+
+            // If it has a C.ST.D and is of a known media type, then push it into the
             // uri list after URL-ifying it.
             if (Utils.isKnownMediaFileOrEndpoint(val)) {
                 var url = new URL(val, Utils.getBaseUri(loc));
@@ -445,55 +445,55 @@ class Scraper extends CommonBase {
         var audioUris = [];
         var qsUris = [];
 
-        this.log.log('options: ' + JSON.stringify(this.config.opts));
+        this.lm('options: ' + JSON.stringify(this.config.opts));
 
         if (!!this.config.opts.imgs && (this.stop === false)) {
             this.output.toOut('Scraping all images.')
-            imgUris = this.scrapeAllImgUris(this.config.node, this.config.loc);   
+            imgUris = this.scrapeAllImgUris(this.config.node, this.config.loc);
         }
 
         if (!!this.config.opts.cssBgs && (this.stop === false)) {
-            this.output.toOut('Scraping all CSS background-images.')            
+            this.output.toOut('Scraping all CSS background-images.')
             cssBgUris = this.scrapeAllCssBgUris(this.config.node, this.config.loc);
         }
 
         if (!!this.config.opts.js && (this.stop === false)) {
-            this.output.toOut('Scraping all javascript.')            
+            this.output.toOut('Scraping all javascript.')
             jsUris = this.scrapeAllJsUris(this.config.node, this.config.loc, null);
         }
-        
+
         if (!!this.config.opts.videos && (this.stop === false)) {
-            this.output.toOut('Scraping all Videos.')            
+            this.output.toOut('Scraping all Videos.')
             videoUris = this.scrapeAllVideoUris(this.config.node, this.config.loc);
         }
 
         if (!!this.config.opts.audios && (this.stop === false)) {
-            this.output.toOut('Scraping all Audio.')            
+            this.output.toOut('Scraping all Audio.')
             audioUris = this.scrapeAllAudioUris(this.config.node, this.config.loc);
         }
 
         if (!!this.config.opts.qs && (!!this.config.loc || !!node.location) && (this.stop === false)) {
-            this.output.toOut('Scraping the Querystring.')            
+            this.output.toOut('Scraping the Querystring.')
             qsUris = this.scrapeAllQsUris(this.config.node, (this.config.loc || this.config.node.location));
         }
         else {
-            this.log.log('skipping qs scrape. No location information.')
+            this.lm('skipping qs scrape. No location information.')
         }
 
         if (this.stop === true) {
-            this.log.log('Stop was called. Returning what has been scraped thus far.');
+            this.lm('Stop was called. Returning what has been scraped thus far.');
         }
 
         // TODO: Do we even need these log statements ever?
         //
-        // this.log.log('Found imgUris: ' + JSON.stringify(imgUris));
-        // this.log.log('Found cssBgUris: ' + JSON.stringify(cssBgUris));
-        // this.log.log('Found jsUris: ' + JSON.stringify(jsUris));
-        // this.log.log('Found videoUris: ' + JSON.stringify(videoUris));
-        // this.log.log('Found audioUris: ' + JSON.stringify(audioUris));
-        // this.log.log('Found qsUris: ' + JSON.stringify(qsUris));
+        // this.lm('Found imgUris: ' + JSON.stringify(imgUris));
+        // this.lm('Found cssBgUris: ' + JSON.stringify(cssBgUris));
+        // this.lm('Found jsUris: ' + JSON.stringify(jsUris));
+        // this.lm('Found videoUris: ' + JSON.stringify(videoUris));
+        // this.lm('Found audioUris: ' + JSON.stringify(audioUris));
+        // this.lm('Found qsUris: ' + JSON.stringify(qsUris));
 
-        // Turn it into a silly map with the same values as keys. 
+        // Turn it into a silly map with the same values as keys.
         var harvestedUris = []
             .concat(imgUris)
             .concat(cssBgUris)
@@ -506,21 +506,21 @@ class Scraper extends CommonBase {
             function(harvestedMap, uri) {
                 harvestedMap[uri] = uri;
                 return harvestedMap;
-            }, 
+            },
             {}
         );
 
-        this.log.log('harvested map of length: ' + harvestedUris.length);
+        this.lm('harvested map of length: ' + harvestedUris.length);
         chrome.browserAction.setBadgeText({ text: C.ST.E + harvestedUris.length + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.SCRAPED);
-        
+
         var me = this;
         return (new Promise(function(resolve, reject) {
             chrome.storage.local.set({
                     prevUriMap: harvestedUriMap,
                 },
                 () => {
-                    me.log.log('Set prevUriMap in storage');
+                    me.lm('Set prevUriMap in storage');
                     resolve(harvestedUriMap);
                 }
             );

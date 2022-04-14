@@ -1,5 +1,6 @@
 import { default as C } from './C.js';
 import { Log } from './DataClasses.js';
+import { default as MessageStrings } from './MessageStrings.js';
 
 
 /**
@@ -35,12 +36,14 @@ class CommonBase {
         // the event listener when we get the stop event. We never want to stop listening for 
         // stop events. DO NOT REMOVE THE EVENT LISTENER. (However, if things change, having
         // them in static maps helps really remove them.)
+        var me = this;
         CommonBase.stopListeners[this.listenerKey] = (evt) => {
             if (evt.STOP === C.ACTION.STOP) {
                 //window.document.removeEventListener(C.ACTION.STOP, CommonBase.stopListeners[this.listenerKey]);
                 //delete CommonBase.stopListeners[this.listenerKey];
 
-                this.stop = true;
+                me.log.lm(`${typeof(this)} is setting stop = true.`);
+                me.stop = true;
             }
         };
         window.document.addEventListener(C.ACTION.STOP, CommonBase.stopListeners[this.listenerKey]);
@@ -71,11 +74,11 @@ class CommonBase {
 
 
     /**
-     * Helper shortcut to log a stop event message. "this.log.log(`${C.ST.STOP_BANG} ...`)" is too much.
+     * Helper shortcut to log a stop event message. "this.lm(`${C.ST.STOP_BANG} ...`)" is too much.
      * @param {any} stopMessage 
      */
     lsm(stopMessage) {
-        this.log.log(`${MessageStrings.STOP_SIGNAL} ${stopMessage}`);
+        this.lm(`${MessageStrings.STOP_SIGNAL} ${stopMessage}`);
     }
 
     /**

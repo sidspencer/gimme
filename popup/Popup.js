@@ -1,13 +1,11 @@
-import { default as C } from '../lib/C.js';
+import { default as C } from '../baselibs/C.js';
 import { default as Output } from '../background/Output.js';
 import { default as Utils } from '../background/Utils.js'
 import {
     Storing, 
     FileOption,
-    StopEvent,
-    ResumeEvent,
-} from '../lib/DataClasses.js';
-import CommonBase from '../lib/CommonBase.js';
+} from '../baselibs/DataClasses.js';
+import CommonBase from '../baselibs/CommonBase.js';
 
 
 /**
@@ -24,7 +22,7 @@ class Popup extends CommonBase {
      */
     constructor() {
         if (Utils.exists(Popup.instance)) {
-            Popup.instance.lm('Popup constructor called when there\'s already a valid Popup.instance.');
+            Popup.instance.lm('Popup constructor called, but there\'s already a valid Popup.instance.');
         }
         else {
             // set up Log, and STOP event handlers.
@@ -50,13 +48,14 @@ class Popup extends CommonBase {
     setFileOptionList() {
         var me = this;
 
-        Utils.getFromStorage(Storing.storePrevUriMap({}))
+        Utils.getFromStorage(Storing.buildPrevUriMapStoreObj({}), 'local')
             .then((store) => {
                 var uriMap = store.prevUriMap
 
                 // If we're still in the digging/scraping stages, restore the textual file-list.
                 // If we're in the file option download stage, show the list of file option checkboxes instead.
                 var length = Object.values(uriMap).length;
+
                 chrome.runtime.getBackgroundPage((bgWindow) => {
                     // Alias the static class Utils, and get the Output common instance..
                     var ut = bgWindow[C.WIN_PROP.UTILS_CLASS];
@@ -148,7 +147,12 @@ class Popup extends CommonBase {
                 return C.CAN_FN.PR_RS_DEF();
             })
             .catch((err) => {
-                out.toOut('Problem loading previous results. My apologies.');
+                if (!err) {
+                    return C.CAN_FN.PR_RS_DEF();
+                }
+
+                var outputArea = window.document.getElementById(C.ELEMENT_ID.OUTPUT);     
+                outputArea.textContent = 'Problem loading previous results. My apologies.';
                 me.lm('Could not get the prevUriMap. err: ' + JSON.stringify(err));
                 
                 return C.CAN_FN.PR_RJ(err);
@@ -162,7 +166,7 @@ class Popup extends CommonBase {
     static clearPreviousUriMap() {         
         chrome.browserAction.setBadgeText({ text: C.ST.E });
         
-        Utils.setInStorage(Storing.storePrevUriMap({}))
+        Utils.setInStorage(Storing.buildPrevUriMapStoreObj({}), 'local')
             .then(() => {
                 Popup.instance.lm( 'Cleared prev uri map');
                 return C.CAN_FN.PR_RS_DEF();
@@ -186,47 +190,56 @@ class Popup extends CommonBase {
                     processings: [],
                     blessings: [],
                 }
-            })
-            .then((store) => {
-                // Set the options on the Digger and Logicker through static methods, and on
-                // Output's common instance. 
-                chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
-                    var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
-                    var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
-                    var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+            },
+            'sync'
+        )
+        .then((store) => {
+            // Set the options on the Digger and Logicker through static methods, and on
+            // Output's common instance. 
+            chrome.runtime.getBackgroundPage(function setSpec(bgWindow) {
+                var d = bgWindow[C.WIN_PROP.DIGGER_CLASS];
+                var l = bgWindow[C.WIN_PROP.LOGICKER_CLASS];
+                var o = bgWindow[C.WIN_PROP.OUTPUT_CLASS].getInstance();
+                var u = bgWindow[C.WIN_PROP.UTILS_CLASS];
 
-                    d.setBatchSize(store.spec.config.dlBatchSize);
-                    d.setChannels(store.spec.config.dlChannels);
+                // Store the full options spec on the EventPage so it can easily 
+                // merge in new galleryDefs to "spec.messages".
+                var ep = bgWindow[C.WIN_PROP.EVENT_PAGE_CLASS];
+                ep.optSpec = store.spec;
 
-                    l.setMinZoomHeight(store.spec.config.minZoomHeight);
-                    l.setMinZoomWidth(store.spec.config.minZoomWidth);
-                    l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
+                u.setConcurrentDownloadCount(store.spec.config.concurrentDls);
 
-                    l.setMessages(store.spec.messages);
-                    l.setProcessings(store.spec.processings);
-                    l.setBlessings(store.spec.blessings);
+                d.setBatchSize(store.spec.config.dlBatchSize);
+                d.setChannels(store.spec.config.dlChannels);
 
-                    o.setEnableHalfBakedFeatures(
-                        (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
-                    );
-                });
+                l.setMinZoomHeight(store.spec.config.minZoomHeight);
+                l.setMinZoomWidth(store.spec.config.minZoomWidth);
+                l.setKnownBadImgRegex(store.spec.config.knownBadImgRegex);
 
-                // Show all the buttons if the user enabled the half-baked features.
-                if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
-                    var bcs = document.getElementsByClassName('buttonColumn');
+                l.setMessages(store.spec.messages);
+                l.setProcessings(store.spec.processings);
+                l.setBlessings(store.spec.blessings);
 
-                    for (var b = 0; b < bcs.length; b++) {
-                        bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
-                    }
+                o.setEnableHalfBakedFeatures(
+                    (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL)
+                );
+            });
+
+            // Show all the buttons if the user enabled the half-baked features.
+            if (store.spec.config.enableHalfBakedFeatures === C.OPT_CONF.HALF_BAKED_VAL) {
+                var bcs = document.getElementsByClassName('buttonColumn');
+
+                for (var b = 0; b < bcs.length; b++) {
+                    bcs[b].style.display = C.CSS_V.DISPLAY.IL_BLOCK;
                 }
-
-                return C.CAN_FN.PR_RS_DEF();
-            })
-            .catch((err) => {
-                Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n     ${JSON.stringify(err)}`);
-                return C.CAN_FN.PR_RJ(err);
             }
-        );
+
+            return C.CAN_FN.PR_RS_DEF();
+        })
+        .catch((err) => {
+            Popup.instance.lm(`Failed to get options/preferences spec. Non-lethal, we just continue with defaults. Error caught is:\n\t${JSON.stringify(err)}`);
+            return C.CAN_FN.PR_RJ(err);
+        });
     }
 
 
@@ -241,7 +254,7 @@ class Popup extends CommonBase {
          * as to what files to download.
          */
         document.getElementById(C.ELEMENT_ID.DIG_FILE_OPTIONS).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage((bgWindow) => {
+            chrome.runtime.getBackgroundPage((bgWindow) => { 
                 bgWindow[EP].goDigFileOptions(window.document);
             });
         });
@@ -276,7 +289,21 @@ class Popup extends CommonBase {
          */
         document.getElementById(C.ELEMENT_ID.GET_ALL_JPG_OPTS).addEventListener(C.EVT.CLICK, () => {
             document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
-                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg)$/, 'i'))) {
+                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg)/, 'i'))) {
+                    var evt = new MouseEvent(C.EVT.CLICK);
+                    cbEl.dispatchEvent(evt);
+                }
+            });
+        });
+
+
+        /**
+         * This button is in the "action buttons" group. They act upon the list of file download options. This
+         * fires the checkboxes' click events for all jpg files only.
+         */
+        document.getElementById(C.ELEMENT_ID.GET_ALL_JPG_N_MP4_OPTS).addEventListener(C.EVT.CLICK, () => {
+            document.querySelectorAll('input[type="checkbox"]').forEach((cbEl) => {
+                if (cbEl.dataset.filePath.match(new RegExp(/\.(jpg|jpeg|mp4|m4v)/, 'i'))) {
                     var evt = new MouseEvent(C.EVT.CLICK);
                     cbEl.dispatchEvent(evt);
                 }
@@ -378,10 +405,18 @@ class Popup extends CommonBase {
          * it with a silly dictionary (and it has the time triggered).
          */
         document.getElementById(C.ELEMENT_ID.STOP).addEventListener(C.EVT.CLICK, () => {
-            chrome.runtime.getBackgroundPage((bgWindow) => {                
-                var evt = new StopEvent();
-                bgWindow.document.dispatchEvent(evt);
+            chrome.runtime.getBackgroundPage((bgWindow) => {   
+                // Only doing it async, and setting stop on app seems to make it work. 
+                // It still takes a few seconds... The StopEvent dispatch doesn't ever work.
+                Output.getInstance().toOut(`Stopping! ... (Takes a few seconds)`);
+                var a = bgWindow[EP].app;
+                setTimeout(() => !!a && (a.stop = true), 10);
             });
+        });
+
+
+        document.getElementById(C.ELEMENT_ID.BACK_TO_TOP).addEventListener(C.EVT.CLICK, () => {
+            window.scroll({ top: 0 });
         });
 
 

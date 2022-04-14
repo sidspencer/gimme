@@ -1,11 +1,11 @@
-import { default as C } from '../lib/C.js';
-import { default as CommonStaticBase } from '../lib/CommonStaticBase.js';
+import { default as C } from '../baselibs/C.js';
+import { default as CommonStaticBase } from '../baselibs/CommonStaticBase.js';
 import {
     DownloadSig,
     ContentMessage,
     Log,
     LastLoc,
-} from '../lib/DataClasses.js';
+} from '../baselibs/DataClasses.js';
 
 
 /**
@@ -21,30 +21,50 @@ class Utils extends CommonStaticBase {
     static xhrsInFlight = {};
     static xhrIdSeed = 0;
     static counter = 0;
+    static concurrentDls = 10;
     static domParser = new DOMParser();
     static lastLoc = new LastLoc(C.BLANK.LOCALHOST, C.BLANK.GALLERY);
 
 
     /**
      * Do setup tasks, like calling super.setup() for STOP listening and
-     * log setup.
+     * log setup, and set the initial value for concurrentDls.
      */
     static setup() {
-        if (!Utils.exists(Utils.log)) {
+        if (!this.exists(Utils.log)) {
             super.setup(C.LOG_SRC.UTILS);
         }
+
+        // Event listener for stop event.
+        var stopHandler = (evt) => {
+            window.document.removeEventListener(C.ACTION.STOP, stopHandler, false);
+            var keys = Object.keys(Utils.xhrsInFlight);
+
+            keys.forEach((aKey) => {
+                if (Utils.exists(Utils.xhrsInFlight[aKey])) {
+                    Utils.xhrsInFlight[aKey].abort();
+                }
+            });
+        };
+        window.document.addEventListener(C.ACTION.STOP, stopHandler, false);
     }
-    
+
 
     /**
-     * Check if a variable really exists.
+     * Check if a variable really exists. It must not be null, undefined, or ''.
      */
-    static exists(obj) { 
-        if (!!obj) {
+    static exists(obj) {
+        if (
+            !!obj &&
+            obj !== null &&
+            typeof(obj) !== 'undefined' &&
+            (obj.trim ? obj.trim() !== C.ST.E : obj !== C.ST.E)
+        ) {
             return true;
         }
-
-        return false;
+        else {
+            return false;
+        }
     };
 
 
@@ -65,7 +85,7 @@ class Utils extends CommonStaticBase {
      * If the val is a proper object, it may have a toString(). If it's a
      * little degenerate, it might not, so we interpolate in that case.
      *
-     * @param {Object} val 
+     * @param {Object} val
      */
     static asString(val) {
         return (
@@ -118,8 +138,8 @@ class Utils extends CommonStaticBase {
      * Create a URL object from a src/href.
      */
     static srcToUrl(src, loc) {
-        if (!Utils.exists(src)) { 
-            src = `${C.DOC_TYPE.DATA}:`; 
+        if (!Utils.exists(src)) {
+            src = `${C.DOC_TYPE.DATA}:`;
         }
 
         var cleansedUrl = new URL(src, Utils.getBaseUri(loc));
@@ -135,19 +155,19 @@ class Utils extends CommonStaticBase {
     static srcToUri(src, l) {
         return u.srcToUrl(src, l).href;
     };
-    
+
 
     /**
      * Does it have a file extension? If not, it's probably a generated image. That
      * is the usefulness of this method.
-     * 
-     * @param {string} name 
+     *
+     * @param {string} name
      */
     static hasNoFileExtension(name) {
         if (!!name) {
             let slashedParts = name.split('?')[0].split('/');
             let sl = slashedParts[slashedParts.length - 1];
-            
+
             // Test for a file extension, negated.
             return (
                 !/\.(.+?)$/.test(sl)
@@ -157,9 +177,9 @@ class Utils extends CommonStaticBase {
 
 
     /**
-     * This matches all the media mimetypes we support. 
-     * 
-     * @param {string} mimeType 
+     * This matches all the media mimetypes we support.
+     *
+     * @param {string} mimeType
      */
     static isKnownMediaMimeType(mimeType) {
         return (
@@ -169,22 +189,48 @@ class Utils extends CommonStaticBase {
 
 
     /**
+     * This matches HTML by file extension. Used by Digger (a least)
+     *
+     * @param {*} name
+     * @returns
+     */
+    static isHtml(name) {
+        return (
+            C.RECOG_RGX.HTML.test(name)
+        );
+    }
+
+
+    /**
+     * This matches text-basedfiles by file extension. Used  by downloading in App (at least)
+     *
+     * @param {*} name
+     * @returns
+     */
+    static isTextOnlyFile(name) {
+        return (
+            C.RECOG_RGX.TEXT_ONLY.test(name)
+        );
+    }
+
+
+    /**
      * Do we think we know what type this file is? And do we want it?
      */
     static isKnownMediaFile(name) {
         return (
-            !!name && (Utils.isAllowedImageType(name) || Utils.isAllowedVideoType(name) || Utils.isAllowedAudioType(name))  
+            !!name && (Utils.isAllowedImageType(name) || Utils.isAllowedVideoType(name) || Utils.isAllowedAudioType(name))
         );
     };
 
 
     /**
-     * Do we think we know what type this file is? Is it extension-less, and therefore maybe a 
+     * Do we think we know what type this file is? Is it extension-less, and therefore maybe a
      * media-generating endpoint?
      */
     static isKnownMediaFileOrEndpoint(name) {
         return (
-            Utils.hasNoFileExtension(name) || Utils.isKnownMediaFile(name)  
+            !!name && (Utils.hasNoFileExtension(name) || Utils.isKnownMediaFile(name))
         );
     };
 
@@ -201,8 +247,8 @@ class Utils extends CommonStaticBase {
 
     /**
      * Does the filename have a dot in it?
-     * 
-     * @param {string} filename 
+     *
+     * @param {string} filename
      */
     static doesFilenameHaveDot(filename) {
         return (
@@ -213,8 +259,8 @@ class Utils extends CommonStaticBase {
 
     /**
      * What's the index of the dot in the filename?
-     * 
-     * @param {string} filename 
+     *
+     * @param {string} filename
      */
     static indexOfDot(filename) {
         return (
@@ -224,8 +270,8 @@ class Utils extends CommonStaticBase {
 
     /**
      * Is this a URI filetype that we support?
-     * 
-     * @param {string} uri 
+     *
+     * @param {string} uri
      */
     static isSupportedMediaUri(uri) {
         return (
@@ -233,7 +279,7 @@ class Utils extends CommonStaticBase {
         );
     }
 
-    
+
     /**
      * Pull out the filename from a uri, or fallback to the whole thing.
      */
@@ -250,21 +296,21 @@ class Utils extends CommonStaticBase {
      */
     static getXhrResponse(method, uri, responseType) {
         var prop = (
-            (responseType === C.DOC_TYPE.DOC || responseType === C.DOC_TYPE.BLOB) ? 
-            C.SEL_PROP.R_XML : 
+            (responseType === C.DOC_TYPE.DOC || responseType === C.DOC_TYPE.BLOB) ?
+            C.SEL_PROP.R_XML :
             C.SEL_PROP.R
         );
 
         return Utils.sendXhr(method, uri, [prop], responseType);
     }
 
-    
+
     /**
      * Promise-wrapper for doing an XHR
      */
-    static sendXhr(method, uri, props, responseType) {
+    static sendXhr(method, uri, props, responseType, resolveOnError=false) {
         return new Promise((resolve, reject) => {
-            if (this.stop) { return C.CAN_FN.PR_RJ_STOP(); };
+            if (Utils.stop) { return C.CAN_FN.PR_RJ_STOP(); };
 
             // Get an unused key for this xhr. The do-while will usually only run one iteration.
             // Then create the object, setting it on the in-flight map and in the xhr local var.
@@ -288,10 +334,10 @@ class Utils extends CommonStaticBase {
                 delete Utils.xhrsInFlight[xhrId];
                 xhr = null;
 
-                // reject with the error status we were called with.
-                reject(errorStatus);
+                // reject/resolve with the error status we were called with.
+                (resolveOnError ? resolve : reject)(errorStatus);
             };
-            
+
 
             // Left as a old-school function def so "this" will point at the xhr and not
             // accidentally cause bad closures.
@@ -301,9 +347,29 @@ class Utils extends CommonStaticBase {
                     return;
                 }
 
-                if (this.readyState == XMLHttpRequest.DONE) 
+                if (this.readyState == XMLHttpRequest.DONE)
                 {
-                    if (this.status == 200) {                        
+                    // Change to using the responseURL if it's there.
+                    var rUri = C.ST.E + uri;
+                    try { if (!!xhr.responseURL) { rUri = (C.ST.E + xhr.responseURL.toString()); }; }
+                    catch (err) { Utils.lm(`Caught error to get xhr.responseURL.`); }
+
+                    // Auto-respond to redirects.
+                    if (rUri !== uri && (this.status == 301 || this.status == 302 || this.status == 503 )) {
+                        Utils.lm(`Following redirect location for:\n\t${uri} -> ${rUri}`);
+
+                        Utils.sendXhr(method, rUri, props, responseType).then((res) => {
+                            // delete the xhr as best we can. Resolve with the res.
+                            delete Utils.xhrsInFlight[xhrId];
+                            xhr = null;
+                            return resolve(res);
+                        })
+                        .catch((errrr) => {
+                            errorHandler(errrr);
+                        });
+                    }
+                    else if (this.status == 200) {
+                        // Get multiple XHR properties, 1 property, or even whole Document.
                         if (props && props.length > 1) {
                             var propMap = {};
                             var thisXhr = this;
@@ -312,7 +378,7 @@ class Utils extends CommonStaticBase {
                                 propMap[prop] = thisXhr[prop];
                             });
 
-                            resolve(propMap);                            
+                            resolve(propMap);
                         }
                         else if (props && props.length === 1) {
                             resolve(this[props[0]]);
@@ -320,17 +386,21 @@ class Utils extends CommonStaticBase {
                         else {
                              resolve(this);
                         }
+
+                        // delete the xhr as best we can.
+                        delete Utils.xhrsInFlight[xhrId];
+                        xhr = null;
                     }
                     else {
                         errorHandler(this.status);
-                    }
 
-                    // delete the xhr as best we can.
-                    delete Utils.xhrsInFlight[xhrId];
-                    xhr = null;
+                        // delete the xhr as best we can.
+                        delete Utils.xhrsInFlight[xhrId];
+                        xhr = null;
+                    }
                 }
             };
-            
+
 
             // Again, using the old-school "function" so that "this"
             // points o the XHR.
@@ -346,17 +416,6 @@ class Utils extends CommonStaticBase {
             };
 
 
-            // Event listener for stop event.
-            var stopHandler = (evt) => {
-                window.document.removeEventListener(C.ACTION.STOP, stopHandler, false);
-
-                if (Utils.exists(Utils.xhrsInFlight[xhrId])) { 
-                    Utils.xhrsInFlight[xhrId].abort(); 
-                }                
-            };
-            window.document.addEventListener(C.ACTION.STOP, stopHandler, false);
-
-            
             // Perform the fetch.
             xhr.open(method, uri, true);
             if (responseType) {
@@ -387,11 +446,11 @@ class Utils extends CommonStaticBase {
                 opts,
                 (tabs) => {
                     if (tabs && tabs.length > 0) {
-                        resolve(tabs[0]);             
+                        resolve(tabs[0]);
                     }
                     else {
                         reject('[Utils] no active tabs in the current window.');
-                    }       
+                    }
                 }
             );
         });
@@ -405,7 +464,7 @@ class Utils extends CommonStaticBase {
         return new Promise((resolve, reject) => {
             tabMessage.senderId = ContentMessage.GIMME_ID;
             tabMessage.message.senderId = ContentMessage.GIMME_ID;
-            
+
             chrome.tabs.sendMessage(
                 tabMessage.tab.id,
                 tabMessage.message,
@@ -414,15 +473,15 @@ class Utils extends CommonStaticBase {
                 },
                 (resp) => {
                     if (!!resp) {
-                        resolve(resp);                    
+                        resolve(resp);
                     }
                     else {
                         reject(
                             '[Utils] Aborting, got an undefined response. May need to refresh the page.\n' +
                             '        lastError: ' + JSON.stringify(chrome.runtime.lastError)
-                        ); 
+                        );
                     }
-                    
+
                     return true;
                 }
             );
@@ -440,8 +499,8 @@ class Utils extends CommonStaticBase {
         for (var prp in Utils.dlCallbacks) {
             delete Utils.dlCallbacks[prp];
         }
-    
-        for (var i1 = 0; i1 < C.UTILS_CONF.DL_CHAIN_COUNT; i1++) {
+
+        for (var i1 = 0; i1 < this.concurrentDls; i1++) {
             Utils.dlChains.push(Promise.resolve(true));
         }
     }
@@ -449,11 +508,11 @@ class Utils extends CommonStaticBase {
 
     /**
      * Download a single uri to the filename (well, path) provided.
-     * Add its downloading to one of the DL_CHAIN_COUNT download promise chains.
+     * Add its downloading to one of the this.concurrentDls download promise chains.
      */
     static downloadFile(uri, destFilename, output) {
-        if (uri.lastIndexOf(C.ST.WHACK) === uri.length - 1) { 
-            return Promise.resolve(new DownloadSig(0, uri, destFilename)); 
+        if (uri.lastIndexOf(C.ST.WHACK) === uri.length - 1) {
+            return Promise.resolve(new DownloadSig(0, uri, destFilename));
         }
 
         if (!destFilename) {
@@ -465,11 +524,17 @@ class Utils extends CommonStaticBase {
             destFilename = destFilename + '.jpg';
         }
 
-        // We're round-robin-ing our dlChains. 
-        var dlIndex = Utils.dlCounter % C.UTILS_CONF.DL_CHAIN_COUNT;
+        // We're round-robin-ing our dlChains.
+        var dlIndex = Utils.dlCounter % Utils.concurrentDls;
         Utils.dlCounter++;
         var num = Utils.dlCounter + 0;
-        
+
+        // Make sure The chain has been started.
+        if (!Utils.exists(Utils.dlChains[dlIndex]) || !Utils.exists(Utils.dlChains[dlIndex].then)) {
+            Utils.dlChains[dlIndex] = Promise.resolve(true);
+        }
+
+        // Download in the chain
         Utils.dlChains[dlIndex] = Utils.dlChains[dlIndex].then(() => {
             return Utils.buildDlChain(uri, destFilename, output, num);
         });
@@ -482,7 +547,8 @@ class Utils extends CommonStaticBase {
      * Helper to avoid unwanted closures.
      */
     static buildDlChain(uri, destFilename, output, num) {
-        output.toOut('Downloading file ' + num);
+        this.lm(`Downloading file ${num}`)
+        output.toOut(`Downloading file ${num}`);
 
         chrome.browserAction.setBadgeText({ text: C.ST.E + num + C.ST.E });
         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.DOWNLOADING);
@@ -492,15 +558,33 @@ class Utils extends CommonStaticBase {
 
 
     /**
-     * Build a salted directory name based on Utils.loc. 
+     * Add a salting param to a uri and return it, to disambiguate in
+     */
+    static saltUri(uri) {
+        // straight-up change the input param on this.
+        if (uri.indexOf('?') === -1) {
+            uri = uri + '?'
+        }
+        else {
+            uri = uri + '&'
+        }
+
+        uri = uri + 'gimmeyou=' + (new Date()).getTime();
+
+        return uri;
+    }
+
+
+    /**
+     * Build a salted directory name based on Utils.loc.
      */
     static getSaltedDirectoryName(loc) {
         // Stash loc for later
         if (!loc || !loc.hostname) {
-            loc = Utils.lastLoc;
+            loc = this.lastLoc;
         }
         else {
-            Utils.lastLoc = new LastLoc(loc.hostname, loc.pathname);
+            this.lastLoc = new LastLoc(loc.hostname, loc.pathname);
         }
 
         // Create a salted directory for the images to live in.
@@ -510,7 +594,7 @@ class Utils extends CommonStaticBase {
 
         if (slashIndex != -1 && dotIndex != -1) {
             hackedPageName = loc.pathname.substring(
-                loc.pathname.lastIndexOf(C.ST.WHACK)+1, 
+                loc.pathname.lastIndexOf(C.ST.WHACK)+1,
                 loc.pathname.lastIndexOf(C.ST.D)-1
             );
         }
@@ -527,7 +611,7 @@ class Utils extends CommonStaticBase {
      */
     static dlInChain(uri, destFilename) {
         return new Promise((resolve, reject) => {
-            setTimeout(() => { 
+            setTimeout(() => {
                 chrome.downloads.download(
                     {
                         url: uri,
@@ -561,13 +645,13 @@ class Utils extends CommonStaticBase {
     static buildDlCallback(dlId, dlUri, dlFile, res) {
         return ((dlDelta) => {
             // Guard against weird, SNAFU blank dlDeltas.
-            if (!dlDelta) { 
+            if (!dlDelta) {
                 Utils.lm('onChanged called with null/undefined/empty dlDelta. Weird. Returning false.');
-                return false; 
+                return false;
             }
 
             // If this event is for our downloadId, see if the download finished. Take resume() action if the dl was interrupted,
-            // resolve in shame if the resume() fails, resolve in shame if the state won't leave "interrupted", and don't even 
+            // resolve in shame if the resume() fails, resolve in shame if the state won't leave "interrupted", and don't even
             // log in any other cases.
             if (dlDelta.id === dlId) {
                 let dlDownloadSig = new DownloadSig(dlId, dlUri, dlFile);
@@ -584,10 +668,10 @@ class Utils extends CommonStaticBase {
                         // Try to resume the download ONLY ONCE.
                         chrome.downloads.resume(dlId, () => {
                             // Resolve in shame if resume() errors.
-                            if (Utils.exists(runtime.lastError)) {
+                            if (Utils.exists(chrome.runtime.lastError)) {
                                 Utils.lm(
                                     `Download ${dlId} of "${dlFile}" could not be resumed. Trashing the listener and just resolving. ` +
-                                    ` runtime.lastError:\n\t${JSON.stringify(runtime.lastError)}`
+                                    ` chrome.runtime.lastError:\n\t${JSON.stringify(chrome.runtime.lastError)}`
                                 );
                                 Utils.removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res);
                             }
@@ -624,15 +708,15 @@ class Utils extends CommonStaticBase {
     /**
      * Helper to remove a dlId's onChanged() listener, delete the listener from the dlCallbacks list, and resolve the dlDownloadSig
      * using the "res" param.
-     *  
-     * @param {int} dlId 
-     * @param {DownloadSig} dlDownloadSig 
-     * @param {Function} res 
+     *
+     * @param {int} dlId
+     * @param {DownloadSig} dlDownloadSig
+     * @param {Function} res
      */
     static removeOnChangedListenerAndResolveSig(dlId, dlDownloadSig, res) {
-        if (Utils.exists(Utils.dlCallbacks[dlId])) {
+        if (Utils.exists(this.dlCallbacks[dlId])) {
             chrome.downloads.onChanged.removeListener(Utils.dlCallbacks[dlId]);
-            delete Utils.dlCallbacks[dlId];
+            delete this.dlCallbacks[dlId];
             res(dlDownloadSig);
         }
     }
@@ -641,7 +725,7 @@ class Utils extends CommonStaticBase {
     /**
      * Download as zip.
      */
-    static downloadInZip(fileOpts) {
+    static downloadInZip(fileOpts, output) {
         var zip = new JSZip();
         var promises = [];
 
@@ -694,9 +778,9 @@ class Utils extends CommonStaticBase {
                 // Setup the download filename and href, then download it directly.
                 var zipFilename = 'imgs' + fileOpts[0].uri.substring(9, fileOpts[0].uri.indexOf(C.ST.WHACK)) + '.zip';
                 var zipUri = URL.createObjectURL(content);
-            
+
                 // Download. Reclaim the object uri memory on finally, but return the downloadFile() promise result.
-                var prm = Utils.downloadFile(zipUri, zipFilename, Output.getInstance());
+                var prm = Utils.downloadFile(zipUri, zipFilename, output);
                 prm.finally(() => { URL.revokeObjectURL(zipUri); });
 
                 // return the downloadFile() promise result.
@@ -718,7 +802,7 @@ class Utils extends CommonStaticBase {
             chrome.downloads.search(
                 {
                     id: downloadSig.id,
-                }, 
+                },
                 (downloadItems) => {
                     if (downloadItems && downloadItems.length > 0) {
                         resolve(downloadItems);
@@ -737,10 +821,12 @@ class Utils extends CommonStaticBase {
      * A promise-based wrapper for setting storage items.
      * The cb's return value is ignored completely.
      */
-    static setInStorage(itemsToStore) {
+    static setInStorage(itemsToStore, area) {
+        var storageSetter = (area === 'local' ? chrome.storage.local : chrome.storage.sync);
+
         return new Promise((resolve, reject) => {
-            chrome.storage.local.set(
-                itemsToStore, 
+            storageSetter.set(
+                itemsToStore,
                 () => {
                     if (chrome.runtime.lastError) {
                         reject(chrome.runtime.lastError);
@@ -755,12 +841,14 @@ class Utils extends CommonStaticBase {
 
 
     /**
-     * A promise-based wrapper for getting storage items. 
+     * A promise-based wrapper for getting storage items.
      */
-    static getFromStorage(keys) {
+    static getFromStorage(keys, area) {
+        var storageGetter = (area === 'local' ? chrome.storage.local : chrome.storage.sync);
+
         return new Promise((resolve, reject) => {
-            chrome.storage.local.get(
-                keys, 
+            storageGetter.get(
+                keys,
                 (items) => {
                     if (chrome.runtime.lastError) {
                         reject(chrome.runtime.lastError);
@@ -775,9 +863,32 @@ class Utils extends CommonStaticBase {
 
 
     /**
+     * A promise-based wrapper for removing storage items.
+     *
+     * @param {Array<string>} keys
+     */
+    static removeFromStorage(keys, area) {
+        var storageRemover = (area === 'local' ? chrome.storage.local : chrome.storage.sync);
+
+        return new Promise((resolve, reject) => {
+            storageRemover.remove(
+                keys,
+                () => {
+                    if (chrome.runtime.lastError) {
+                        reject(chrome.runtime.lastError);
+                    }
+                    else {
+                        resolve(true);
+                    }
+                }
+            );
+        });
+    }
+
+    /**
      * See if the param is actually the boolean value "true". Not something coerced.
-     * 
-     * @param {any} test 
+     *
+     * @param {any} test
      */
     static isTrue(test) {
         return (test === true);
@@ -786,8 +897,8 @@ class Utils extends CommonStaticBase {
 
     /**
      * See if the param is actually the boolean value "false". Not something coerced.
-     * 
-     * @param {any} test 
+     *
+     * @param {any} test
      */
     static isFalse(test) {
         return (test === false);
@@ -806,7 +917,7 @@ class Utils extends CommonStaticBase {
         if (tabId) { filter.tabId = tabId; };
 
         chrome.webRequest.onHeadersReceived.addListener(
-            listener, 
+            listener,
             filter,
             [ 'responseHeaders' ]
         );
@@ -825,21 +936,24 @@ class Utils extends CommonStaticBase {
      * Promise-based loader of an external resource into a <iframe>
      * in the background page. Returns the iframe's document object.
      */
-    static loadUriDoc(uri, id) {
+    static loadUriDoc(uri, id, output) {
         return new Promise((resolve, reject) => {
             id = (!id && id !== 0) ? C.UTILS_CONF.DEFAULT_IFRAME : id;
 
             // Create the iframe, removing the old one if needed.
             var bgDoc = chrome.extension.getBackgroundPage().document;
-            var listenerId = id + (Utils.counter++);            
+            var listenerId = id + (Utils.counter++);
             var iframe = bgDoc.getElementById(id);
             if (iframe) { iframe.remove(); };
 
             iframe = bgDoc.createElement(C.SEL_PROP.IFRAME);
-            iframe.id = id;   
-            
+            iframe.id = id;
 
-            // Set a timeout for waiting for the iframe to load. We can't afford to 
+            let message = `Trying to load page in background iframe:\n\t${uri}`;
+            this.lm(message);
+            output.toOut(message);
+
+            // Set a timeout for waiting for the iframe to load. We can't afford to
             // just never complete the promise. Wait 7 seconds.
             var listeningTimeoutId = setTimeout(() => {
                 chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
@@ -853,21 +967,24 @@ class Utils extends CommonStaticBase {
             // Add a message listener for the ContentPeeper's loading message.
             // It will fire for every page or frame loaded, as it is always injected.
             // But restrict this particular listener to only the uri at hand.
-            Utils.listeners[listenerId] = (request, sender, sendResponse) => {                
+            Utils.listeners[listenerId] = (request, sender, sendResponse) => {
                 if (request.docOuterHtml && request.uri == uri) {
+                    let message = `page loaded in bg iframe:\n\t${uri}`;
+                    this.lm(message);
+                    output.toOut(message)
                     clearTimeout(listeningTimeoutId);
                     chrome.runtime.onMessage.removeListener(Utils.listeners[listenerId]);
 
                     var iframeDoc = Utils.domParser.parseFromString(request.docOuterHtml, C.DOC_TYPE.HTML);
                     resolve(iframeDoc);
-                    
+
                     iframe.remove();
                     delete Utils.listeners[listenerId];
                 }
 
                 // Wait a while.
                 return true;
-            }; 
+            };
             chrome.runtime.onMessage.addListener(Utils.listeners[listenerId]);
 
 
@@ -879,15 +996,17 @@ class Utils extends CommonStaticBase {
                 delete Utils.listeners[listenerId];
 
                 if (Utils.exists(iframe)) {
-                    if (Utils.exists(iframe.contentWindow) && isFunction(iframe.contentWindow.stop)) { 
+                    if (Utils.exists(iframe.contentWindow) && (typeof(iframe.contentWindow.stop) === 'function')) {
                         iframe.contentWindow.stop();
-                        iframe.src = C.ST.HASH; 
+                        iframe.src = C.ST.HASH;
                     };
                     iframe.remove();
                 }
+
+                reject(evt);
             });
-            
-            
+
+
             // Set the src (it begins loading here)
             iframe.src = uri;
             bgDoc.body.appendChild(iframe);
@@ -905,12 +1024,12 @@ class Utils extends CommonStaticBase {
 
     /**
      * Are we on a page that contains all these page tokens?
-     * @param {Array<string>|string} pageTokens 
+     * @param {Array<string>|string} pageTokens
      */
     static isPage(win, pageTokens) {
         var itIs = false;
 
-        // If we were passed in a non-empty string or array, use it for 
+        // If we were passed in a non-empty string or array, use it for
         // matching. Otherwise, leave itIs = false.
         if (!!pageTokens && !!pageTokens.length && pageTokens.length > 0) {
             var tokens = [];
@@ -937,7 +1056,7 @@ class Utils extends CommonStaticBase {
                 }
             });
         }
-       
+
         // Always false if the pageTokens input is not a non-zero string or array<string>.
         return itIs;
     }
@@ -946,8 +1065,8 @@ class Utils extends CommonStaticBase {
     /**
      * Is this string uri using a browser-specific extension pseudoprotocol?
      * A '/^(moz-|chrome-)?extension\:\/\//stuff/more.ext' uri?
-     * 
-     * @param {string} u 
+     *
+     * @param {string} u
      */
     static isExtensionUri(u) {
         return (
@@ -957,7 +1076,7 @@ class Utils extends CommonStaticBase {
             (u.indexOf(C.WAY.MZ_E) === 0)
         );
     }
-    
+
 
     /**
      * Are we on the background page?
@@ -965,21 +1084,21 @@ class Utils extends CommonStaticBase {
     static isBackgroundPage(win) {
         let h = win.location.href;
         let isPage = (
-            this.isExtensionUri(h) && 
+            this.isExtensionUri(h) &&
             (h.indexOf(C.PAGE.BACKGROUND) !== -1)
         );
 
         return isPage;
     }
 
-    
+
     /**
      * Are we on the popup page?
      */
     static isPopupPage(win) {
         let h = win.location.href;
         let isPage = (
-            this.isExtensionUri(h) && 
+            this.isExtensionUri(h) &&
             (h.indexOf(C.PAGE.POPUP) !== -1)
         );
 
@@ -993,11 +1112,71 @@ class Utils extends CommonStaticBase {
     static isOptionsPage(win) {
         let h = win.location.href;
         let isPage = (
-            this.isExtensionUri(h) && 
+            this.isExtensionUri(h) &&
             (h.indexOf(C.PAGE.OPTIONS) !== -1)
         );
 
         return isPage;
+    }
+
+
+    /**
+     * build a rambling, unique selector for a given DOM element. These are ugly, but generate quickly.
+     * Taken from https://stackoverflow.com/questions/8588301/how-to-generate-unique-css-selector-for-dom-element
+     *
+     * @param {DOMElement} el
+     */
+    static generateSelector(el) {
+        let path = [], parent;
+        while (parent = el.parentNode) {
+            path.unshift(`${el.tagName}:nth-child(${[].indexOf.call(parent.children, el) + 1})`);
+            el = parent;
+        }
+
+        return `${path.join(' > ')}`.toLowerCase();
+    }
+
+
+    /**
+     * build a compact selector for a given DOM element. These are prettier selectors, and are slower to generate.
+     * Taken from https://stackoverflow.com/questions/8588301/how-to-generate-unique-css-selector-for-dom-element
+     *
+     * @param {DOMElement} el
+     */
+    static generateCompactSelector(domEl) {
+        let path = [];
+        let parent = null;
+        let el = domEl;
+
+        while (parent = el.parentNode) {
+            let tag = el.tagName, siblings;
+
+            path.unshift(
+                (
+                    el.id ? `#${el.id}` : (
+                        siblings = parent.children, ([].filter.call(siblings, sibling => sibling.tagName === tag).length === 1 ? tag : `${tag}:nth-child(${1 + [].indexOf.call(siblings, el)})`)
+                    )
+                )
+            );
+
+            el = parent;
+        };
+
+        return `${path.join(' > ')}`.toLowerCase();
+    }
+
+
+    /**
+     * Configure the count of how many concurrent downloads can be fired off at once.
+     *
+     * @param {String} val
+     */
+    static setConcurrentDownloadCount(val) {
+        var num = Number.parseInt(val, 10);
+
+        if (!Number.isNaN(num)) {
+            Utils.concurrentDls = num;
+        }
     }
 }
 

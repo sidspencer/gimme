@@ -1,34 +1,40 @@
 const webpack = require("webpack");
+const path = require("path");
 
 module.exports = {
     mode: 'development',
-    // WINDOWS: context: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',
-    context: '/Users/dis/Source/sidspencer/gimme',
+    context: path.resolve(__dirname),
     entry: {
         background: './background/EventPage.js',
         content: './content/ContentPeeper.js',
         options: './options/Optionator.js',
         popup: './popup/Popup.js',
-        lib: './lib/DataClasses.js'
+        baselibs: './baselibs/DataClasses.js'
     },
     output: {
-        // WINDOWS: path: 'C:\\Users\\wrait\\Source\\sidspencer\\gimme',
-        path: '/Users/dis/Source/sidspencer/gimme',
-        filename: './[name]/bundle.js',
-        publicPath: "./",
+        path: path.resolve(__dirname),
+        filename: '[name]/bundle.js',
+        publicPath: '/[name]',
         libraryTarget: 'umd',
+        umdNamedDefine: true,
         globalObject: 'window',
-        umdNamedDefine: true
+        hashFunction: "xxhash64"
     },
     module: {
         rules:[
             {
-                test: /\.js?$/,
+                test: /\.m?js$/,
                 enforce: 'pre',
                 use: ['source-map-loader']
             },
             {
-                test: /\.js?$/,
+                test: /\.m?js$/,
+                resolve: {
+                    fullySpecified: false
+                }
+            },
+            {
+                test: /\.m?js$/,
                 exclude: /node_modules/,
                 use: {
                     loader: 'babel-loader',
@@ -56,6 +62,6 @@ module.exports = {
     resolve: {
         modules: [ 'node_modules', './' ]
     },
-    devtool: 'source-map',
+    devtool: "source-map",
     target: 'web'
 };

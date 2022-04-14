@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
         <title>gimme gimme gimme</title>
@@ -38,8 +38,13 @@
         </div>
         
         <div id="actionHolder" style="display: none;">
-            <button id="getAllFileOptsButton">get all</button>
-            <button id="getAllJpgOptsButton">get all jpgs</button>
+            <div>
+                <button id="getAllFileOptsButton">get all</button>
+                <button id="getAllJpgOptsButton">get all jpgs</button>
+            </div>
+            <div>
+                <button id="getAllJpgNMp4OptsButton">get all jpgs n mp4s</button>
+            </div>
             <div>
                 <button id="clearFileListButton">clear file list</button>
             </div>
@@ -48,6 +53,8 @@
         <ul id="filesDug">
         </ul>
 
+        <div id="backToTop">^</div>
+        
         <script type="module" src="bundle.js"></script>
     </body>
 </html>

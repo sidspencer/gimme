@@ -1,38 +1,36 @@
 {
-  "name": "gimme",
+  "name": "gimmegimmegimme",
+  "displayName": "GimmeGimmeGimme",
   "version": "0.4.15",
-  "description": "A tool for helping you download media from a page, or from the pages that are linked.",
+  "description": "A media downloader for on-page and gallery-linked media. Named after Black Flag's \"Gimme Gimme Gimme\".",
+  "type": "module",
   "main": "popup/Popup.js",
   "module": "popup/Popup.js",
   "dependencies": {
-    "@babel/plugin-transform-runtime": "^7.10.1",
+    "@babel/plugin-transform-runtime": "^7.12.1",
     "@babel/polyfill": "^7.10.1",
-    "@babel/preset-es2015": "^7.0.0-beta.53",
-    "@tensorflow-models/mobilenet": "^2.0.4",
-    "@tensorflow/tfjs": "^1.7.3",
-    "@tensorflow/tfjs-converter": "^1.7.4",
-    "@tensorflow/tfjs-core": "^1.7.4",
-    "babel-preset-es2015": "^6.24.1",
-    "babel-preset-es2017": "^6.24.1",
+    "@babel/runtime-corejs3": "^7.12.5",
     "core-js": "^3.6.5",
     "es6-promise": "^4.2.8",
     "jszip": "^3.5.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.10.2",
-    "@babel/plugin-proposal-class-properties": "^7.10.1",
-    "@babel/plugin-transform-classes": "^7.10.3",
-    "@babel/preset-env": "^7.10.2",
+    "@babel/core": "^7.12.0",
+    "@babel/plugin-proposal-class-properties": "^7.10.4",
+    "@babel/plugin-transform-classes": "^7.10.4",
+    "@babel/preset-env": "^7.12.0",
     "babel-loader": "^8.1.0",
     "babel-plugin-es6-promise": "^1.1.1",
-    "source-map-loader": "^1.0.1",
+    "install": "^0.13.0",
+    "source-map-loader": "^1.1.1",
     "undefined": "^0.1.0",
-    "webpack": "^4.43.0",
-    "webpack-cli": "^3.3.11"
+    "webpack": "^5.38.1",
+    "webpack-cli": "^4.9.2"
   },
   "scripts": {
-    "pack": "webpack --config webpack.config.js",
-    "clean": "rm */bundle.js*",
+    "wpack": "webpack --config webpack.config.cjs",
+    "clean": "ls */bundle.js* && rm */bundle.js*",
+    "build": "(npm run clean); npm run wpack",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -42,9 +40,15 @@
   "keywords": [
     "extension",
     "downloader",
-    "gallery-downloader"
+    "gallery-downloader",
+    "media",
+    "images"
   ],
   "author": "thirdlogan",
+  "contributors": [
+    "thirdlogan",
+    "sidspencer"
+  ],
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/thirdlogan/gimme/issues"

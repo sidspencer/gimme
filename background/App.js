@@ -1,12 +1,12 @@
-import { default as CommonBase } from '../lib/CommonBase.js';
+import { default as CommonBase } from '../baselibs/CommonBase.js';
 import { default as Utils } from './Utils.js';
 import { default as Logicker } from './Logicker.js';
 import { default as Output } from './Output.js';
 import { default as Digger } from './Digger.js';
 import { default as Scraper } from './Scraper.js';
-import { default as C } from '../lib/C.js';
+import { default as C } from '../baselibs/C.js';
 import {
-    DigOpts, 
+    DigOpts,
     ContentMessage,
     TabMessage,
     LocDoc,
@@ -15,8 +15,8 @@ import {
     ScrapeOptions,
     Storing,
     Log,
-} from '../lib/DataClasses.js'
-import MessageStrings from '../lib/MessageStrings.js'; 
+} from '../baselibs/DataClasses.js'
+import MessageStrings from '../baselibs/MessageStrings.js';
 
 
 /**
@@ -42,7 +42,7 @@ class App extends CommonBase {
     downloadsDir = C.F_NAMING.DOWNLOADS_DIR;
 
 
-    /** 
+    /**
      * Constructor for App.
      */
     constructor(aDigger, aScraper) {
@@ -53,17 +53,17 @@ class App extends CommonBase {
         this.output = Output.getInstance();
         this.digger = aDigger;
         this.scraper = aScraper;
-        
 
-        /** 
+
+        /**
         * Ask the client-script for the active tab's location object, as well as
-        * an array of values corresponding to the selector and propName for that tag. 
-        * Typically, these selectors and propNames will be some combination of 
+        * an array of values corresponding to the selector and propName for that tag.
+        * Typically, these selectors and propNames will be some combination of
         * "img", "a", "src", and "href".
-        */ 
+        */
         this.buildTabMessage = (tab) => {
            var message = {};
-   
+
            if (Utils.isTrue(this.contentScriptSelection)) {
                var d = Logicker.getMessageDescriptorForUrl(tab.url);
                message = Object.assign({}, d);
@@ -71,13 +71,13 @@ class App extends CommonBase {
            else if (Utils.isTrue(this.isDiggingGalleryGallery)) {
                message = new ContentMessage();
            }
-                   
-           var tabMessage = new TabMessage(tab, message); 
+
+           var tabMessage = new TabMessage(tab, message);
            return Promise.resolve(tabMessage);
        };
-   
 
-       /** 
+
+       /**
         * Do some things with the tab response, resolve with the location.
         */
         var domParser = new DOMParser();
@@ -91,7 +91,7 @@ class App extends CommonBase {
 
             // Create our own copy of the document we're looking at.
             var peeperDoc = domParser.parseFromString(resp.docOuterHml, C.DOC_TYPE.HTML);
-            
+
             // Fallback to getting the document via XHR if we have to. (worse, because scripts will not have run.)
             if (!peeperDoc || !resp.docOuterHml) {
                 return this.getLocDoc(loc);
@@ -103,12 +103,12 @@ class App extends CommonBase {
 
 
         /**
-         * 
+         *
          * If we know special things about the site, such as thumb -> zoomedImg mappings
          * or whatnot, we do it here. It also returns a descriptor of options for scraping
-         * and digging. 
+         * and digging.
          */
-        this.processLocDoc = (locDoc) => {        
+        this.processLocDoc = (locDoc) => {
             // If we know special things about the site, such as thumb -> zoomedImg mappings
             // or whatnot, we do it here. It also returns a descriptor of options for scraping
             // and digging.
@@ -135,14 +135,14 @@ class App extends CommonBase {
             else {
                 this.output.toOut('Could not scrape. Would you try refreshing the page, please?');
                 return Promise.reject('[App] Aborting. Received null document object.');
-            }       
+            }
         };
 
 
         /**
          * Give the user a list of media that was found, with checkboxes next to thumbnail images and
          * their filenames. Download based upon their preference and interaction.
-         * 
+         *
          * Note: This also sets the all-combined harvestedMap as a new object for me.galleryMap,
          *       but first it removes from the harvestedMap.
          */
@@ -151,15 +151,15 @@ class App extends CommonBase {
                 this.lm('called with null harvestedMap.');
                 return Promise.resolve([]);
             }
-            
+
             var thumbUris = Object.keys(harvestedMap);
             var length = thumbUris.length;
 
             if (length < 1) {
                 this.lm('No files to download.');
-                this.output.toOut('No URLs to download.');            
+                this.output.toOut('No URLs to download.');
             }
-            
+
             this.lm('Count of files to download: ' + length);
             this.output.toOut('Click on the files in the list to download them.');
             this.output.clearFilesDug();
@@ -175,8 +175,8 @@ class App extends CommonBase {
                     delete harvestedMap[thumbUri];
                     continue;
                 }
-                else if (/.+?\.html.+?/i.test(uri)) {
-                    this.lm('Rejecting uri string for download: ' + JSON.stringify(uri));
+                else if (Utils.isTextOnlyFile(uri)) {
+                    this.lm('Rejecting uri for text-fbased file for download: ' + JSON.stringify(uri));
                     delete harvestedMap[thumbUri];
                     continue;
                 }
@@ -187,14 +187,15 @@ class App extends CommonBase {
 
                 // For data-returning php files. (they really exist a fair amount)
                 if (/\/.+?.php\?/.test(uri)) {
-                    destFileName = destFileName + '.jpg';
+                    destFileName = destFileName.replace('.php', '.jpg');
                 }
+
                 // For weird filenames with parentheses in them.
                 if (/^\(.*\)/.test(destFileName)) {
                     destFileName = destFileName.replace(/^\(.*\)/, C.ST.E);
                 }
 
-                // Set up the FileOption entries, one for every pair in the harvestedMap, which later 
+                // Set up the FileOption entries, one for every pair in the harvestedMap, which later
                 // will be turned into FileEntry objects and displayed.
                 var destFilePath = this.downloadsDir + C.ST.WHACK + destFileName;
                 var optIdx = this.fileOptions.push(destFilePath);
@@ -203,9 +204,9 @@ class App extends CommonBase {
                 this.output.addFileOption(fileOption);
                 fileOptionzzz.push(fileOption);
             }
-            
+
             // ***Assign a new cloned object of harvestedMap on this.galleryMap.***
-            // It is done this way so that there are no references shared between 
+            // It is done this way so that there are no references shared between
             // galleryMap and harvestedMap.
             this.galleryMap = Object.assign({}, harvestedMap);
 
@@ -216,22 +217,22 @@ class App extends CommonBase {
             // Log, and tell the user to start selecting checkboxes.
             this.lm('Presented ' + this.fileOptions.length + ' file options.');
             this.output.toOut('Please select which of the ' + this.fileOptions.length + ' files you would like to download.');
-            
+
             // Show the action buttons, and reset the downloader.
             this.output.showActionButtons();
             Utils.resetDownloader();
 
-            // Resolve with the combined fileOptionszzz array. (But I don't think anyone reads it...) 
+            // Resolve with the combined fileOptionszzz array. (But I don't think anyone reads it...)
             return Promise.resolve(fileOptionzzz);
         };
     }
 
 
     /**
-     * Set the given prevUriMap in storage, log the happening, and reset 
+     * Set the given prevUriMap in storage, log the happening, and reset
      * isScraping/isDigging/diggingGalleryGallery all to false.
-     * 
-     * @param {Map} uriMap 
+     *
+     * @param {Map} uriMap
      * @returns {Promise} did setInStorage work or not
      */
     storeUriMapAndTeardown(uriMap) {
@@ -239,18 +240,16 @@ class App extends CommonBase {
         this.output.setIsDigging(false);
         this.setIsDiggingGalleryGallery(false);
 
-        return Utils.setInStorage(Storing.storePrevUriMap(uriMap))
-            .then(() => {
-                var err = chrome.runtime.lastError;
-                
-                if (Utils.exists(err)) {
-                    this.lm(`Got an error storing previousUriMap: ${JSON.stringify(err)}`);
-                    this.output.toOut(
-                        'Error storing the found links. Please download what you want before ' +
-                        'letting this popup window close -- once closed, these results will be gone.'
-                    );
-                }   
+        // Update the badge with the uriMap size.
+        chrome.browserAction.setBadgeText({ text: C.ST.E + Object.keys(uriMap).length + C.ST.E });
+        chrome.browserAction.setBadgeBackgroundColor(C.COLOR.AVAILABLE_FOPTS);
 
+        // Set in storage
+        return Utils.setInStorage(
+                Storing.buildPrevUriMapStoreObj(uriMap),
+                'local'
+            )
+            .then(() => {
                 this.lm(MessageStrings.STORING_URIMAP);
                 this.lm(MessageStrings.HARVEST_START + Object.keys(uriMap).length + MessageStrings.HARVEST_END);
 
@@ -275,8 +274,8 @@ class App extends CommonBase {
      */
     startDownloading(harvestedMap) {
         var me = this;
-        var length = Object.keys(harvestedMap).length;   
-             
+        var length = Object.keys(harvestedMap).length;
+
         if (Utils.exists(harvestedMap) && length > 0) {
             this.galleryMap = harvestedMap;
         }
@@ -294,7 +293,7 @@ class App extends CommonBase {
 
         this.lm('STARTING ZIP DOWNLOAD');
 
-        Utils.downloadInZip(harvestedMap.values()).then(() => {
+        Utils.downloadInZip(harvestedMap.values(), this.output).then(() => {
             for (var index = 0; index < harvestedMap.values(); index++) {
                 me.output.setEntryAsDownloading(index);
             };
@@ -302,12 +301,12 @@ class App extends CommonBase {
 
         return Promise.resolve([]);
     }
-    
+
 
     /**
      * Simple setter for isDiggingGalleryGallery
-     * 
-     * @param {bool} yesWeAre 
+     *
+     * @param {bool} yesWeAre
      */
     setIsDiggingGalleryGallery(yesWeAre) {
         this.isDiggingGalleryGallery = yesWeAre;
@@ -341,8 +340,8 @@ class App extends CommonBase {
     processContentPage() {
         return (
             Utils.queryActiveTab()
-                .then((tab) => { 
-                    return this.buildTabMessage(tab); 
+                .then((tab) => {
+                    return this.buildTabMessage(tab);
                 })
                 .then((tabMesssage) => {
                     return Utils.sendTabMessage(tabMesssage);
@@ -353,33 +352,33 @@ class App extends CommonBase {
                 .then((locDoc) => {
                     return this.processLocDoc(locDoc);
                 })
-        );        
+        );
     }
 
 
     /**
      * Clear the file tracking data in preparation for a new scrape or dig operation.
      */
-    clearGalleryData(contentScriptSelection) {        
+    clearGalleryData(contentScriptSelection) {
         this.alreadyDownloaded = {};
         this.filesDug = [];
         this.galleryMap = {};
         this.contentScriptSelection = contentScriptSelection;
-        this.output.clearFilesDug();    
-        Utils.resetDownloader();            
+        this.output.clearFilesDug();
+        Utils.resetDownloader();
     }
 
 
     /**
      * Do the setup needed for a clean scrape or dig.
-     * 
-     * @param {bool} clearGalleryItems 
-     * @param {Action} action 
+     *
+     * @param {bool} clearGalleryItems
+     * @param {Action} action
      */
     setupProcess(action, clearGalleryItems, text) {
         this.output.showStopButton();
         this.output.toOut(text);
-        
+
         // Only clear the gallery data on hard boolean "false"
         this.clearGalleryData(
             !Utils.isFalse(clearGalleryItems)
@@ -405,13 +404,13 @@ class App extends CommonBase {
 
     /**
      * Main entry point of the app for scraping media from the immediate page, and not having
-     * any choice over which media gets downloaded. 
+     * any choice over which media gets downloaded.
      */
     scrape(options) {
         this.setupProcess(C.ACTION.SCRAPE, false, 'Initializing: Collecting uris from page.');
-        var me = this;        
+        var me = this;
 
-        // Begin by communicating with the ContentPeeper for information 
+        // Begin by communicating with the ContentPeeper for information
         // about the target page. Then either use the ContentPeeper's processed
         // galleryMap or the one from the Scraper in order to download immediately.
         // No user choice on what to download.
@@ -430,9 +429,9 @@ class App extends CommonBase {
                         else {
                             me.lm(`Not scraping due doScrape being false, just downloading ContentPeeper URIs of count: ${Object.keys(me.galleryMap).length}.`);
                         }
-                    
+
                         // The downloads start immediately.
-                        me.digger.redrawOutputFileOpts(me.galleryMap);                        
+                        me.digger.redrawOutputFileOpts(me.galleryMap);
                         return Promise.resolve(me.galleryMap);
                     }
                     else {
@@ -442,7 +441,7 @@ class App extends CommonBase {
                         );
                     }
                 })
-                .then(me.startDownloading)            
+                .then(me.startDownloading)
                 .catch((err) => {
                     // If STOP, it was called during startDownloading(). Just let them have downloaded what they already downloaded.
                     // If a different error, assume the worst, so redraw and then present the options.
@@ -479,18 +478,18 @@ class App extends CommonBase {
         this.setupProcess(C.ACTION.SCRAPE, true, 'Initializing: Collecting uris from page.');
         var me = this;
 
-        // Begin by communicating with the ContentPeeper for information 
+        // Begin by communicating with the ContentPeeper for information
         // about the target page. Then use the Scraper to form a galleryMap
         // of its findings, and present the user with options of what to download.
         //
-        // NOTE: this ALWAYS scrapes anew. opts.doScraping=false only means to rely on 
+        // NOTE: this ALWAYS scrapes anew. opts.doScraping=false only means to rely on
         //       ContentPeeper for building a dig gallery map. Scrapes always want alllll
         //       the images on the page, not just gallery thumbs.
         return (
             me.processContentPage()
             .then((locDoc) => {
                 // If either digOpts.doScrape is false or STOP is set, just display the peeperMap galleryMap.
-                // In all other cases, actually call the Scraper.scrape() method. 
+                // In all other cases, actually call the Scraper.scrape() method.
                 // Both paths resolve maps to presentFileOptions().
                 if (Utils.isFalse(me.digOpts.doScrape) || me.isSTOP()) {
                     if (me.isSTOP()) {
@@ -501,7 +500,7 @@ class App extends CommonBase {
                     }
 
                     // redraw the file opts in preparation for presentFileOptions().
-                    me.digger.redrawOutputFileOpts(me.galleryMap);                    
+                    me.digger.redrawOutputFileOpts(me.galleryMap);
                     return Promise.resolve(me.galleryMap);
                 }
                 else {
@@ -514,7 +513,7 @@ class App extends CommonBase {
                     );
                 }
             })
-            .then(me.presentFileOptions)            
+            .then(me.presentFileOptions)
             .catch((err) => {
                 // See if we're being asked to stop, or if it's a different error.
                 // The STOP could have been thrown at any previous time, so have the STOP path display the options again.
@@ -522,17 +521,17 @@ class App extends CommonBase {
                 if (me.isSTOP(err)) {
                     me.output.toOut(MessageStrings.STOPPING_DDD);
                     me.lsm(`thrown sometime in scrapeFileOptions(). Presenting the options again, Just in case.`);
-                    
+
                     me.redrawOutputFileOpts(me.galleryMap);
                     me.presentFileOptions(me.galleryMap);
-                    
+
                     // resolving, just in case we get chained off of sometime in the future.
                     return C.CAN_FN.PR_RS_DEF();
                 }
                 else {
                     me.output.toOut(MessageStrings.PLEASE_REFRESH);
                     me.lm(`Unexpected error in scrapeFileOptions(). Not showing file options. Error is:\n        ${JSON.stringify(err)}`);
-                    
+
                     // rejecting, just in case we get chained off of in the future. Let them know the
                     // last link in this chain was an unexpected error.
                     return Promise.reject(err);
@@ -546,18 +545,18 @@ class App extends CommonBase {
     };
 
 
-    /**  
+    /**
      * Main entry point of the app if the user wants to accept any media found by the Digger's
      * gallery-searching logic without choosing from any options.
      */
     digGallery() {
         this.setupProcess(C.ACTION.DIG, true, 'Initializing: Collecting gallery uris from page.');
-        var me = this;     
-        
-        // Begin by communicating with the ContentPeeper for information 
+        var me = this;
+
+        // Begin by communicating with the ContentPeeper for information
         // about the target page. Then immediately start downloading
         // with either the galleryMap from the ContentPeeper, or from the this.digger.
-        // No user choice in what to download.         
+        // No user choice in what to download.
         return (
             me.processContentPage()
             .then((locDoc) => {
@@ -580,7 +579,7 @@ class App extends CommonBase {
                 else {
                     // Do an actual scrape/dig using the options provided. Resolve with that galleryMap,
                     // Downloading will then start automatically.
-                    me.lm('Performing gallery dig.')               
+                    me.lm('Performing gallery dig.')
                     return me.digger.digGallery(
                         new GalleryOptions(locDoc.doc, locDoc.loc, me.digOpts, me.galleryMap)
                     );
@@ -593,10 +592,10 @@ class App extends CommonBase {
                     // where it stopped. So, redraw the file outputs and present the file options. Don't try
                     // to automagically download everything, as we need user input for this.
                     me.lsm(`Presenting whatever is in the galleryMap.`);
-                    
+
                     me.digger.redrawOutputFileOpts(me.galleryMap);
                     me.presentFileOptions(me.galleryMap);
-                    
+
                     // Resolve STOP, but only for if someone chains off of us in the future.
                     return C.CAN_FN.PR_RS_STOP();
                 }
@@ -605,7 +604,7 @@ class App extends CommonBase {
                     // present the user with the "please refresh" message, and reject.
                     me.output.toOut(MessageStrings.PLEASE_REFRESH);
                     me.lm(`Error caught in digGallery(). It is:\n         ${JSON.stringify(err)}`);
-                    
+
                     // Reject only for if someone chains off of us in the future.
                     return Promise.reject(err);
                 }
@@ -618,16 +617,16 @@ class App extends CommonBase {
     }
 
 
-   /**  
+   /**
      * The main entry point of the app if you want to harvest media items pointed to from
      * galleries, and have them be shown to the user so the user can choose which ones they
-     * want. 
+     * want.
      */
     digFileOptions() {
         this.setupProcess(C.ACTION.DIG, true, 'Initializing: Collecting gallery uris from page.');
-        var me = this;        
- 
-        // Begin by communicating with the ContentPeeper for information 
+        var me = this;
+
+        // Begin by communicating with the ContentPeeper for information
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the this.digger.
         return (
@@ -649,7 +648,7 @@ class App extends CommonBase {
                         // Store the prevUriMap, but throw away its promise. We want to resolve with me.galleryMap
                         // to continue giving the user all the file options we can before hard stop. It will at the very
                         // least be the Logicker-processed peeperMap.
-                        Utils.setInStorage(Storing.storePrevUriMap(me.galleryMap))
+                        Utils.setInStorage(Storing.buildPrevUriMapStoreObj(me.galleryMap), 'local')
                             .then(() => {
                                 me.lm('Setting prevUriMap');
                             })
@@ -666,17 +665,17 @@ class App extends CommonBase {
                         // the next part of the chain.
                         return me.digger.digGallery(
                             new GalleryOptions(locDoc.doc, locDoc.loc, me.digOpts, me.galleryMap)
-                        );                      
+                        );
                     }
                 })
-                .then((harvestedMap) => {  
-                    // Create a new galleryMap object from the harvestedMap. 
+                .then((harvestedMap) => {
+                    // Create a new galleryMap object from the harvestedMap.
                     // Note: harvestedMap might === galleryMap from the digOpts-degenerate/STOP path.
                     me.galleryMap = Object.assign({}, harvestedMap);
 
                     // Present the harvestedMap options for the user to choose to download.
                     // Then if we get STOP here, we reject with STOP to do the catch block.
-                    // If not STOP, do a default resolve to go straight to finally(). 
+                    // If not STOP, do a default resolve to go straight to finally().
                     me.presentFileOptions(me.galleryMap).then(() => {
                         return (
                             me.isSTOP() ?
@@ -710,31 +709,33 @@ class App extends CommonBase {
     };
 
 
-     /**  
+     /**
      * The main entry point of the app if you want to harvest media items in galleries which
-     * are themselves on a page that is a gallery. Show retuslts to the user so the user can 
-     * choose which ones they want. 
+     * are themselves on a page that is a gallery. Show retuslts to the user so the user can
+     * choose which ones they want.
      */
     digGalleryGallery() {
         this.setupProcess(C.ACTION.DIG_GG, false, 'Initializing: Collecting uris to galleries from page.');
-        
+
         // Variables, all closure all the time.
         var locDocs = [];
         var combinedMap = {};
-        var me = this; 
+        var stoppedBeforeDig = false;
+        var me = this;
         var p = C.CAN_FN.PR_RS_DEF();
 
-        // Begin by communicating with the ContentPeeper for information 
+        // Begin by communicating with the ContentPeeper for information
         // about the target page. Then present the user with choices on what to download,
         // with either the galleryMap from the ContentPeeper, or from the this.digger.
-        return ( 
+        return (
             me.processContentPage()
                 .then((locDoc) => {
                     // If stop is already called, reject with STOP to shoot to the final catch(). Set a flag so we
                     // know this was an early STOP.
                     if (me.isSTOP()) {
+                        stoppedBeforeDig = true;
                         me.output.toOut(MessageStrings.STOPPING_DDD);
-                        me.lsm(`after processContentPage(), before any digging. Reject with STOP.`);                        
+                        me.lsm(`after processContentPage(), before any digging. Reject with STOP.`);
                         return C.CAN_FN.PR_RJ_STOP();
                     }
 
@@ -746,9 +747,10 @@ class App extends CommonBase {
                 .then((mapOfGalleryLinks) => {
                     // Fix the placement of this.
                     if (me.isSTOP()) {
+                        stoppedBeforeDig = true;
                         me.output.toOut(MessageStrings.STOPPING_DDD);
                         me.lsm(`while building gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
-                        
+
                         // Instead of a bunch of resolve STOP promises in a chain, set the whole promise chain to our resolve(STOP), set a flag so
                         // we don't reset p again the next time through (we're stuck in a forEach), and return p.
                         return C.CAN_FN.PR_RJ_STOP();
@@ -756,7 +758,7 @@ class App extends CommonBase {
 
                     // We make a simple chain of XHR promises fetching the linked-to gallery pages
                     var galleryCount = 0;
-                    Object.values(mapOfGalleryLinks).forEach((uri) => { 
+                    Object.values(mapOfGalleryLinks).forEach((uri) => {
                         if (!!uri && !!uri.trim()) {
                             if (me.isSTOP()) {
                                 me.output.toOut(MessageStrings.STOPPING_DDD);
@@ -766,13 +768,14 @@ class App extends CommonBase {
                             }
 
                             // If the URI was good enough, chain up the promise.
-                            p = p.then(() => { 
+                            p = p.then(() => {
                                 // A STOP here means we may have already fetched a few galleries, or we may not have. In
                                 // any case, we need to set the promise chain to just resolve with STOP and not do any more
                                 // XHRs.
                                 if (me.isSTOP()) {
+                                    stoppedBeforeDig = true;
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
-                                    me.lsm(`while executing gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);                                  
+                                    me.lsm(`while executing gallery-fetching promises. Ending this promise chain here, resolving with STOP.`);
                                     return C.CAN_FN.PR_RJ_STOP();
                                 }
 
@@ -783,17 +786,17 @@ class App extends CommonBase {
                                         // Update the log and the user as to what gallery page we just received the document for.
                                         me.lm('Executed load of gallery page ' + uri);
                                         me.output.toOut('Loading gallery page ' + uri);
-                                        
+
                                         // Update the badge with some numbers.
                                         chrome.browserAction.setBadgeText({ text: (C.ST.E + (++galleryCount) + C.ST.E) });
                                         chrome.browserAction.setBadgeBackgroundColor(C.COLOR.NEW_FOPTS);
 
-                                        if (me.isSTOP()) { 
+                                        if (me.isSTOP()) {
                                             // If we got a STOP now, just reject to get to this p.then()'s catch().
-                                            return C.CAN_FN.PR_RJ_STOP(); 
+                                            return C.CAN_FN.PR_RJ_STOP();
                                         }
                                         else {
-                                            // The success case is to construct a LocDoc from the newly-fetched 
+                                            // The success case is to construct a LocDoc from the newly-fetched
                                             // gallery document and push it into the locDocs array. Then resolve, going
                                             // on to fetch the next doc. (and skipping the catch().)
                                             locDocs.push(new LocDoc(new URL(uri), d));
@@ -802,6 +805,7 @@ class App extends CommonBase {
                                     }).catch((e) => {
                                         // This gets any STOP in this promise link.
                                         if (me.isSTOP(e)) {
+                                            stoppedBeforeDig = true;
                                             me.output.toOut(MessageStrings.STOPPING_DDD);
                                             me.lsm(`all doc-fetching operations halting, setting the entire promise chain to resolve(STOP).`);
                                             p = C.CAN_FN.PR_RS_STOP();
@@ -810,7 +814,7 @@ class App extends CommonBase {
                                         else {
                                             // We got a real unexpected error from the gallery doc loading. Just log it and
                                             // tell the user, but then move on.
-                                            me.lm(`Failed to load gallery doc ${uri}. Error was:\n       ${JSON.stringify(e)}`);
+                                            me.lm(`Failed to load gallery doc ${uri}. Error was:\n\t${e}`);
                                             me.output.toOut('Failed to load gallery page ' + uri);
                                             galleryCount--;
 
@@ -821,7 +825,7 @@ class App extends CommonBase {
                             });
                         }
                     });
-                    
+
                     // This is a promise chain of operations to load each gallery page from an XHR document-request.
                     // The resolved value of this promise is always either boolean "true" or "STOP", as the closure
                     // variable array locDocs collects the data needed for the next stage. a STOP will have truncated
@@ -834,21 +838,22 @@ class App extends CommonBase {
 
                     // Using the locDocs collected for each gallery page that is linked to from the
                     // gallery-gallery-page. Use them to create a promise chain of digGallery(...)
-                    // calls on each locDoc. 
+                    // calls on each locDoc.
                     locDocs.forEach((lDoc) => {
                         // A STOP here means we will truncate the promise-chain to only the locDocs we have processed
                         // up until this point.
                         if (me.isSTOP(trueOrStop)) {
+                            stoppedBeforeDig = true;
                             me.output.toOut(MessageStrings.STOPPING_DDD);
                             me.lsm(`while going through locDocs. Truncating promise chain.`);
                             return C.CAN_FN.PR_RJ_STOP();
                         };
 
                         // Build the promise chain of digging all the galleries linked to from the
-                        // gallery-gallery-page. First we call digGallery() in scrape-only mode to 
+                        // gallery-gallery-page. First we call digGallery() in scrape-only mode to
                         // get us a starting harvested gallery map. Then we do a scrape+dig (normally)
                         // unless the Logicker's special rules invalidate doScrape or doDig. That
-                        // resolves with digGallery()'s harvested map, which we add to the combined map 
+                        // resolves with digGallery()'s harvested map, which we add to the combined map
                         // at the end.
                         me.lm('creating dig promise for ' + lDoc.loc.href);
                         me.output.toOut('Beginning dig for ' + lDoc.loc.href);
@@ -858,13 +863,14 @@ class App extends CommonBase {
                             // A stop here means the STOP was signalled while the promises were executing. We do similarly
                             // to above, setting the whole chain to just one resolve(STOP)
                             if (me.isSTOP()) {
+                                stoppedBeforeDig = true;
                                 me.output.toOut(MessageStrings.STOPPING_DDD);
                                 me.lsm(`Right before digging gallery ${lDoc.loc.href}. Truncating promise chain.`);
                                 return C.CAN_FN.PR_RS_STOP();
                             }
 
                             // Call the Digger to do a gallery scrape only, giving us something very similar to peeperMap from
-                            // ContentPeeper. We can then post-process with Logicker, then do a full scrape-n-dig of the 
+                            // ContentPeeper. We can then post-process with Logicker, then do a full scrape-n-dig of the
                             // gallery to get the thumbUri -> zoomImgUri mappings.
                             return me.digger.digGallery(
                                 new GalleryOptions(lDoc.doc, lDoc.loc, new DigOpts(true, false), {})
@@ -877,12 +883,12 @@ class App extends CommonBase {
                                 // STOP here means At Least one promise-link of the chain did a Digger.digGallery() for scraping and
                                 // Logicker post-processing, and probably multiple links have executed. Our STOP here is to truncate
                                 // the chain to only what we have already dug. This is done in multiple stages. This is stage 1,
-                                // to set the whole chain to just resolve of the inst.processedMap. 
+                                // to set the whole chain to just resolve of the inst.processedMap.
                                 if (me.isSTOP()) {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
                                     me.lsm(`Resolving with the Logicker\'s post-processed-data.`);
 
-                                   
+
                                     return C.CAN_FN.PR_RS_STOP();
                                 }
                                 else {
@@ -894,21 +900,21 @@ class App extends CommonBase {
                                 }
                             })
                             .then((harvestedUriMap) => {
-                                // Use the combinedMap closure var to collect the new entries from the harvestedUriMap. Now we're 
+                                // Use the combinedMap closure var to collect the new entries from the harvestedUriMap. Now we're
                                 // gallery-gallery-digging!
                                 me.output.toOut('Received file list for ' + lDoc.loc.href);
                                 me.lm('Received ' + Object.getOwnPropertyNames(harvestedUriMap).length + C.ST.E);
                                 Object.assign(combinedMap, harvestedUriMap);
-                                
+
                                 // STOP here means to not dig any more galleries, or fold any more entries into combinedMap.
                                 // Do the same promise-chain truncation trick, resolve of STOP, and set alreadyStopping so we
-                                // don't do it a bunch of times. 
+                                // don't do it a bunch of times.
                                 if (me.isSTOP()) {
                                     me.output.toOut(MessageStrings.STOPPING_DDD);
                                     me.lsm(`Rejecting with "STOP".)`);
-                                    return C.CAN_FN.PR_RJ_STOP();                        
+                                    return C.CAN_FN.PR_RJ_STOP();
                                 }
-                                
+
                                 // Resolve true to skip the catch and go on to the next link.
                                 return C.CAN_FN.PR_RS_STOP();
                             })
@@ -920,7 +926,7 @@ class App extends CommonBase {
                                     me.lsm(`caught thrown STOP. Resolve with "STOP".`);
                                     return C.CAN_FN.PR_RS_STOP();
                                 }
-                                
+
                                 // If we got a real error, ask the user to refresh again, log the stringified error, and reject.
                                 me.output.toOut(MessageStrings.PLEASE_REFRESH);
                                 me.lm(`Promise chain hit an unhandled error. Rejecting. Error is:\n       ${JSON.stringify(err)}`);
@@ -961,7 +967,7 @@ class App extends CommonBase {
                     me.output.toOut(`Received file list of length: ${length}`);
 
                     // Resolve the combinedMap, though it's a closure variable and we don't really need to.
-                    return Promise.resolve(combinedMap); 
+                    return Promise.resolve(combinedMap);
                 })
                 .then((cMap) => {
                     // Present all the file options we found that are in the combinedMap.
@@ -991,29 +997,28 @@ class App extends CommonBase {
                                 me.output.clearFilesDug();
                             }
                             else {
-                                // As all the STOP paths RESOLVE through this chain (except the stoppedBeforeDig one), 
-                                // so we can assume all the file opts we dug were presented, so all is ok. 
+                                // As all the STOP paths RESOLVE through this chain (except the stoppedBeforeDig one),
+                                // so we can assume all the file opts we dug were presented, so all is ok.
                                 // The user doesn't need a special message about this, but Log one.
                                 me.lsm(`File opts probably already presented so All Good. Resolving into the finally().`);
                             }
-                            
+
                             // Resolve with STOP in both STOP cases. It's just for the future, if this gets chained off of.
                             // (Only the finally() is left in this chain.)
                             resolve(err);
                         }
                         else {
-                            // A real, unexpected error occurred somewhere in the chain... Just ask the user to refresh, and 
+                            // A real, unexpected error occurred somewhere in the chain... Just ask the user to refresh, and
                             // log the stringified error.
                             me.output.toOut(MessageStrings.PLEASE_REFRESH);
                             me.lm(`Caught error in digGalleryGallery():\n      ${JSON.stringify(err)}`);
                             me.output.clearFilesDug();
-                            
+
                             // Reject with this unexpected err. Done in case we are chained off of in the future.
                             // (Only the finally() is left in this chain.)
                             reject(err);
-
                         }
-                    })
+                    });
                 })
                 .finally(() => {
                     // Store the combined harvest map, which galleryMap is set to, in storage and reset the flags. Fini!
@@ -1032,4 +1037,3 @@ if (Utils.isBackgroundPage(window) && !window.hasOwnProperty(C.WIN_PROP.APP_CLAS
 
 // export.
 export default App;
-    
